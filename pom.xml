@@ -8,11 +8,11 @@
         <version>3.5.4</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.PetPick</groupId>
-    <artifactId>PetPick</artifactId>
+    <groupId>com.petpick</groupId>
+    <artifactId>petpick</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>PetPick</name>
-    <description>PetPick</description>
+    <name>petpick</name>
+    <description>petpick</description>
     <url/>
     <licenses>
         <license/>
