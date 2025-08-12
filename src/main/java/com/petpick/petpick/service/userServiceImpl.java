@@ -29,5 +29,13 @@ private  final PasswordEncoder passwordEncoder;
         userRepository.save(user);
     }
 
+    @Override
+    public boolean login(String username, String password) {
+        userEntity user = userRepository.findByUsername(username);
+        if (user == null) {
+            return false;
+        }
+        return passwordEncoder.matches(password, user.getPassword());
+    }
 
 }
