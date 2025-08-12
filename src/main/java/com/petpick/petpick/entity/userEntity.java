@@ -1,9 +1,12 @@
 package com.petpick.petpick.entity;
 
+
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
-@Table(name="userinfo")
+@Table
+@Data
 public class userEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,4 +25,10 @@ public class userEntity {
     private String pet_activities;
     private String isaccount;
     private String isblacklist;
+
+
+
+
+
+
 }
