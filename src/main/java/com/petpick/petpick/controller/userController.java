@@ -2,17 +2,13 @@ package com.petpick.petpick.controller;
 
 import com.petpick.petpick.entity.userEntity;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.petpick.petpick.service.userService;
 
 @RestController
 @RequestMapping("/api/auth")
 public class userController {
-    @Autowired
-    private final userService userService;
+    private final userService userService; // final + Constructor Injection
 
     public userController(userService userService) {
         this.userService = userService;
@@ -24,9 +20,9 @@ public class userController {
         return "註冊成功";
     }
 
-
-
-
-
-
+    @PostMapping("/login")
+    public String login(@RequestParam String username, @RequestParam String password) {
+        boolean success = userService.login(username, password);
+        return success ? "登入成功" : "帳號或密碼錯誤";
+    }
 }
