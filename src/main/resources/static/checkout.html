@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐾 結帳頁面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/checkout.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+
+<body>
+
+    <body class="d-flex flex-column min-vh-100">
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-light shadow-sm fixed-top">
+            <div class="container-fluid">
+                <!-- LOGO -->
+                <a class="navbar-brand" href="index.html">
+                    <img src="./figure/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+                    Petpick
+                </a>
+
+                <!-- 手機切換按鈕 -->
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- 導覽列連結 -->
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+
+                        <!-- 左側按鈕 -->
+                        <ul class="navbar-nav mb-2 mb-lg-0">
+                            <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">尋找領養</a></li>
+                            <li class="nav-item"><a class="nav-link btn btn-login m-1" href="missonMain.html">尋找任務</a>
+                            </li>
+                            <li class="nav-item"><a class="nav-link btn btn-login m-1" href="commodity.html">寵物商城</a></li>
+                        </ul>
+
+                        <!-- 右側按鈕 -->
+                        <div class=" position-fixed end-0 m-4 ">
+                            <button id="chat-toggle" class="btn btn-material">
+                                <span class="material-icons">chat_bubble_outline</span>
+                            </button>
+                            <a class="btn" href="cart.html" role="button"><button id="cart-button"
+                                class="btn btn-material position-relative" onclick="cartHtml()">
+                                <span class="material-icons">shopping_cart</span>
+                                <span id="cart-badge"
+                                    class="badge bg-danger position-absolute top-0 start-75 translate-middle">
+                                    0
+                                </span>
+                            </button>
+                        </a>
+                            <button class="btn btn-material">
+                                <span class="material-icons">account_circle</span>
+                            </button>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-grow-1 mt-5 pt-4">
+            <!-- Checkout Container -->
+            <div class="container form-custom">
+                <h2 class="mb-4">填寫結帳資訊</h2>
+
+                <form id="checkout-form">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">姓名</label>
+                        <input type="text" class="form-control" id="name" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">收件人手機電話</label>
+                        <input type="tel" class="form-control" id="phone" pattern="^09\d{8}$" required>
+                        <div id="phone-error" class="text-danger mt-1" style="display: none;">
+                            請輸入正確號碼
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="delivery-method" class="form-label">配送方式</label>
+                        <select class="form-select" id="delivery-method" required>
+                            <option value="store">到店取貨</option>
+                            <option value="address">宅配到府</option>
+                        </select>
+                    </div>
+
+                    <!-- 收件地址欄位，預設隱藏 -->
+                    <div class="mb-3" id="address-field" style="display: none;">
+                        <label for="address" class="form-label">收件地址</label>
+                        <input type="text" class="form-control" id="address">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="payment" class="form-label">付款方式</label>
+                        <select class="form-select" id="payment" required>
+                            <option value="credit">信用卡</option>
+                            <option value="cash" id="cash-option">到店現金付款</option>
+                            <option value="cod" id="cod-option">貨到付款</option>
+                        </select>
+                    </div>
+
+                    <div id="credit-info" class="mt-3" style="display: none;">
+                        <h5 class="mb-3">信用卡資訊</h5>
+
+                        <div class="mb-3">
+                            <label for="cardNumber" class="form-label">信用卡卡號</label>
+                            <input type="text" class="form-control" id="cardNumber"
+                                placeholder="例如：4111 1111 1111 1111">
+                            <div class="text-danger small" id="cardNumberError"></div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="cardExpiry" class="form-label">有效期限</label>
+                                <input type="text" class="form-control" id="cardExpiry" placeholder="MM/YY">
+                                <div class="text-danger small" id="expiryError"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="cardCvv" class="form-label">安全碼 (CVV)</label>
+                                <input type="text" class="form-control" id="cardCvv" placeholder="例如：123">
+                                <div class="text-danger small" id="cvvError"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h4>💰 總金額：<span id="total-price" class="text-danger fw-bold">NT$0</span></h4>
+                    <div class="d-flex justify-content-between">
+                        <button onclick="" class="btn btn-custom mt-3">回上頁</button>
+                        <button type="submit" class="btn btn-custom mt-3">確認結帳</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 模擬結帳結果 Modal -->
+            <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="checkoutModalLabel"> 結帳成功！</h5>
+                        </div>
+                        <div class="modal-body">
+                            感謝您的訂購！訂單已建立，我們將儘快安排出貨。
+                        </div>
+                        <div class="modal-footer">
+                            <a href="order.html" class="btn btn-custom">查看訂單</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer py-3">
+            <div class="container text-center small">
+                <p>快速連結：領養 / 商城 / 醫療回報 / 寵物救助</p>
+                <p>email: ispan@gmail.com</p>
+                <p>地址：台中市南屯區公益路二段51號</p>
+                <p class="text-muted">本站所有資訊來自開放平台與會員自行刊登，若有侵權請聯繫移除。</p>
+            </div>
+        </footer>
+
+        <!-- 右下角置頂按鈕 -->
+        <button id="backToTop" class="btn btn-primary shadow">↑</button>
+
+
+        <!-- Bootstrap JS -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="js/checkout.js"></script>
+       
+
+    </body>
+
+</html>

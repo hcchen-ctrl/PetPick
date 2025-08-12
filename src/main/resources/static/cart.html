@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐾 購物車</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/cart.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light shadow-sm fixed-top">
+        <div class="container-fluid">
+            <!-- LOGO -->
+            <a class="navbar-brand" href="index.html">
+                <img src="./figure/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+                PetPick
+            </a>
+
+            <!-- 手機切換按鈕 -->
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- 導覽列連結 -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+
+                    <!-- 左側按鈕 -->
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">尋找領養</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="missonMain.html">尋找任務</a>
+                        </li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="commodity.html">寵物商城</a></li>
+                    </ul>
+
+                    <!-- 右側按鈕 -->
+                    <div class=" position-fixed end-0 m-4 ">
+                        <button id="chat-toggle" class="btn btn-material">
+                            <span class="material-icons">chat_bubble_outline</span>
+                        </button>
+                        <a class="btn" href="cart.html" role="button"><button id="cart-button"
+                                class="btn btn-material position-relative" onclick="cartHtml()">
+                                <span class="material-icons">shopping_cart</span>
+                                <span id="cart-badge"
+                                    class="badge bg-danger position-absolute top-0 start-75 translate-middle">
+                                    0
+                                </span>
+                            </button>
+                        </a>
+                        <button class="btn btn-material">
+                            <span class="material-icons">account_circle</span>
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow-1 mt-5 pt-4">
+        <div class="container mt-4">
+            <h2 class="text-center mb-4">我的購物車</h2>
+
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead class="thead-custom">
+                        <tr>
+                            <th>商品圖片</th>
+                            <th>商品名稱</th>
+                            <th>單價</th>
+                            <th>數量</th>
+                            <th>小計</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cart-items">
+                        <!-- JS 渲染區 -->
+                    </tbody>
+                </table>
+            </div>
+
+
+            <div class="text-end">
+                <h4>總金額：<span id="total-price">NT$0</span></h4>
+                <button class="btn-custom mt-2">結帳</button>
+            </div>
+        </div>
+    </main>
+
+
+    <!-- Footer -->
+    <footer class="footer py-3">
+        <div class="container text-center small">
+            <p>快速連結：領養 / 商城 / 醫療回報 / 寵物救助</p>
+            <p>email: ispan@gmail.com</p>
+            <p>地址：台中市南屯區公益路二段51號</p>
+            <p class="text-muted">本站所有資訊來自開放平台與會員自行刊登，若有侵權請聯繫移除。</p>
+        </div>
+    </footer>
+
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteLabel">確認刪除</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    確定要移除此項目嗎？
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">否</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">是</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Bootstrap JS -->
+    <script src="js/cart.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ" crossorigin="anonymous">
+        </script>
+
+</body>
+
+</html>

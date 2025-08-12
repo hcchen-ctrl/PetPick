@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>訂單管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 側邊選單 -->
+            <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="admin-dashboard.html">首頁</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="admin-products.html">商品管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="admin-orders.html">訂單管理</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="admin-users.html">會員管理</a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主內容 -->
+            <main class="col-md-10 ms-sm-auto px-md-4 mt-4">
+                <h2>📑 訂單管理</h2>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>訂單編號</th>
+                                <th>會員</th>
+                                <th>金額</th>
+                                <th>狀態</th>
+                                <th>下單時間</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="order-table-body">
+                            <!-- JS render -->
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        fetch("order.json")
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById("order-table-body");
+                tbody.innerHTML = data.map(order => `
+          <tr>
+            <td>#${order.orderId}</td>
+            <td>${order.receiver}</td>
+            <td>NT$${order.total}</td>
+            <td><span class="badge bg-${order.status === '已出貨' ? 'success' : 'secondary'}">${order.status}</span></td>
+            <td>${order.date}</td>
+            <td>
+              <a class="btn btn-sm btn-primary" href="order-detail.html?id=${order.id}">查看</a>
+            </td>
+          </tr>
+        `).join('');
+            });
+    </script>
+
+</body>
+
+</html>
