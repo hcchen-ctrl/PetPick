@@ -7,4 +7,8 @@ public interface userService {
 
     boolean loginByEmail(String accountemail, String password); // 新增：用 email 登入
     boolean login(String accountemail, String password);
+
+    userEntity findById(Long user_id);
+    void save(userEntity user);
+
 }

@@ -44,4 +44,15 @@ private  final PasswordEncoder passwordEncoder;
         return passwordEncoder.matches(password, user.getPassword());
     }
 
+    // 依ID查詢會員
+    public userEntity findById(Long user_id) {
+        return userRepository.findById(user_id)
+                .orElseThrow(() -> new RuntimeException("找不到會員"));
+    }
+
+    // 更新會員資料
+    public void save(userEntity user) {
+        userRepository.save(user);
+    }
+
 }

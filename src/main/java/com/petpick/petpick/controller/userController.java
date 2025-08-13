@@ -64,4 +64,34 @@ public class userController {
             return "userlogin"; // 回到登入頁並顯示錯誤訊息
         }
     }
+
+    @PostMapping("/profileUpdate")
+    public String updateProfile(
+            @RequestParam Long user_id,
+            @RequestParam String username,
+            @RequestParam String phonenumber,
+            @RequestParam String gender,
+            @RequestParam String accountemail,
+            @RequestParam String city,
+            @RequestParam String district,
+            @RequestParam String experience,
+            @RequestParam String daily,
+            @RequestParam(required = false) String[] pet,
+            @RequestParam(required = false) String[] pet_activities,
+            @RequestParam(required = false) String isaccount,
+            @RequestParam(required = false) String isblacklist,
+            Model model
+    ) {
+        try {
+            userEntity user = userService.findById(user_id);
+            // ...existing code...
+            model.addAttribute("message", "資料更新成功");
+            return "profileUpdate";
+        } catch (Exception e) {
+            model.addAttribute("message", "資料更新失敗：" + e.getMessage());
+            e.printStackTrace(); // 建議加這行，方便 debug
+            return "profileUpdate";
+        }
+    }
+
 }
