@@ -6,12 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wepet 寵物資訊平台</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" th:href="@{/styles.css}">
+    <link rel="stylesheet" href="../static/styles.css">
     <link rel="stylesheet" href="chatroom.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <script th:src="@{/memFunction.js}"></script>
+    <script src="../static/memFunction.js"></script>
 
 </head>
 
@@ -19,7 +19,6 @@
 
 
 <body>
-
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
     <div class="container-fluid">
@@ -65,58 +64,8 @@
 
 
 <div class="container">
-    <!-- 登入表單 -->
-    <div id="loginForm" class="auth-container fade-in active">
-        <div class="auth-header">
-            <div class="pet-icon">
-                <i class="fas fa-heart"></i>
-            </div>
-            <h2>會員登入</h2>
-            <p class="subtitle">歡迎回到 Wepet，讓我們一起幫助更多毛孩找到溫暖的家</p>
-        </div>
-        <div class="auth-body">
-            <form action="/auth/userlogin" method="post">
-                <div class="form-group">
-                    <label for="accountemail">
-                        <i class="fas fa-envelope"></i> 電子信箱
-                    </label>
-                    <input type="email" class="form-control" id="loginEmail" name="accountemail" placeholder="請輸入您的電子信箱" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">
-                        <i class="fas fa-lock"></i> 密碼
-                    </label>
-                    <input type="password" class="form-control" id="loginPassword" name="password" placeholder="請輸入您的密碼" required>
-                </div>
-                <button type="submit" class="button-login">
-                    <i class="fas fa-sign-in-alt"></i> 登入
-                </button>
-            </form>
-
-            <div class="divider">
-                <br>
-                <span>或使用以下方式登入</span>
-            </div>
-
-            <div class="social-login">
-                <button class="btn btn-google social-btn">
-                    <i class="fab fa-google"></i> 使用 Google 帳號登入
-                </button>
-                <button class="btn btn-facebook social-btn">
-                    <i class="fab fa-facebook-f"></i> 使用 Facebook 帳號登入
-                </button>
-            </div>
-
-            <div class="switch-form">
-                <p>還沒有帳號嗎？<button onclick="showForm('registerForm')" class=button-account>立即註冊</button></p>
-                <p><button onclick="showForm('forgotPasswordForm')" class=button-account
-                           style="color: #6c757d;">忘記密碼？</button></p>
-            </div>
-        </div>
-    </div>
-
-    <!-- 註冊表單 -->
-    <div id="registerForm" class="auth-container fade-in" style="display: none;">
+        <!-- 註冊表單 -->
+    <div id="registerForm" class="auth-container fade-in" >
         <div class="auth-header">
             <div class="pet-icon">
                 <i class="fas fa-user-plus"></i>
@@ -179,60 +128,13 @@
 
             <div class="switch-form">
                 <br>
-                <p>已經有帳號了？<button onclick="showForm('loginForm')" class=button-account>立即登入</button></p>
+                <p>已經有帳號了？<button href="userlogin.html" onclick="location.href='./userlogin.html'" class=button-account>立即登入</button></p>
             </div>
         </div>
     </div>
 
 
-    <!-- 忘記密碼表單 -->
-    <div id="forgotPasswordForm" class="auth-container fade-in" style="display: none;">
-        <div class="auth-header">
-            <div class="pet-icon">
-                <i class="fas fa-key"></i>
-            </div>
-            <h2>忘記密碼</h2>
-            <p class="subtitle">別擔心，我們會協助您重新設定密碼</p>
-        </div>
-        <div class="auth-body">
-            <form>
-                <div class="form-group">
-                    <label for="resetEmail">
-                        <i class="fas fa-envelope"></i> 電子信箱
-                    </label>
-                    <input type="email" class="form-control" id="resetEmail" placeholder="請輸入註冊時使用的電子信箱" required>
-                </div>
-                <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 1.5rem;">
-                    我們將發送重設密碼的連結到您的信箱
-                </p>
-                <button type="submit" class="button">
-                    <i class="fas fa-paper-plane"></i> 發送重設連結
-                </button>
-            </form>
-
-            <div class="switch-form">
-                <br>
-                <p>想起密碼了？<button onclick="showForm('loginForm')" class=button-account>返回登入</button></p>
-            </div>
-        </div>
     </div>
-
-
-
-</div>
-
-<script th:inline="javascript">
-
-    var regMsg = [[${message}]];
-    if(regMsg && regMsg.indexOf('註冊失敗') === 0){
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('registerForm').style.display = 'block';
-            document.getElementById('loginForm').style.display = 'none';
-        });
-    }
-
-</script>
 
 </body>
 
-</html>
