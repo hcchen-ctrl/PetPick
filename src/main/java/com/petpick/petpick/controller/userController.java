@@ -20,39 +20,49 @@ public class userController {
     }
 
     @PostMapping("/register")
-    public String register(    @RequestParam String username,
-                               @RequestParam String accountemail,
-                               @RequestParam String phonenumber,
-                               @RequestParam String password,
-                               @RequestParam(required = false) String confirmPassword,
-                               @RequestParam(required = false) String smsCode,
-                               @RequestParam(required = false) String subscribeNewsletter,
-                               Model model) {
+    public String register(
+            @RequestParam String username,
+            @RequestParam String accountemail,
+            @RequestParam String phonenumber,
+            @RequestParam String password,
+            @RequestParam(required = false) String confirmPassword,
+            @RequestParam(required = false) String smsCode,
+            @RequestParam(required = false) String subscribeNewsletter,
+            Model model
+    ) {
+        try {
             userEntity user = new userEntity();
             user.setUsername(username);
             user.setAccountemail(accountemail);
             user.setPhonenumber(phonenumber);
-            user.setPassword(password); // 建議加密
+            user.setPassword(password);
 
-            userService.register(user); // 寫入資料庫
-
+            userService.register(user);
             model.addAttribute("message", "註冊成功");
-            return "userlogin";
+            return "sucess"; // 註冊成功顯示 sucess.html
+        } catch (Exception e) {
+            model.addAttribute("message", "註冊失敗：" + e.getMessage());
+            return "userlogin"; // 註冊失敗回到原畫面
         }
+    }
 
     @GetMapping("/register")
     public String showRegisterPage() { return "userlogin"; }
 
-    @GetMapping("/login")
+    @GetMapping("/userlogin")
     public String showLoginPage() {
         return "userlogin"; // login.html 必須在 templates 資料夾
     }
 
     @PostMapping("/userlogin")
     public String login(@RequestParam String accountemail, @RequestParam String password, Model model) {
-        boolean success = userService.loginByEmail(accountemail, password);
-        model.addAttribute("message", success ? "登入成功" : "帳號或密碼錯誤");
-        return "index"; // 登入結果頁 (需有 index.html)
+        boolean success = userService.login(accountemail, password);
+        if (success) {
+            return "index";
+        } else {
+            model.addAttribute("message", "帳號或密碼錯誤");
+            return "userlogin"; // 回到登入頁並顯示錯誤訊息
+        }
     }
     }
 
