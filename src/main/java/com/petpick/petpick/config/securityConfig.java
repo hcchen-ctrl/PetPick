@@ -39,6 +39,7 @@ public class securityConfig {
                                 "/js/**",
                                 "/images/**",
                                 "/styles.css",
+                                "/memFunction.js",
                                 "/login",      // 放行登入頁
                                 "/index"       // 放行首頁（如果要公開）
                         ).permitAll()
