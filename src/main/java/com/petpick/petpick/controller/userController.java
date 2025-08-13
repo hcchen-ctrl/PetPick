@@ -19,7 +19,7 @@ public class userController {
         this.userService = userService;
     }
 
-    @PostMapping("/userlogin")
+    @PostMapping("/register")
     public String register(    @RequestParam String username,
                                @RequestParam String accountemail,
                                @RequestParam String phonenumber,
@@ -40,13 +40,19 @@ public class userController {
             return "userlogin";
         }
 
-    @GetMapping("/userlogin")
+    @GetMapping("/register")
     public String showRegisterPage() { return "userlogin"; }
 
-    @PostMapping("/login")
-    public String login(@RequestParam String username, @RequestParam String password, Model model) {
-        boolean success = userService.login(username, password);
+    @GetMapping("/login")
+    public String showLoginPage() {
+        return "userlogin"; // login.html 必須在 templates 資料夾
+    }
+
+    @PostMapping("/userlogin")
+    public String login(@RequestParam String accountemail, @RequestParam String password, Model model) {
+        boolean success = userService.loginByEmail(accountemail, password);
         model.addAttribute("message", success ? "登入成功" : "帳號或密碼錯誤");
-        return "loginResult"; // 需有 loginResult.html
-}
-}
+        return "index"; // 登入結果頁 (需有 index.html)
+    }
+    }
+

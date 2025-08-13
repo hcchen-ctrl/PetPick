@@ -6,6 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.petpick.petpick.repository.userRepository;
+import com.petpick.petpick.service.userService;
 
 @Service
 public class userServiceImpl implements userService{
@@ -22,16 +23,21 @@ private  final PasswordEncoder passwordEncoder;
 
     @Override
     public void register(userEntity user) {
-        if (userRepository.existsByUsername(user.getUsername())) {
-            throw new RuntimeException("帳號已存在");
+        if (userRepository.existsByAccountemail(user.getAccountemail())) {
+            throw new RuntimeException("電子信箱已存在");
         }
         user.setPassword(passwordEncoder.encode(user.getPassword())); // 密碼加密
         userRepository.save(user);
     }
 
     @Override
-    public boolean login(String username, String password) {
-        userEntity user = userRepository.findByUsername(username);
+    public boolean loginByEmail(String accountemail, String password) {
+        return false;
+    }
+
+    @Override
+    public boolean login(String accountemail, String password) {
+        userEntity user = userRepository.findByAccountemail(accountemail);
         if (user == null) {
             return false;
         }

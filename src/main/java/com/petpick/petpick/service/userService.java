@@ -5,5 +5,6 @@ import com.petpick.petpick.entity.userEntity;
 public interface userService {
     void register(userEntity user);
 
-    boolean login(String username, String password);
+    boolean loginByEmail(String accountemail, String password); // 新增：用 email 登入
+    boolean login(String accountemail, String password);
 }
