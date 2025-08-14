@@ -27,12 +27,11 @@ public class MainController {
     }
 
     // 修改資料頁面
-    @GetMapping("/auth/profileUpdate")
-    public String showProfileUpdatePage(Model model, Principal principal) {
-        String accountemail = principal.getName();
-        userEntity user = userService.findByAccountemail(accountemail);
-        model.addAttribute("user", user);
-        return "profileUpdate";
+    @GetMapping("/auth/profile")
+    public String profile(Principal principal) {
+        // 如果使用者沒登入，principal 會是 null
+        String username = principal.getName(); // ← NullPointerException
+        return "profile";
     }
 
     // 更新資料

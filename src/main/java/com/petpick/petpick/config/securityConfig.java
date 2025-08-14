@@ -34,23 +34,16 @@ public class securityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/auth/userlogin",
-                                "/auth/register",
-                                "/auth/sucess",
-                                "/auth/verify-email",
-                                "/css/**", "/js/**", "/images/**", "/static/**",
-                                "/", "/auth/**"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                   http
+                    // 關閉 CSRF，方便用 API 工具測試
+                    .csrf(csrf -> csrf.disable())
 
-        return http.build();
+                    // 設定所有請求都允許（暫時用來測試）
+                    .authorizeHttpRequests(auth -> auth
+                            .anyRequest().permitAll()
+                    );
+
+            return http.build();
     }
 
     @Bean
