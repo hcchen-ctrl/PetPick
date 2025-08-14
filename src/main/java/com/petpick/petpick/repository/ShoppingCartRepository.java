@@ -3,13 +3,16 @@ package com.petpick.petpick.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jdbc.repository.query.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.petpick.petpick.dto.CartProductDTO;
+import com.petpick.petpick.dto.CartProductView;
 import com.petpick.petpick.entity.Product;
 import com.petpick.petpick.entity.ShoppingCartItem;
+
+import jakarta.transaction.Transactional;
 
 public interface ShoppingCartRepository extends JpaRepository<ShoppingCartItem, Integer> {
 
@@ -23,14 +26,23 @@ public interface ShoppingCartRepository extends JpaRepository<ShoppingCartItem, 
     Optional<ShoppingCartItem> findByUserIdAndProduct(Integer userId, Product product);
 
     @Query("""
-    SELECT new com.petpick.petpick.dto.CartProductDTO(
-        sc.cartId, sc.userId, sc.quantity, sc.addedAt,
-        p.productId, p.pname, p.imageUrl, p.price
-    )
+    SELECT
+        sc.cartId   AS cartId,
+        sc.quantity AS quantity,
+        sc.userId   AS userId,
+        sc.addedAt  AS addedAt,
+        p.productId AS productId,
+        p.pname     AS pname,
+        p.imageUrl  AS imageUrl,
+        p.price     AS price,
+        p.stock     AS stock
     FROM ShoppingCartItem sc
     JOIN sc.product p
     WHERE sc.userId = :userId
 """)
-    List<CartProductDTO> findCartItemsWithProductByUserId(@Param("userId") Integer userId);
+    List<CartProductView> findCartItemsWithProductByUserId(@Param("userId") Integer userId);
 
+    @Modifying
+    @Transactional
+    int deleteByUserId(Integer userId);
 }

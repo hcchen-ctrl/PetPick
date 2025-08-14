@@ -13,7 +13,11 @@ import com.petpick.petpick.entity.ShoppingCartItem;
 import com.petpick.petpick.repository.ProductRepository;
 import com.petpick.petpick.repository.ShoppingCartRepository;
 
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class ShoppingCartService {
 
     @Autowired
@@ -58,7 +62,19 @@ public class ShoppingCartService {
     }
 
     public List<CartProductDTO> getCartWithProductByUserId(Integer userId) {
-        return shoppingCartRepository.findCartItemsWithProductByUserId(userId);
+        return shoppingCartRepository.findCartItemsWithProductByUserId(userId).stream()
+                .map(v -> new CartProductDTO(
+                v.getCartId(),
+                v.getQuantity(),
+                v.getUserId(),
+                v.getAddedAt(),
+                v.getProductId(),
+                v.getPname(),
+                v.getImageUrl(),
+                v.getPrice(), // BigDecimal
+                v.getStock()
+        ))
+                .toList();
     }
 
     /**
@@ -69,6 +85,15 @@ public class ShoppingCartService {
             throw new RuntimeException("購物車中無此項目");
         }
         shoppingCartRepository.deleteById(cartId);
+    }
+
+    /**
+     * 刪除購物車中的全部商品
+     */
+    @Transactional
+    public void clearCart(Integer userId) {
+        int affected = shoppingCartRepository.deleteByUserId(userId);
+
     }
 
     /**

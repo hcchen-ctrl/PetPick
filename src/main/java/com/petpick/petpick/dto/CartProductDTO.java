@@ -18,10 +18,11 @@ public class CartProductDTO {
     private Integer productId;
     private String pname;
     private String imageUrl;
-    private Integer price;
+    private double price;
+    private Integer stock;        // ← 這個是「商品庫存」
 
     // 可以另外寫一個 getter 來回傳小計
-    public Integer getSubtotal() {
+    public double getSubtotal() {
         return price * quantity;
     }
 

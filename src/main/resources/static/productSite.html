@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐾 商品頁</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/productSite.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+        <div class="container-fluid">
+            <!-- LOGO -->
+            <a class="navbar-brand" href="#">
+                <img src="./figure/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+                PetPick
+            </a>
+
+            <!-- 手機切換按鈕 -->
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- 導覽列連結 -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+
+                    <!-- 左側按鈕 -->
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">尋找領養</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="missonMain.html">尋找任務</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="commodity.html">寵物商城</a></li>
+                    </ul>
+
+                    <!-- 右側按鈕 -->
+                    <div class=" position-fixed end-0 m-4 ">
+                        <button id="chat-toggle" class="btn btn-material">
+                            <span class="material-icons">chat_bubble_outline</span>
+                        </button>
+                        <a class="btn" href="cart.html" role="button"><button id="cart-button"
+                                class="btn btn-material position-relative" onclick="cartHtml()">
+                                <span class="material-icons">shopping_cart</span>
+                                <span id="cart-badge"
+                                    class="badge bg-danger position-absolute top-0 start-75 translate-middle">
+                                    0
+                                </span>
+                            </button>
+                        </a>
+                        <button class="btn btn-material">
+                            <span class="material-icons">account_circle</span>
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb py-2">
+                <li class="breadcrumb-item"><a href="commodity.html">商城</a></li>
+                <li class="breadcrumb-item active" aria-current="page">商品詳情</li>
+            </ol>
+        </nav>
+
+        <div id="content" class="row g-4 align-items-start">
+            <!-- 左：商品圖片 -->
+            <div class="col-lg-6">
+                <div class="bg-white rounded-3 shadow-sm p-3">
+                    <img id="mainImg" class="img-fluid rounded" src="" alt="商品圖片" />
+                    <div id="thumbs" class="d-flex gap-2 mt-3 flex-wrap"></div>
+                </div>
+            </div>
+
+            <!-- 右：商品資訊 -->
+            <div class="col-lg-6">
+                <div class="bg-white rounded-3 shadow-sm p-4">
+                    <h1 id="pname" class="h3 mb-3">—</h1>
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <div class="price text-danger fw-bold">NT$ <span id="price">0</span></div>
+                        <span id="stockTag" class="badge text-bg-success d-none">有庫存</span>
+                        <span id="stockLow" class="badge text-bg-warning d-none">庫存緊張</span>
+                        <span id="stockOut" class="badge text-bg-secondary d-none">補貨中</span>
+                    </div>
+                    <p id="desc" class="text-secondary mb-4">—</p>
+
+                    <div class="d-flex align-items-center gap-3 mb-4">
+                        <label class="form-label m-0">數量</label>
+                        <div class="input-group" style="max-width: 180px;">
+                            <button class="btn btn-outline-secondary" type="button" id="qtyMinus">−</button>
+                            <input id="qty" type="number" class="form-control text-center" min="1" step="1" value="1" />
+                            <button class="btn btn-outline-secondary" type="button" id="qtyPlus">＋</button>
+                        </div>
+
+                        <div class="form-text mt-1" id="stockInfo">庫存載入中…</div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-3">
+                        <button id="btn-addToCart" class="btn btn-primary btn-lg" type="button">加入購物車</button>
+                        <a href="commodity.html" class="btn btn-outline-secondary">回商品列表</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast 提示 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+        <div id="tipToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive"
+            aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toastText">已加入購物車</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto"">
+        <div class=" container">
+        <p>快速連結：領養 / 商城 / 醫療回報 / 寵物救助</p>
+        <p>email: ispan@gmail.com</p>
+        <p>地址：台中市南屯區公益路二段51號</p>
+        <p>本站所有資訊來自開放平台與會員自行刊登，若有侵權請聯繫移除。</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/productSite.js"></script>
+</body>
+
+</html>

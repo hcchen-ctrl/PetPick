@@ -26,12 +26,18 @@ function renderCart() {
         const price = item.price || 0;
         const quantity = item.quantity || 0;
         const subtotal = price * quantity;
+        const name = item.pname;
+        const id = item.productId;
         total += subtotal;
 
         return `
             <tr>
-                <td><img src="${item.imageUrl || '#'}" class="cart-img rounded" alt="商品圖" /></td>
-                <td>${item.pname || ''}</td>
+                <td><a href="productSite.html?id=${id}" class="text-decoration-none" style="color: black;">
+                <img src="${item.imageUrl || '#'}" class="cart-img rounded" alt="商品圖" /></a></td>
+                <td><a href="productSite.html?id=${id}" class="text-decoration-none" style="color: black;">
+                    ${name || ''}
+                    </a>
+                </td>
                 <td>NT$${price}</td>
                 <td>
                     <input type="number" value="${quantity}" min="1"
@@ -83,7 +89,7 @@ function removeItem(cartId) {
 
     document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
         if (deleteCartId === null) return;
-        fetch(`/api/cart/${deleteCartId}`, { method: "DELETE" })
+        fetch(`/api/cart/item/${deleteCartId}`, { method: "DELETE" })
             .then(res => {
                 if (!res.ok) throw new Error("刪除失敗");
                 cartData = cartData.filter(p => p.cartId !== deleteCartId);
@@ -102,4 +108,31 @@ function updateCartBadge() {
     const count = cartData.length;
     const badge = document.getElementById("cart-badge");
     if (badge) badge.textContent = count;
+}
+
+function getCurrentUserId() {
+    // 例如：從登入狀態/LocalStorage/後端 /api/auth/me 取得
+    return window.CURRENT_USER_ID || 1; // 先暫時用 1 測
+}
+
+const clearBtn = document.getElementById("clear-cart-btn");
+if (clearBtn) {
+    clearBtn.addEventListener("click", async () => {
+        if (!confirm("確定要移除購物車內所有商品嗎？")) return;
+
+        const userId = getCurrentUserId();
+        try {
+            const res = await fetch(`/api/cart/user/${userId}`, { method: "DELETE" });
+            if (!res.ok && res.status !== 204) throw new Error("清空失敗");
+
+            // 成功 -> 清空畫面
+            document.getElementById("cart-items").innerHTML = "";
+            document.getElementById("total-price").textContent = "NT$0";
+            const badge = document.getElementById("cart-badge");
+            if (badge) badge.textContent = "0";
+        } catch (err) {
+            console.error(err);
+            alert("清空購物車發生錯誤，請稍後再試");
+        }
+    });
 }

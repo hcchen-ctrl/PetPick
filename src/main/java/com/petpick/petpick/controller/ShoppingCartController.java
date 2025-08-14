@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +22,7 @@ import com.petpick.petpick.service.ShoppingCartService;
 
 @RestController
 @RequestMapping("/api/cart")
-@CrossOrigin
+@CrossOrigin(origins="*")
 public class ShoppingCartController {
 
     @Autowired
@@ -46,9 +47,16 @@ public class ShoppingCartController {
     /**
      * 刪除購物車中的某個商品
      */
-    @DeleteMapping("/{cartId}")
-    public void removeItemFromCart(@PathVariable Integer cartId) {
+    @DeleteMapping("/item/{cartId}")
+    public ResponseEntity<Void> removeItemFromCart(@PathVariable Integer cartId) {
         shoppingCartService.removeItemFromCart(cartId);
+        return ResponseEntity.noContent().build(); // 204
+    }
+
+    @DeleteMapping("/user/{userId}")
+    public ResponseEntity<Void> clearCart(@PathVariable Integer userId) {
+        shoppingCartService.clearCart(userId);
+        return ResponseEntity.noContent().build(); // 204
     }
 
     /**

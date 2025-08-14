@@ -50,6 +50,15 @@ body {
     transition: background-color 0.3s ease;
 }
 
+#clear-cart-btn {
+    color: #f9f9f9;
+    border-radius: 20px;
+    border: none;
+    padding: 6px 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
 .btn-custom:hover {
     background-color: #b9845e;
 }
