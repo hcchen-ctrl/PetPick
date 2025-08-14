@@ -51,7 +51,7 @@ public class userController {
 
     @GetMapping("/userlogin")
     public String showLoginPage() {
-        return "userlogin"; // login.html 必須在 templates 資料夾
+        return "index"; // login.html 必須在 templates 資料夾
     }
 
     @PostMapping("/userlogin")
@@ -63,6 +63,14 @@ public class userController {
             model.addAttribute("message", "帳號或密碼錯誤");
             return "userlogin"; // 回到登入頁並顯示錯誤訊息
         }
+    }
+
+
+    @GetMapping("/profileUpdate")
+    public String showProfileUpdatePage(Model model) {
+//        userEntity user = ...; // 查詢目前登入者
+//        model.addAttribute("user", user);
+        return "profileUpdate"; // 會對應 profileUpdate.html
     }
 
     @PostMapping("/profileUpdate")
@@ -78,18 +86,37 @@ public class userController {
             @RequestParam String daily,
             @RequestParam(required = false) String[] pet,
             @RequestParam(required = false) String[] pet_activities,
-            @RequestParam(required = false) String isaccount,
-            @RequestParam(required = false) String isblacklist,
             Model model
     ) {
         try {
             userEntity user = userService.findById(user_id);
-            // ...existing code...
+            user.setUsername(username);
+            user.setPhonenumber(phonenumber);
+            user.setGender(gender);
+            user.setAccountemail(accountemail);
+            user.setCity(city);
+            user.setDistrict(district);
+            user.setExperience(experience);
+            user.setDaily(daily);
+
+            // 多選欄位可用逗號串接存入資料庫
+            if (pet != null) {
+                user.setPet(String.join(",", pet));
+            } else {
+                user.setPet(null);
+            }
+            if (pet_activities != null) {
+                user.setPet_activities(String.join(",", pet_activities));
+            } else {
+                user.setPet_activities(null);
+            }
+
+            userService.update(user); // 這裡要呼叫 update 方法
             model.addAttribute("message", "資料更新成功");
-            return "profileUpdate";
+            model.addAttribute("user", user);
+            return "profileUpdate"; // 回到同一頁
         } catch (Exception e) {
             model.addAttribute("message", "資料更新失敗：" + e.getMessage());
-            e.printStackTrace(); // 建議加這行，方便 debug
             return "profileUpdate";
         }
     }

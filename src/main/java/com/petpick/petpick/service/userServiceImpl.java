@@ -50,8 +50,16 @@ private  final PasswordEncoder passwordEncoder;
                 .orElseThrow(() -> new RuntimeException("找不到會員"));
     }
 
-    // 更新會員資料
+    @Override
     public void save(userEntity user) {
+
+    }
+
+
+
+    // 更新會員資料
+    @Override
+    public void update(userEntity user) {
         userRepository.save(user);
     }
 

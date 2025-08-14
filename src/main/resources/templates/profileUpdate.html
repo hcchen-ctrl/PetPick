@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
-
+<html lang="zh-TW" xmlns:th="http://www.w3.org/1999/xhtml">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
 
     <head>
@@ -14,9 +14,9 @@
         <link rel="stylesheet" href="chatroom.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <script src="../static/memFunction.js"></script>
-        <link rel="stylesheet" href="../static/styles.css">
-       
+        <script th:src="@{/memFunction.js}"></script>
+        <link rel="stylesheet" th:href="@{/styles.css}">
+        <html xmlns:th="http://www.thymeleaf.org">
     </head>
 
 <body>
@@ -94,7 +94,7 @@
                     <input type="hidden" name="user_id" value="${user.user_id}">
                     <div class="form-group">
                         <label class="form-label">姓名</label>
-                        <input type="text" class="form-input" name="username" placeholder="請輸入姓名">
+                        <input type="text" class="form-input" name="username" placeholder="請輸入姓名" value="${user.username}">
 
                         <label class="form-label">手機號碼</label>
                         <input type="tel" class="form-input" name="phonenumber" placeholder="請輸入手機號碼" id="phoneInput">
@@ -102,9 +102,9 @@
                         <label for="gender" class="form-label">性別</label>
                         <select id="gender" name="gender">
                             <option value="">請選擇</option>
-                            <option value="男">男</option>
-                            <option value="女">女</option>
-                            <option value="其他">其他</option>
+                            <option value="M">男</option>
+                            <option value="F">女</option>
+                            <option value="other">其他</option>
                         </select>
 
                         <label class="form-label">電子郵件</label>
@@ -122,8 +122,8 @@
 
                         <label for="experience" class="form-label">飼養經驗</label>
                         <select id="experience" name="experience">
-                            <option value="有">有</option>
-                            <option value="無">無</option>
+                            <option value="Y">有</option>
+                            <option value="N">無</option>
                         </select>
 
                         <label for="daily" class="form-label">生活作息(大多時間)</label>
@@ -167,16 +167,13 @@
                         <button type="submit" class="btn btn-primary">確認</button>
                         <button type="button" class="btn btn-secondary" onclick="resetForm()">重設</button>
                     </div>
+                    <div th:if="${message}" style="color: green; margin-top: 10px;">
+                        <span th:text="${message}"></span>
+                    </div>
                 </form>
+            </div>
             </div>
 
-                <div class="button-group">
-                    <button type="submit" class="btn btn-primary">確認</button>
-                    <button type="button" class="btn btn-secondary" onclick="resetForm()">重設</button>
-                </div>
-                </form>
-            </div>
-        </div>
 
         <form class="profile-form" id="profileForm">
             <div id="deleteAccountPage" class="verification-section" style="display: none;">
@@ -233,7 +230,6 @@
 
 
 
- <script src="memFunction.js"></script>
  <script>
     // 台灣部分行政區資料（簡化示範，可擴充）
 const taiwanRegions = {

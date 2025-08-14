@@ -11,4 +11,5 @@ public interface userService {
     userEntity findById(Long user_id);
     void save(userEntity user);
 
+    void update(userEntity user);
 }

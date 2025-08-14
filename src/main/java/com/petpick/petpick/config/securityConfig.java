@@ -36,6 +36,7 @@ public class securityConfig {
                         .requestMatchers(
                                 "/auth/userlogin",
                                 "/auth/register",
+                                "/auth/profileUpdate",
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",
@@ -47,7 +48,7 @@ public class securityConfig {
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
-                        .loginPage("/userlogin") // 登入頁面改為 /login
+                        .loginPage("/auth/userlogin") // ✅ 改為正確的 URL
                         .defaultSuccessUrl("/index", true)
                         .permitAll()
                 )
