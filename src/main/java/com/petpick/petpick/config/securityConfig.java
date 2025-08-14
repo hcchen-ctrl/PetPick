@@ -36,20 +36,18 @@ public class securityConfig {
                                                    JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/auth/userlogin",
                                 "/auth/register",
-                                "/css/**", "/js/**", "/images/**"
+                                "/auth/sucess",
+                                "/auth/verify-email",
+                                "/css/**", "/js/**", "/images/**", "/static/**",
+                                "/", "/auth/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
-                .formLogin(form -> form
-                        .loginPage("/auth/userlogin")
-                        .defaultSuccessUrl("/index", true)
-                        .permitAll()
-                )
-                .logout(logout -> logout.permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

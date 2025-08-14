@@ -11,15 +11,14 @@ import com.petpick.petpick.service.userService;
 @Service
 public class userServiceImpl implements userService{
 
-    private   userRepository userRepository;
-private    PasswordEncoder passwordEncoder;
+    private final userRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public userServiceImpl(userRepository userRepository,
                            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
-
 
     @Override
     public void register(userEntity user) {
@@ -32,19 +31,23 @@ private    PasswordEncoder passwordEncoder;
 
     @Override
     public boolean loginByEmail(String accountemail, String password) {
-        return false;
-    }
-
-    @Override
-    public boolean login(String accountemail, String password) {
         userEntity user = userRepository.findByAccountemail(accountemail);
         if (user == null) {
+            return false;
+        }
+        // 檢查email是否已驗證
+        if (!user.isEmailVerified()) {
             return false;
         }
         return passwordEncoder.matches(password, user.getPassword());
     }
 
-    // 依ID查詢會員
+    @Override
+    public boolean login(String accountemail, String password) {
+        return loginByEmail(accountemail, password);
+    }
+
+    @Override
     public userEntity findById(Long user_id) {
         return userRepository.findById(user_id)
                 .orElseThrow(() -> new RuntimeException("找不到會員"));
@@ -52,20 +55,16 @@ private    PasswordEncoder passwordEncoder;
 
     @Override
     public void save(userEntity user) {
-
+        userRepository.save(user);
     }
 
-
-
-    // 更新會員資料
     @Override
     public void update(userEntity user) {
         userRepository.save(user);
     }
+
     @Override
     public userEntity findByAccountemail(String accountemail) {
         return userRepository.findByAccountemail(accountemail);
     }
-
-
 }

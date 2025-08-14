@@ -11,6 +11,7 @@ public class userEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long user_id;
+
     private String phonenumber;
     private String username;
     private String password;
@@ -26,6 +27,12 @@ public class userEntity {
     private String isaccount;
     private String isblacklist;
 
+    // 新增email驗證相關欄位
+    @Column(name = "email_verification_code")
+    private String emailVerificationCode;
+
+    @Column(name = "email_verified", columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private boolean emailVerified = false;
 
 
 
