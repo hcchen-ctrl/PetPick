@@ -11,8 +11,8 @@ import com.petpick.petpick.service.userService;
 @Service
 public class userServiceImpl implements userService{
 
-    private  final userRepository userRepository;
-private  final PasswordEncoder passwordEncoder;
+    private   userRepository userRepository;
+private    PasswordEncoder passwordEncoder;
 
     public userServiceImpl(userRepository userRepository,
                            PasswordEncoder passwordEncoder) {
@@ -62,5 +62,10 @@ private  final PasswordEncoder passwordEncoder;
     public void update(userEntity user) {
         userRepository.save(user);
     }
+    @Override
+    public userEntity findByAccountemail(String accountemail) {
+        return userRepository.findByAccountemail(accountemail);
+    }
+
 
 }

@@ -11,5 +11,8 @@ public interface userService {
     userEntity findById(Long user_id);
     void save(userEntity user);
 
+    userEntity findByAccountemail(String accountemail);
+
+
     void update(userEntity user);
 }

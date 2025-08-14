@@ -93,6 +93,7 @@
                 <form action="/auth/profileUpdate" method="post">
                     <input type="hidden" name="user_id" value="${user.user_id}">
                     <div class="form-group">
+                        <input type="hidden" name="user_id" th:value="${user.user_id}">
                         <label class="form-label">姓名</label>
                         <input type="text" class="form-input" name="username" placeholder="請輸入姓名" value="${user.username}">
 

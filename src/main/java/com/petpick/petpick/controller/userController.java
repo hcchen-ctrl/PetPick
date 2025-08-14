@@ -1,18 +1,26 @@
 package com.petpick.petpick.controller;
 
-import com.petpick.petpick.DTO.LoginRequest;
+import com.petpick.petpick.JwtUtil.JwtUtil;
 import com.petpick.petpick.entity.userEntity;
-import com.petpick.petpick.service.userServiceImpl;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import com.petpick.petpick.service.userService;
 
 
+
+import java.security.Principal;
+
+
 @Controller
 @RequestMapping("/auth")
 public class userController {
+    @Autowired
+    private PasswordEncoder passwordEncoder;
     private final userService userService; // final + Constructor Injection
 
     public userController(userService userService) {
@@ -51,26 +59,41 @@ public class userController {
 
     @GetMapping("/userlogin")
     public String showLoginPage() {
-        return "index"; // login.html 必須在 templates 資料夾
+        return "userlogin"; // login.html 必須在 templates 資料夾
     }
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     @PostMapping("/userlogin")
-    public String login(@RequestParam String accountemail, @RequestParam String password, Model model) {
-        boolean success = userService.login(accountemail, password);
-        if (success) {
-            return "index";
+    public String login(@RequestParam String accountemail, @RequestParam String password,
+                        HttpServletResponse response, Model model) {
+        userEntity user = userService.findByAccountemail(accountemail);
+        if (user != null && passwordEncoder.matches(password, user.getPassword())) {
+            String jwt = jwtUtil.generateToken(accountemail);
+            Cookie cookie = new Cookie("jwt", jwt);
+            cookie.setHttpOnly(true);
+            cookie.setPath("/");
+            response.addCookie(cookie);
+            return "redirect:/index";
         } else {
             model.addAttribute("message", "帳號或密碼錯誤");
-            return "userlogin"; // 回到登入頁並顯示錯誤訊息
+            return "userlogin";
         }
     }
 
+    @GetMapping("/index")
+    public String index() {
+        return "index"; // 會對應 src/main/resources/templates/index.html
+    }
 
     @GetMapping("/profileUpdate")
-    public String showProfileUpdatePage(Model model) {
-//        userEntity user = ...; // 查詢目前登入者
-//        model.addAttribute("user", user);
-        return "profileUpdate"; // 會對應 profileUpdate.html
+    public String showProfileUpdatePage(Model model, Principal principal) {
+        // principal.getName() 通常就是登入時的 accountemail
+        String accountemail = principal.getName();
+        userEntity user = userService.findByAccountemail(accountemail);
+        model.addAttribute("user", user);
+        return "profileUpdate";
     }
 
     @PostMapping("/profileUpdate")
