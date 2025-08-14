@@ -11,7 +11,7 @@ import com.petpick.petpick.service.userService;
 
 
 @Controller
-@RequestMapping("/auth")
+//@RequestMapping("/auth")
 public class userController {
     private final userService userService; // final + Constructor Injection
 

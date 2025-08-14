@@ -19,39 +19,39 @@ public class securityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//        http
-//                // 關閉 CSRF，方便用 API 工具測試
-//                .csrf(csrf -> csrf.disable())
-//
-//                // 設定所有請求都允許（暫時用來測試）
-//                .authorizeHttpRequests(auth -> auth
-//                        .anyRequest().permitAll()
-//                );
-//
-//        return http.build();
-
         http
+                // 關閉 CSRF，方便用 API 工具測試
                 .csrf(csrf -> csrf.disable())
+
+                // 設定所有請求都允許（暫時用來測試）
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/auth/userlogin",
-                                "/css/**",
-                                "/js/**",
-                                "/images/**",
-                                "/styles.css",
-                                "/memFunction.js",
-                                "/login",      // 放行登入頁
-                                "/index"       // 放行首頁（如果要公開）
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .formLogin(form -> form
-                        .loginPage("/userlogin") // 登入頁面改為 /login
-                        .defaultSuccessUrl("/index", true)
-                        .permitAll()
-                )
-                .logout(logout -> logout.permitAll());
+                        .anyRequest().permitAll()
+                );
 
         return http.build();
+
+//        http
+//                .csrf(csrf -> csrf.disable())
+//                .authorizeHttpRequests(auth -> auth
+//                        .requestMatchers(
+//                                "/auth/userlogin",
+//                                "/css/**",
+//                                "/js/**",
+//                                "/images/**",
+//                                "/styles.css",
+//                                "/memFunction.js",
+//                                "/login",      // 放行登入頁
+//                                "/index"       // 放行首頁（如果要公開）
+//                        ).permitAll()
+//                        .anyRequest().authenticated()
+//                )
+//                .formLogin(form -> form
+//                        .loginPage("/userlogin") // 登入頁面改為 /login
+//                        .defaultSuccessUrl("/index", true)
+//                        .permitAll()
+//                )
+//                .logout(logout -> logout.permitAll());
+//
+//        return http.build();
     }
 }
