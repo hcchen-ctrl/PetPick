@@ -1,4 +1,4 @@
-package com.petpick.petpick.service;
+package com.petpick.petpick.service.impl;
 
 import java.util.List;
 import java.util.Optional;
@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.petpick.petpick.entity.Product;
 import com.petpick.petpick.repository.ProductRepository;
+import com.petpick.petpick.service.ProductService;
 
 @Service
 public class ProductServiceImpl implements ProductService {

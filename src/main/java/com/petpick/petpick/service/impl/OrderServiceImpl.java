@@ -1,4 +1,4 @@
-package com.petpick.petpick.service;
+package com.petpick.petpick.service.impl;
 
 import java.util.List;
 
@@ -15,6 +15,8 @@ import com.petpick.petpick.entity.Product;
 import com.petpick.petpick.repository.OrderDetailRepository;
 import com.petpick.petpick.repository.OrderRepository;
 import com.petpick.petpick.repository.ProductRepository;
+import com.petpick.petpick.service.OrderService;
+import com.petpick.petpick.service.ShoppingCartService;
 
 import lombok.RequiredArgsConstructor;
 

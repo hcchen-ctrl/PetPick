@@ -73,11 +73,23 @@ document.getElementById("checkout-form").addEventListener("submit", async functi
 
         // 2) 依付款方式分流
         if (payment === 'credit') {
-            // 綠界信用卡：導到你的中介端點，會自動 POST 到綠界 Cashier（或目前 stub）
-            window.location.href = `/api/pay/ecpay/checkout?orderId=${order.orderId}`;
+            const resp = await fetch('/api/pay/ecpay/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderId: order.orderId,
+                    origin: window.location.origin // 讓後端用這個組回傳/導回 URL
+                })
+            });
+            const html = await resp.text();
+
+            // 直接覆蓋當前頁面（或用 _blank 開新視窗亦可）
+            const w = window.open('', '_self');
+            w.document.open();
+            w.document.write(html);
+            w.document.close();
             return;
         }
-
         // 其餘：依你原本頁面邏輯（顯示成功 modal）
         const link = document.querySelector('#checkoutModal .modal-footer a');
         if (link && order?.orderId) {
