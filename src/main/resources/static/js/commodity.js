@@ -1,71 +1,57 @@
+// === commodity.js（連後端＋CSRF 相容） ===
 const userId = 1;
-
 const backToTopBtn = document.getElementById("backToTop");
-let allProducts = [];
-
-
-window.addEventListener("scroll", () => {
-    if (window.scrollY > 200) {
-        backToTopBtn.style.display = "flex";
-    } else {
-        backToTopBtn.style.display = "none";
-    }
-});
-
-backToTopBtn.addEventListener("click", function () {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-});
-
-let lastScrollTop = 0;
 const navbar = document.querySelector('.navbar');
+let allProducts = [];
+let lastScrollTop = 0;
 
-window.addEventListener("scroll", function () {
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+// 取得 cookie（取 CSRF 用）
+function getCookie(name) {
+    return document.cookie.split('; ')
+        .find(row => row.startsWith(name + '='))?.split('=')[1];
+}
+// 取出 Spring CSRF（若你啟用 CookieCsrfTokenRepository 才會有）
+function getXsrfToken() {
+    const v = getCookie('XSRF-TOKEN');
+    return v ? decodeURIComponent(v) : '';
+}
 
-    if (scrollTop > lastScrollTop) {
-        // 往下滑
-        navbar.classList.add("hide-navbar");
-    } else {
-        // 往上滑
-        navbar.classList.remove("hide-navbar");
-    }
+// ===== UI：返回頂部 + navbar 顯示隱藏 =====
+window.addEventListener("scroll", () => {
+    backToTopBtn.style.display = window.scrollY > 200 ? "flex" : "none";
+    const st = window.pageYOffset || document.documentElement.scrollTop;
+    if (st > lastScrollTop) navbar.classList.add("hide-navbar"); else navbar.classList.remove("hide-navbar");
+    lastScrollTop = Math.max(st, 0);
+});
+backToTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
-    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; // 防止負值
-}, false);
-
-
-
-// 初次載入所有商品
+// ===== 載入商品列表 =====
 fetch("/api/products")
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) throw new Error("載入商品失敗");
+        return res.json();
+    })
     .then(products => {
-        allProducts = products;
+        allProducts = products || [];
         filterAndRender("all", ""); // 預設顯示全部
         updateCartBadge();
-    });
+    })
+    .catch(err => console.error(err));
 
-// 渲染商品資料（根據分類與關鍵字）
-// 渲染商品資料（根據分類與關鍵字 + 排序）—— 方法一版本
+// ===== 篩選 + 排序 + 渲染 =====
 function filterAndRender(type, keyword = "", sortOrder = "default") {
     const list = document.getElementById("product-list");
 
-    let filtered = allProducts.filter(p => {
+    let filtered = (allProducts || []).filter(p => {
         const matchType = (type === "all") || (p.type === type);
         const name = (p.pname ?? p.name ?? "").toString();
         const desc = (p.description ?? "").toString();
-        const matchKeyword = !keyword || (
-            name.toLowerCase().includes(keyword.toLowerCase()) ||
-            desc.toLowerCase().includes(keyword.toLowerCase())
-        );
+        const matchKeyword = !keyword || name.toLowerCase().includes(keyword.toLowerCase()) || desc.toLowerCase().includes(keyword.toLowerCase());
         return matchType && matchKeyword;
     });
 
-    // 價格排序
-    if (sortOrder === "asc") {
-        filtered.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-    } else if (sortOrder === "desc") {
-        filtered.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
-    }
+    if (sortOrder === "asc") filtered.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+    if (sortOrder === "desc") filtered.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
 
     list.innerHTML = filtered.map(p => {
         const pid = p.productId ?? p.id;
@@ -75,108 +61,90 @@ function filterAndRender(type, keyword = "", sortOrder = "default") {
         const price = p.price ?? 0;
 
         return `
-      <div class="col-4 col-md-2 mb-3">
-    <div class="card h-100">
-
-      <!-- 只讓這塊可點，設定為 positioned 祖先 -->
-      <div class="clickable-area position-relative">
-        <img src="${img}" alt="圖" class="card-img-top" style="height:200px;object-fit:cover;">
-        <div class="card-body">
-          <h5 class="card-title">${pname}</h5>
-          <p class="card-text">${desc}</p>
+      <div class="col-6 col-md-3 col-lg-2 mb-3">
+        <div class="card h-100">
+          <div class="clickable-area position-relative">
+            <img src="${img}" alt="圖" class="card-img-top" style="height:200px;object-fit:cover;">
+            <div class="card-body">
+              <h5 class="card-title">${pname}</h5>
+              <p class="card-text">${desc}</p>
+            </div>
+            <a class="stretched-link" href="productSite.html?id=${encodeURIComponent(pid)}" aria-label="查看 ${pname} 詳情"></a>
+          </div>
+          <div class="mt-auto d-flex justify-content-between align-items-center p-3">
+            <div class="fw-bold text-danger">NT$${price}</div>
+            <button class="btn btn-material" onclick="addToCart(${userId}, ${pid}, 1)">
+              <span class="card-material-icons">add_shopping_cart</span>
+            </button>
+          </div>
         </div>
-        <!-- 把 stretched-link 放在這個容器內，僅覆蓋 clickable-area -->
-        <a class="stretched-link"
-           href="productSite.html?id=${pid}"
-           aria-label="查看 ${pname} 詳情"></a>
       </div>
-
-      <!-- 價格與加入購物車按鈕在 clickable-area 之外，不會被覆蓋 -->
-      <div class="mt-auto d-flex justify-content-between align-items-center p-3">
-        <div style="font-size:18px;">
-          <u class="fw-bold text-danger">NT$${price}</u>
-        </div>
-        <button class="btn btn-material"
-                onclick="addToCart(${userId}, ${pid}, 1)">
-          <span class="card-material-icons">add_shopping_cart</span>
-        </button>
-      </div>
-
-    </div>
-  </div>
     `;
     }).join('');
 }
 
-// 記錄目前分類
+// 當前分類
 let currentType = "all";
 
-// radio 切換分類
+// 切換分類
 document.querySelectorAll('input[name="productFilter"]').forEach(radio => {
     radio.addEventListener("change", function () {
         currentType = this.value;
         const keyword = document.getElementById("searchInput").value;
-        filterAndRender(currentType, keyword);
+        filterAndRender(currentType, keyword, document.getElementById("sortSelect").value);
     });
 });
 
-// 搜尋欄輸入事件
+// 搜尋
 document.getElementById("searchInput").addEventListener("input", function () {
-    filterAndRender(currentType, this.value);
+    filterAndRender(currentType, this.value, document.getElementById("sortSelect").value);
 });
 
+// 排序
 function onSortChange() {
     const sortOrder = document.getElementById("sortSelect").value;
-
-    // 假設你有目前的篩選類型與關鍵字，可以存在全域變數
-    const currentType = document.querySelector('input[name="productFilter"]:checked').value;
     const keyword = document.getElementById("searchInput")?.value || "";
-
     filterAndRender(currentType, keyword, sortOrder);
 }
 
-function addToCart(userId, productId, quantity) {
-    const payload = {
-        userId: userId,
-        productId: productId,
-        quantity: quantity
-    };
-
-    fetch('/api/cart/add', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('加入購物車失敗');
-            }
-            return response.json();
-        })
-        .then(data => {
-            alert('✅ 已加入購物車');
-            updateCartBadge();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('❌ 加入失敗，請稍後再試');
+// ===== 加入購物車（相容 CSRF；同源時自動帶 cookie）=====
+async function addToCart(userId, productId, quantity = 1) {
+    try {
+        const xsrf = getXsrfToken(); // 若你現在忽略 /api/cart/** 的 CSRF，沒有也沒關係
+        const res = await fetch('/api/cart/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(xsrf ? { 'X-XSRF-TOKEN': xsrf } : {}) // 有就帶，沒有略過
+            },
+            // 同源情況下預設就會帶 cookie；若你日後跨網域，改成 credentials: 'include'
+            body: JSON.stringify({ userId, productId, quantity })
         });
+
+        if (!res.ok) {
+            const txt = await res.text().catch(() => '');
+            throw new Error(`加入購物車失敗（${res.status}）：${txt}`);
+        }
+
+        await res.json(); // 可用回傳值更新畫面
+        alert('✅ 已加入購物車');
+        updateCartBadge();
+    } catch (err) {
+        console.error(err);
+        // 常見 403：CSRF 或 CORS，印更多線索
+        alert('❌ 加入失敗，請稍後再試');
+    }
 }
 
+// 徽章：顯示「項目數」（非數量總和）
 function updateCartBadge() {
-    fetch(`/api/cart/withProduct/${userId}`) // 依 userId 查詢
+    fetch(`/api/cart/withProduct/${userId}`)
         .then(res => {
-            if (!res.ok) {
-                throw new Error('讀取購物車資料失敗');
-            }
+            if (!res.ok) throw new Error('讀取購物車資料失敗');
             return res.json();
         })
         .then(cart => {
-            document.getElementById('cart-badge').textContent = cart.length;
+            document.getElementById('cart-badge').textContent = (cart || []).length;
         })
-        .catch(error => {
-            console.error('Error:', error);
-        });
+        .catch(err => console.error(err));
 }

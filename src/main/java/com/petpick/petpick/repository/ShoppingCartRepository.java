@@ -16,6 +16,7 @@ import jakarta.transaction.Transactional;
 
 public interface ShoppingCartRepository extends JpaRepository<ShoppingCartItem, Integer> {
 
+
     @Query("SELECT sc FROM ShoppingCartItem sc WHERE sc.userId = :userId AND sc.product.productId = :productId")
     Optional<ShoppingCartItem> findByUserIdAndProductId(@Param("userId") Integer userId, @Param("productId") Integer productId);
 

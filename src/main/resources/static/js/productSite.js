@@ -21,18 +21,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // 徽章：顯示「總數量」
+
     function updateCartBadge() {
         fetch(`/api/cart/withProduct/${userId}`)
-            .then(r => r.ok ? r.json() : [])
-            .then(list => {
-                const totalQty = Array.isArray(list)
-                    ? list.reduce((s, it) => s + toInt(it.quantity ?? it.qty, 0), 0)
-                    : 0;
-                const b = document.getElementById('cart-badge');
-                if (b) b.textContent = totalQty;
+            .then(res => {
+                if (!res.ok) throw new Error('讀取購物車資料失敗');
+                return res.json();
             })
-            .catch(() => { });
+            .then(cart => {
+                document.getElementById('cart-badge').textContent = (cart || []).length;
+            })
+            .catch(err => console.error(err));
     }
 
     // 若已在購物車就「更新數量=舊+新」，否則「新增」
