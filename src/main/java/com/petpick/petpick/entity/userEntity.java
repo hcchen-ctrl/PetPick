@@ -26,14 +26,7 @@ public class userEntity {
     private String pet_activities;
     private String isaccount;
     private String isblacklist;
-
-    // 新增email驗證相關欄位
-    @Column(name = "email_verification_code")
-    private String emailVerificationCode;
-
-    @Column(name = "email_verified", columnDefinition = "BOOLEAN DEFAULT FALSE")
-    private boolean emailVerified = false;
-
+    private String authority;
 
 
 
