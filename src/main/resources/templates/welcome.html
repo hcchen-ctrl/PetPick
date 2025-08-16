@@ -1,15 +1,22 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" xmlns:th="http://www.w3.org/1999/xhtml">
+<html xmlns:th="http://www.thymeleaf.org"
+	  xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity5">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wepet 寵物資訊平台</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- ...existing code... -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- ...existing code... -->
 
+<link rel="stylesheet" th:href="@{../styles.css}">
+<link rel="stylesheet" href="chatroom.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wepet 寵物資訊平台</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-
+<link rel="stylesheet" href="https://unpkg.com/purecss@2.0.6/build/pure-min.css">
+<meta charset="UTF-8">
+<title>Welcome page</title>
 </head>
 
 <body>
@@ -51,20 +58,16 @@
                             <span class="material-icons">account_circle</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
-                            <li><a class="dropdown-item" href="/auth/profileUpdate">修改資料</a></li>
-                            <li>
-                                <form action="/auth/logout" method="post" style="margin: 0;">
-                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">登出</button>
-                                </form>
-                            </li>
+                            <li><a class="dropdown-item" href="./memberRename.html">修改資料</a></li>
+                            <li>   <button sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_ADMIN')" onclick="location.href='/logout';" >離開按鈕</button></li>
                         </ul>
                     </div>
+
                 </div>
             </div>
         </div>
     </div>
 </nav>
-
 <!-- 輪播 Banner 區 -->
 <header>
     <div id="carouselWepet" class="carousel slide" data-ride="carousel">
@@ -98,12 +101,12 @@
             <div class="col-md-4">
                 <i class="fas fa-map-marker-alt fa-2x mb-2 text-success"></i>
                 <h5>即時救助地圖</h5>
-                <p>結合定位功能，查找附近可收容的救護站。</p>
+                <p>結合定位功能，查找附近可收容的救援站。</p>
             </div>
             <div class="col-md-4">
                 <i class="fas fa-shopping-cart fa-2x mb-2 text-warning"></i>
                 <h5>物資商城支援</h5>
-                <p>與商城結合，購買指定商品即等同捐助。</p>
+                <p>與商城結合，購買指定品項即等同捐助。</p>
             </div>
         </div>
     </div>
@@ -181,47 +184,23 @@
         <p>快速連結：領養 / 商城 / 醫療回報 / 寵物救助</p>
         <p>email: ispan@gmail.com</p>
         <p>地址：台中市南屯區公益路二段51號</p>
-        <p>本站所有資訊來自開放平台與會員自行刊登，若有侵權請來電移除。</p>
+        <p>本站所有資訊來自開放平台與會員自行刊登，若有侵權請聯繫移除。</p>
     </div>
 </footer>
 
-<script src="https://kit.fontawesome.com/a076d05399.js"></script>
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-<script>
-    const backToTopBtn = document.getElementById("backToTop");
-
-    window.addEventListener("scroll", () => {
-        if (window.scrollY > 200) {
-            backToTopBtn.style.display = "flex";
-        } else {
-            backToTopBtn.style.display = "none";
-        }
-    });
-
-    backToTopBtn.addEventListener("click", function () {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    let lastScrollTop = 0;
-    const navbar = document.querySelector('.navbar');
-
-    window.addEventListener("scroll", function () {
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-        if (scrollTop > lastScrollTop) {
-            // 往下滑
-            navbar.classList.add("hide-navbar");
-        } else {
-            // 往上滑
-            navbar.classList.remove("hide-navbar");
-        }
-
-        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; // 防止負值
-    }, false);
-</script>
-<script src="/memFunction.js"></script>
+	<h1>Welcome page</h1>
+	<ul>
+		<li>登入帳號（name）: <span  sec:authentication="name"></span></li>
+		<li>登入帳號（principal.username）: <span sec:authentication="principal.username"></span></li>
+		<li>憑證（credentials）: <span sec:authentication="credentials"></span></li>
+		<li>權限與角色（authorities）: <span sec:authentication="authorities"></span></li>
+		<li>客戶端地址（details.remoteAddress）: <span sec:authentication="details.remoteAddress"></span></li>
+		<li>Session Id（details.sessionId）: <span sec:authentication="details.sessionId"></span></li>
+	</ul>
+    <div sec:authorize="hasRole('MANAGER')">Hello manager 您好!</div>
+    <div sec:authorize="hasRole('EMPLOYEE')">Hello employee 您好!</div>
+    <button sec:authorize="hasAuthority('ROLE_MANAGER')">管理按鈕</button>
+    <button sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_ADMIN')" onclick="location.href='/logout';" >離開按鈕</button>
 
 </body>
-
 </html>
