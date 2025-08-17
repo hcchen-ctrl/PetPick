@@ -1,9 +1,6 @@
 package com.petpick.petpick.service;
 
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-
-public interface userService {
+public interface userService1 {
 
 //    UserDetails loadUserByUsername(String email) throws UsernameNotFoundException;
 

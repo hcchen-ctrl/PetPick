@@ -25,6 +25,10 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf(csrf -> csrf
+                .ignoringRequestMatchers("/register")
+        );
+
         // 表單提交
         http.formLogin(form -> form
                 // loginpage.html 表單 action 內容
@@ -40,7 +44,7 @@ public class SecurityConfig {
         // 授權認證
         http.authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css", "/favicon.ico").permitAll()
-                .requestMatchers("/loginpage").permitAll()
+                .requestMatchers("/loginpage", "/register").permitAll() // ⬅ 加上 /register
 
                 .requestMatchers("/adminpage").hasRole("ADMIN")
                 .requestMatchers("/managerpage").hasRole("MANAGER")
@@ -77,8 +81,7 @@ public class SecurityConfig {
 
     // 注意！規定！要建立密碼演算的實例
     @Bean
-    public PasswordEncoder getPasswordEncoder() {
-        // 這樣才會讓 {noop} 前綴有效，跟你假資料的密碼相容
+    public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 }
