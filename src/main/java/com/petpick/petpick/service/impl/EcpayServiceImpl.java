@@ -1,32 +1,31 @@
 package com.petpick.petpick.service.impl;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.stereotype.Service;
 
 import com.petpick.petpick.config.EcpayProperties;
 import com.petpick.petpick.dto.OrderDTO;
+import com.petpick.petpick.mac.EcpayCheckMac;
 import com.petpick.petpick.repository.OrderRepository;
 import com.petpick.petpick.service.EcpayService;
 import com.petpick.petpick.service.OrderQueryService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EcpayServiceImpl implements EcpayService {
 
     private final EcpayProperties prop;
     private final OrderQueryService orderQueryService;
-    private final OrderRepository orderRepo; // 只為了檢查狀態（可選）
+    private final OrderRepository orderRepo; // 用於避免重複付款（可選）
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
@@ -37,43 +36,48 @@ public class EcpayServiceImpl implements EcpayService {
 
     @Override
     public String buildAioCheckoutForm(Integer orderId, String origin) {
-        // 撈訂單與明細
+        // 1) 讀訂單資料（含明細）
         OrderDTO o = orderQueryService.getOne(orderId);
 
-        // （可選）避免重複付款：若已 Paid 就丟錯或導回
+        // （可選）避免重複付款
         orderRepo.findById(orderId).ifPresent(ord -> {
             if ("Paid".equalsIgnoreCase(ord.getStatus())) {
                 throw new IllegalStateException("此訂單已完成付款");
             }
         });
 
-        // 綠界商品名稱規則：多品項用 # 串
+        // 2) 必填參數（用原始值，不要先做 encode）
         String itemName = (o.getItems() == null || o.getItems().isEmpty())
                 ? "PetPick 訂單"
                 : o.getItems().stream()
-                    .map(it -> (it.getPname() == null || it.getPname().isBlank()) ? ("商品" + it.getProductId()) : it.getPname())
-                    .collect(Collectors.joining("#"));
+                        .map(it -> {
+                            String n = it.getPname();
+                            return (n == null || n.isBlank()) ? ("商品" + it.getProductId()) : n;
+                        })
+                        .collect(Collectors.joining("#")); // 多品項用 # 串
 
-        String merchantId   = prop.getPayment().getMerchantId();
-        String hashKey      = prop.getPayment().getHashKey();
-        String hashIv       = prop.getPayment().getHashIv();
+        LocalDateTime tradeTime = (o.getCreatedAt() != null) ? o.getCreatedAt() : LocalDateTime.now();
+        int totalAmount = (o.getTotalPrice() == null) ? 0 : o.getTotalPrice();
 
-        String returnUrl        = prop.getReturnUrl();       // 伺服器回拋
-        String orderResultUrl   = (origin == null || origin.isBlank())
-                                    ? prop.getOrderResultUrl()
-                                    : origin + "/payment/result";
-        String clientBackUrl    = (origin == null || origin.isBlank())
-                                    ? prop.getClientBackUrl()
-                                    : origin + "/cart.html";
+        String merchantId = prop.getPayment().getMerchantId();
+        String hashKey = prop.getPayment().getHashKey();
+        String hashIv = prop.getPayment().getHashIv();
 
-        // 必填參數
+        String returnUrl = prop.getReturnUrl(); // 伺服器回拋（需可被外部存取且 HTTPS）
+        String orderResultUrl = (origin == null || origin.isBlank())
+                ? prop.getOrderResultUrl()
+                : origin + "/payment/result";
+        String clientBackUrl = (origin == null || origin.isBlank())
+                ? prop.getClientBackUrl()
+                : origin + "/cart.html";
+
         Map<String, String> params = new LinkedHashMap<>();
         params.put("MerchantID", merchantId);
-        params.put("MerchantTradeNo", buildMerchantTradeNo(orderId)); // 必須平台唯一
-        params.put("MerchantTradeDate", o.getCreatedAt().format(FMT));
+        params.put("MerchantTradeNo", buildMerchantTradeNo(orderId)); // <= 20 碼英數且唯一
+        params.put("MerchantTradeDate", tradeTime.format(FMT));
         params.put("PaymentType", "aio");
-        params.put("TotalAmount", String.valueOf(o.getTotalPrice()));  // 金額需為整數
-        params.put("TradeDesc", urlEncodeComponent("PetPick 結帳"));
+        params.put("TotalAmount", String.valueOf(totalAmount));       // 整數字串
+        params.put("TradeDesc", "PetPickCheckout");                   // 避免中文導致誤差
         params.put("ItemName", itemName);
         params.put("ReturnURL", returnUrl);
         params.put("OrderResultURL", orderResultUrl);
@@ -81,80 +85,96 @@ public class EcpayServiceImpl implements EcpayService {
         params.put("ChoosePayment", "Credit");
         params.put("EncryptType", "1");
 
-        // 自訂欄位：帶 orderId 回來更新狀態
+        // 自訂欄位：帶回 orderId 以更新狀態
         params.put("CustomField1", String.valueOf(orderId));
 
-        // 產生檢查碼
-        String checkMac = genCheckMacValue(params, hashKey, hashIv);
+        // 3) 產生 CheckMacValue（依你專案的工具類）
+        String checkMac = EcpayCheckMac.generate(params, hashKey, hashIv);
         params.put("CheckMacValue", checkMac);
 
-        // 送到綠界的網址（測試/正式）
+        if (log.isDebugEnabled()) {
+            log.debug("[ECPay] params(before action)={}", params);
+        }
+
+        // 4) 綠界送出端點（測試或正式）
         String action = prop.isStage()
                 ? "https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5"
                 : "https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5";
 
-        // 回傳一個會自動送出的表單
-        return buildAutoSubmitHtml(action, params);
+        // 5) 回傳不含 inline script 的表單，讓前端解析後自行 submit()
+        return buildFormHtml(action, params);
     }
 
+    /**
+     * 生成唯一且 <= 20 碼的訂單編號（僅英數）
+     */
     private String buildMerchantTradeNo(Integer orderId) {
-        // 確保 20 碼內，僅英文數字，且平台唯一。這邊加上時間避免重覆
         String base = "PP" + orderId + System.currentTimeMillis();
         return base.length() > 20 ? base.substring(0, 20) : base;
     }
 
-    private String buildAutoSubmitHtml(String action, Map<String, String> params) {
-        String inputs = params.entrySet().stream()
-                .map(e -> "<input type=\"hidden\" name=\""+e.getKey()+"\" value=\""+escapeHtml(e.getValue())+"\"/>")
-                .collect(Collectors.joining("\n"));
+    /**
+     * 回傳只有 form 的 HTML（無 inline JS，避免 CSP 問題）
+     */
+    private String buildFormHtml(String action, Map<String, String> params) {
+        StringBuilder inputs = new StringBuilder();
+        for (Map.Entry<String, String> e : params.entrySet()) {
+            String k = e.getKey() == null ? "" : e.getKey();
+            String v = e.getValue() == null ? "" : e.getValue();
+            inputs.append("<input type=\"hidden\" name=\"")
+                    .append(escapeHtml(k))
+                    .append("\" value=\"")
+                    .append(escapeHtml(v))
+                    .append("\"/>\n");
+        }
+        String safeAction = escapeHtml(action);
+
         return """
-            <html><body onload="document.forms[0].submit()" style="font-family:sans-serif">
-              <p>正在導向綠界安全頁面，請稍候…</p>
-              <form method="post" action="%s">
-                %s
-              </form>
-            </body></html>
-        """.formatted(action, inputs);
+        <!doctype html>
+        <html lang="zh-Hant">
+          <head><meta charset="utf-8"><title>Redirecting…</title></head>
+          <body style="font-family:sans-serif">
+            <p>正在導向綠界安全頁面，請稍候…</p>
+            <form id="ecpayForm" method="post" action="%s">
+              %s
+            </form>
+            <p>若未自動跳轉，請按下方按鈕完成付款：</p>
+            <button type="submit" form="ecpayForm">前往付款</button>
+          </body>
+        </html>
+        """.formatted(safeAction, inputs.toString());
     }
 
-    // ECPay CheckMacValue 產生（SHA256, 大寫）
-    private String genCheckMacValue(Map<String, String> params, String hashKey, String hashIV) {
-        // 依照 key 名稱升冪排序（大小寫不敏感）
-        SortedMap<String, String> sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        sorted.putAll(params);
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("HashKey=").append(hashKey);
-        sorted.forEach((k,v) -> {
-            if (v != null && !v.isBlank()) {
-                sb.append('&').append(k).append('=').append(v);
+    /**
+     * 僅供輸出到 HTML input 的簡單轉義（不影響簽章計算）
+     */
+    private static String escapeHtml(String s) {
+        if (s == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder(s.length() + 16);
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '&':
+                    out.append("&amp;");
+                    break;
+                case '<':
+                    out.append("&lt;");
+                    break;
+                case '>':
+                    out.append("&gt;");
+                    break;
+                case '"':
+                    out.append("&quot;");
+                    break;
+                case '\'':
+                    out.append("&#x27;");
+                    break;
+                default:
+                    out.append(c);
             }
-        });
-        sb.append("&HashIV=").append(hashIV);
-
-        // URL encode，空白要用 %20（不是 +）
-        String encoded = urlEncode(sb.toString()).toLowerCase()
-                // ECPay 規範的保留字還原
-                .replace("%2d","-").replace("%5f","_")
-                .replace("%2e",".").replace("%21","!")
-                .replace("%2a","*").replace("%28","(")
-                .replace("%29",")");
-
-        return DigestUtils.sha256Hex(encoded).toUpperCase();
-    }
-
-    private String urlEncode(String raw) {
-        return URLEncoder.encode(raw, StandardCharsets.UTF_8)
-                .replace("+", "%20"); // 空白用 %20
-    }
-
-    private String urlEncodeComponent(String s) {
-        return URLEncoder.encode(s, StandardCharsets.UTF_8).replace("+", "%20");
-    }
-
-    private String escapeHtml(String s) {
-        return s.replace("&","&amp;").replace("<","&lt;")
-                .replace(">","&gt;").replace("\"","&quot;")
-                .replace("'","&#x27;");
+        }
+        return out.toString();
     }
 }

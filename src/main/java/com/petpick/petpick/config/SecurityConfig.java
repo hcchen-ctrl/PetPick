@@ -18,9 +18,11 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
+                        "/api/pay/ecpay/checkout",
                         "/api/pay/ecpay/return",
-                        "/api/pay/ecpay/result",
-                        "/payment/result", "/payment/result/**",
+                        "/api/pay/ecpay/**",
+                        "/payment/result",
+                        "/payment/result/**",
                         "/api/logistics/**",
                         "/api/cart/**",
                         "/api/orders/**"
@@ -29,8 +31,9 @@ public class SecurityConfig {
                 )
                 // 忽略這些路徑的 CSRF（綠界回拋 & 購物車 API）
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
+                new AntPathRequestMatcher("/api/pay/ecpay/checkout"),
                 new AntPathRequestMatcher("/api/pay/ecpay/return"),
-                new AntPathRequestMatcher("/api/pay/ecpay/result"),
+                new AntPathRequestMatcher("/api/pay/ecpay/**"),
                 new AntPathRequestMatcher("/payment/result"),
                 new AntPathRequestMatcher("/payment/result/**"),
                 new AntPathRequestMatcher("/api/logistics/**"),

@@ -1,54 +1,98 @@
-// === checkout.js (移除卡號驗證/顯示、選信用卡直跳綠界 + 顯示品項數 badge) ===
+// === checkout.js (信用卡直跳綠界 + 顯示品項數 badge / 修正變數重複與作用域) ===
 let total = 0;
 
-// 嘗試從 sessionStorage 取得 userId（購物車頁可能存的），沒有就先用 1
+// 從購物車頁帶過來；沒有就先用 1
 const userId = Number(sessionStorage.getItem("checkout_user_id")) || 1;
 
-// DOM
+// ===== DOM =====
 const backToTopBtn = document.getElementById("backToTop");
 const navbar = document.querySelector(".navbar");
 const cartBadgeEl = document.getElementById("cart-badge");
+const totalPriceEl = document.getElementById("total-price");
 
-// 小工具：更新 badge（顯示品項數）
+const deliveryMethod = document.getElementById("delivery-method"); // store / cvs_cod / address
+const addressField = document.getElementById("address-field");
+const addressInput = document.getElementById("address");
+
+const phoneInput = document.getElementById('phone');
+const phoneErrEl = document.getElementById('phone-error');
+
+// ===== 工具：更新 badge（顯示品項數）=====
 function setBadge(count) {
     if (cartBadgeEl) cartBadgeEl.textContent = String(count ?? 0);
 }
 
-// 取得購物車金額 + 品項數（badge）
+// ===== 工具：把後端回來的 HTML 解析成 form 並送出（避免 inline script）=====
+function submitEcpayFormFromHtml(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const srcForm = doc.querySelector('form');
+    if (!srcForm) {
+        console.error('未在回應中找到 <form>');
+        alert('支付頁面建立失敗（無表單）');
+        return;
+    }
+
+    const form = document.createElement('form');
+    form.method = (srcForm.getAttribute('method') || 'post').toLowerCase();
+    form.action = srcForm.getAttribute('action') || '';
+    form.style.display = 'none';
+
+    // 複製所有可提交欄位
+    const fields = srcForm.querySelectorAll('input, select, textarea');
+    fields.forEach(el => {
+        const tag = el.tagName.toLowerCase();
+        const type = (el.getAttribute('type') || '').toLowerCase();
+        const name = el.getAttribute('name');
+        if (!name || el.disabled) return;
+        if (tag === 'input' && (type === 'button' || type === 'submit' || type === 'reset')) return;
+
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = name;
+        hidden.value = el.value ?? '';
+        form.appendChild(hidden);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// ===== 取得購物車金額 + 品項數（badge）=====
 fetch(`/api/cart/withProduct/${userId}`)
     .then(res => {
         if (!res.ok) throw new Error("載入購物車失敗");
         return res.json();
     })
-    .then(data => {
-        const items = Array.isArray(data) ? data : [];
-        total = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
-        document.getElementById("total-price").textContent = `NT$${total}`;
-        // ★ 更新 badge：顯示「品項數」
-        setBadge(items.length);
+    .then(items => {
+        const list = Array.isArray(items) ? items : [];
+        total = list.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 0), 0);
+        if (totalPriceEl) totalPriceEl.textContent = `NT$${total}`;
+        setBadge(list.length); // 品項數
     })
     .catch(() => {
-        document.getElementById("total-price").textContent = `NT$${total}`;
-        // 讀取失敗時，先顯示 0
+        if (totalPriceEl) totalPriceEl.textContent = `NT$${total}`;
         setBadge(0);
     });
 
-// 結帳提交事件
-document.getElementById("checkout-form").addEventListener("submit", async function (e) {
+// ===== 表單送出：建單 → 分流 =====
+document.getElementById("checkout-form").addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const name = document.getElementById("name").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    const delivery = document.getElementById("delivery-method").value;
-    const payment = document.getElementById("payment").value;
+    const phone = phoneInput.value.trim();
+    const delivery = deliveryMethod.value;     // store / cvs_cod / address
+    const payment = document.getElementById("payment").value; // credit / cash / cod
 
-    // 地址：宅配才需要，其它用標記文字
-    const addressInput = document.getElementById("address");
     const addr = (delivery === "address")
         ? (addressInput.value || "").trim()
         : (delivery === "store" ? "到店取貨" : "超商取貨付款");
 
     // 基本驗證
+    if (!name) {
+        alert("請填寫姓名");
+        return;
+    }
     if (!/^09\d{8}$/.test(phone)) {
         alert("請輸入正確手機號碼");
         return;
@@ -59,38 +103,45 @@ document.getElementById("checkout-form").addEventListener("submit", async functi
     }
 
     try {
-        // 1) 先建立訂單（把購物車轉 orders + order_details）
+        // 1) 建立訂單（購物車 → 訂單/明細）
         const res = await fetch('/api/orders/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, addr, receiverName: name, receiverPhone: phone, shippingType: delivery })
+            body: JSON.stringify({
+                userId,
+                addr,
+                receiverName: name,
+                receiverPhone: phone,
+                shippingType: delivery
+            })
         });
-        if (!res.ok) throw new Error(await res.text() || '結帳失敗');
-        const order = await res.json(); // 期待含有 orderId
+        if (!res.ok) throw new Error(await res.text().catch(() => '') || '結帳失敗');
+        const order = await res.json(); // 期望有 orderId
 
-        // 訂單建立成功後，後端通常會清空購物車 → 前端也把 badge 清成 0（避免殘留）
+        // 後端通常此時已清空購物車 → 前端 badge 也清零，避免殘留
         setBadge(0);
 
-        // 2) 依付款方式分流
+        // 2) 分流
         if (payment === 'credit') {
+            // 向後端要綠界的表單 HTML，解析後自動送出
             const resp = await fetch('/api/pay/ecpay/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     orderId: order.orderId,
-                    origin: window.location.origin // 讓後端用這個組回傳/導回 URL
+                    origin: window.location.origin // 讓後端動態組回跳網址（可保留）
                 })
             });
+            if (!resp.ok) {
+                const msg = await resp.text().catch(() => '');
+                throw new Error(msg || '建立綠界表單失敗');
+            }
             const html = await resp.text();
-
-            // 直接覆蓋當前頁面（或用 _blank 開新視窗亦可）
-            const w = window.open('', '_self');
-            w.document.open();
-            w.document.write(html);
-            w.document.close();
+            submitEcpayFormFromHtml(html);
             return;
         }
-        // 其餘：依你原本頁面邏輯（顯示成功 modal）
+
+        // 其他（到店/宅配COD）：顯示成功 modal 或導訂單頁
         const link = document.querySelector('#checkoutModal .modal-footer a');
         if (link && order?.orderId) {
             link.setAttribute('href', `order.html?orderId=${order.orderId}`);
@@ -104,67 +155,60 @@ document.getElementById("checkout-form").addEventListener("submit", async functi
     }
 });
 
-// ===== 介面：返回頂部 / navbar 顯示隱藏（保留原本邏輯）=====
-window.addEventListener("scroll", () => {
-    backToTopBtn.style.display = (window.scrollY > 50) ? "flex" : "none";
-});
-backToTopBtn.addEventListener("click", function () {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-});
-
-let lastScrollTop = 0;
-window.addEventListener("scroll", function () {
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    if (scrollTop > lastScrollTop) {
-        navbar.classList.add("hide-navbar");
-    } else {
-        navbar.classList.remove("hide-navbar");
-    }
-    lastScrollTop = Math.max(scrollTop, 0);
-}, false);
-
-// ===== 配送方式：顯示/隱藏地址；到店時隱藏 COD（保留你原本邏輯）=====
-const deliveryMethod = document.getElementById("delivery-method");
-const addressField = document.getElementById("address-field");
-const addressInput = document.getElementById("address");
-const cashOption = document.getElementById("cash-option");
-
+// ===== 配送方式顯示/隱藏地址；到店時隱藏 COD =====
 deliveryMethod.addEventListener("change", function () {
+    const paymentSelect = document.getElementById("payment");
+    const cashOption = document.getElementById("cash-option");
+    const codOption = document.getElementById("cod-option");
+
     if (this.value === "address") {
         addressField.style.display = "block";
         cashOption.style.display = "none";
         addressInput.setAttribute("required", "required");
+        if (paymentSelect.value === "cash") paymentSelect.value = "credit";
+        codOption.style.display = "block";
+        paymentSelect.disabled = false;
     } else {
         addressField.style.display = "none";
         addressInput.removeAttribute("required");
         addressInput.value = "";
-    }
-});
 
-// 手機即時驗證（保留）
-const phoneInput = document.getElementById('phone');
-const errorMsg = document.getElementById('phone-error');
-phoneInput.addEventListener('input', function () {
-    const isValid = /^09\d{8}$/.test(phoneInput.value);
-    errorMsg.style.display = (phoneInput.value === '' || isValid) ? 'none' : 'block';
-});
-
-// ===== 依配送方式控制 COD 顯示（保留）=====
-const deliverySelect = document.getElementById("delivery-method");
-const codOption = document.getElementById("cod-option");
-deliverySelect.addEventListener("change", function () {
-    if (this.value === "store") {
-        codOption.style.display = "none";
-        const paymentSelect = document.getElementById("payment");
-        if (paymentSelect.value === "cod") {
-            paymentSelect.value = "credit"; // 到店不支援 COD 的原本行為
+        if (this.value === "cvs_cod") {
+            // 超商取貨付款 → 只能 COD
+            cashOption.style.display = "none";
+            codOption.style.display = "block";
+            paymentSelect.value = "cod";
+            paymentSelect.disabled = true;
+        } else {
+            // 到店取貨 → 可到店現金，不允許 COD
+            cashOption.style.display = "block";
+            codOption.style.display = "none";
+            if (paymentSelect.value === "cod") paymentSelect.value = "cash";
+            paymentSelect.disabled = false;
         }
-    } else {
-        codOption.style.display = "block";
     }
 });
 
+// 手機即時驗證
+phoneInput.addEventListener('input', () => {
+    const ok = /^09\d{8}$/.test(phoneInput.value);
+    if (phoneErrEl) phoneErrEl.style.display = (phoneInput.value === '' || ok) ? 'none' : 'block';
+});
+
+// 返回頂部 / navbar 顯示隱藏
+window.addEventListener("scroll", () => {
+    if (backToTopBtn) backToTopBtn.style.display = (window.scrollY > 50) ? "flex" : "none";
+});
+backToTopBtn?.addEventListener("click", () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+let lastScrollTop = 0;
+window.addEventListener("scroll", () => {
+    const st = window.pageYOffset || document.documentElement.scrollTop;
+    if (st > lastScrollTop) navbar?.classList.add("hide-navbar"); else navbar?.classList.remove("hide-navbar");
+    lastScrollTop = Math.max(st, 0);
+}, false);
+
+// 初始化
 window.addEventListener("DOMContentLoaded", () => {
-    const event = new Event("change");
-    deliverySelect.dispatchEvent(event);
+    const evt = new Event("change");
+    deliveryMethod.dispatchEvent(evt);
 });
