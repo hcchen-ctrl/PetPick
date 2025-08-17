@@ -14,14 +14,16 @@ public class UserEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long userid;
 
+    private String accountemail;
+
     private String username;
 
     private String password;
 
     private String role;
 
-    public UserEntity(String username, String password) {
-        this.username = username;
+    public UserEntity(String accountemail, String password) {
+        this.username = accountemail;
         this.password = password;
     }
 

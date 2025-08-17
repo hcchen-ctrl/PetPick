@@ -15,13 +15,13 @@ public class UserDao {
     @Autowired
     private UserRepository userRepository;
 
-    public User findByUsername(String username) {
-        UserEntity userEntity = userRepository.findByUsername(username);
+    public User findByUserAccountemail(String accountemail) {
+        UserEntity userEntity = userRepository.findByAccountemail(accountemail);
 
         if (userEntity == null) return null;
 
         return new User(
-                userEntity.getUsername(),
+                userEntity.getAccountemail(),
                 userEntity.getPassword(), // 密碼應為加密格式（如 BCrypt）
                 List.of(new SimpleGrantedAuthority(userEntity.getRole()))
         );
