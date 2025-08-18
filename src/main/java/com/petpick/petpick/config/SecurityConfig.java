@@ -43,9 +43,11 @@ public class SecurityConfig {
 
         // 授權認證
         http.authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css", "/favicon.ico").permitAll()
+                .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css","/memFunction.js", "/favicon.ico").permitAll()
                 .requestMatchers("/loginpage", "/register").permitAll() // ⬅ 加上 /register
 
+
+                .requestMatchers("/rename").authenticated()//登入後才可以進入修改頁面
                 .requestMatchers("/adminpage").hasRole("ADMIN")
                 .requestMatchers("/managerpage").hasRole("MANAGER")
                 .requestMatchers("/employeepage").hasAnyRole("MANAGER", "EMPLOYEE")

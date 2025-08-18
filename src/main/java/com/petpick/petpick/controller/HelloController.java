@@ -3,7 +3,9 @@ package com.petpick.petpick.controller;
 import com.petpick.petpick.DTO.RegisterRequest;
 import com.petpick.petpick.entity.UserEntity;
 import com.petpick.petpick.service.UserService;
+import com.petpick.petpick.service.userService1;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +28,7 @@ public class HelloController {
             model.addAttribute("errorMessage", "註冊失敗：信箱已註冊或密碼不一致");
             return "register";
         }
-        return "redirect:/loginpage?registerSuccess";
+        return "success";
     }
 
 
@@ -50,6 +52,28 @@ public class HelloController {
     public String fail() {
         return "fail";
     }
+
+    //更新個人資料頁面
+    @RequestMapping(value = "/rename", method = RequestMethod.GET)
+    public String showRenameForm(Authentication authentication, Model model) {
+        String email = authentication.getName();
+        UserEntity user = userService.findByAccountemail(email);
+        model.addAttribute("user", user);
+        return "rename";
+    }
+
+    @RequestMapping(value = "/rename", method = RequestMethod.POST)
+    public String processRename(@ModelAttribute("user") UserEntity formUser,
+                                Authentication authentication, Model model) {
+        String email = authentication.getName();
+        boolean updated = userService.updateUserByEmail(email, formUser);
+        model.addAttribute("successMessage", updated ? "更新成功" : "更新失敗");
+        model.addAttribute("user", userService.findByAccountemail(email));
+        return "rename";
+    }
+
+
+
 
     @RequestMapping("/adminpage")
     @ResponseBody

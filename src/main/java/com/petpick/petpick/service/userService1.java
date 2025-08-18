@@ -1,12 +1,13 @@
 package com.petpick.petpick.service;
 
+import com.petpick.petpick.entity.UserEntity;
+
 public interface userService1 {
 
-//    UserDetails loadUserByUsername(String email) throws UsernameNotFoundException;
+
+        UserEntity findByAccountemail(String accountemail);
+        boolean updateUserByEmail(String email, UserEntity formUser);
+        // 其他方法...
 
 
-//    userEntity findById(Long user_id);
-//    void save(userEntity user);
-//
-//    void update(userEntity user);
 }

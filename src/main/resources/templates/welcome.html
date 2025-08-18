@@ -58,8 +58,7 @@
                             <span class="material-icons">account_circle</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
-                            <li><a class="dropdown-item" href="./memberRename.html">修改資料</a></li>
-                            <li>   <button sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_ADMIN')" onclick="location.href='/logout';" >離開按鈕</button></li>
+                            <li><a class="dropdown-item" th:href="@{/rename}">修改資料</a></li>                                                   </li><li>   <button sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_ADMIN')" onclick="location.href='/logout';" >離開按鈕</button></li>
                         </ul>
                     </div>
 

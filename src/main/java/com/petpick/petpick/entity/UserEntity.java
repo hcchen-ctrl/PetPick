@@ -1,9 +1,9 @@
 package com.petpick.petpick.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Entity
 @Table(name = "userinfo")
@@ -18,7 +18,7 @@ public class UserEntity {
     private String gender;
     private String city;
     private String district;
-    private String petexperience;
+    private String experience;
     private String daily;
     private String activities;
     private String pet;
@@ -36,6 +36,12 @@ public class UserEntity {
         this.username = accountemail;
         this.password = password;
     }
+
+    @Transient
+    private List<String> petList;
+
+    @Transient
+    private List<String> petActivitiesList;
 
     public UserEntity() {
         // 空的無參數建構子
@@ -90,12 +96,12 @@ public class UserEntity {
         this.district = district;
     }
 
-    public String getPetexperience() {
-        return petexperience;
+    public String getExperience() {
+        return experience;
     }
 
-    public void setPetexperience(String petexperience) {
-        this.petexperience = petexperience;
+    public void setExperience(String experience) {
+        this.experience = experience;
     }
 
     public String getDaily() {
@@ -129,6 +135,43 @@ public class UserEntity {
     public void setPet_activities(String pet_activities) {
         this.pet_activities = pet_activities;
     }
+
+
+    public List<String> getPetList() {
+        if (petList == null && pet != null && !pet.isEmpty()) {
+            petList = Arrays.asList(pet.split(","));
+        }
+        return petList;
+    }
+
+    public void setPetList(List<String> petList) {
+        this.petList = petList;
+        if (petList != null && !petList.isEmpty()) {
+            this.pet = String.join(",", petList);
+        } else {
+            this.pet = null;
+        }
+    }
+
+    // 新增 getter/setter for petActivitiesList (List<String>)
+
+    public List<String> getPetActivitiesList() {
+        if (petActivitiesList == null && pet_activities != null && !pet_activities.isEmpty()) {
+            petActivitiesList = Arrays.asList(pet_activities.split(","));
+        }
+        return petActivitiesList;
+    }
+
+    public void setPetActivitiesList(List<String> petActivitiesList) {
+        this.petActivitiesList = petActivitiesList;
+        if (petActivitiesList != null && !petActivitiesList.isEmpty()) {
+            this.pet_activities = String.join(",", petActivitiesList);
+        } else {
+            this.pet_activities = null;
+        }
+    }
+
+
 
     public String getIsaccount() {
         return isaccount;
