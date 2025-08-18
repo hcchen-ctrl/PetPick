@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class HelloController {
@@ -71,6 +72,34 @@ public class HelloController {
         model.addAttribute("user", userService.findByAccountemail(email));
         return "rename";
     }
+
+    //修改密碼
+    // 修改密碼請求 (POST)
+    public HelloController(UserService userService) {
+        this.userService = userService;
+    }
+    @RequestMapping(value = "/rename/change-password", method = RequestMethod.POST)
+    public String changePassword(@RequestParam("currentPassword") String currentPassword,
+                                 @RequestParam("newPassword") String newPassword,
+                                 @RequestParam("confirmPassword") String confirmPassword,
+                                 Authentication authentication,
+                                 RedirectAttributes redirectAttributes) {
+
+        String email = authentication.getName();
+        String resultMessage = userService.changePassword(email, currentPassword, newPassword, confirmPassword);
+
+        redirectAttributes.addFlashAttribute("passwordMessage", resultMessage); // ✅ 關鍵
+        return "redirect:/rename/change-password";
+    }
+
+
+    @RequestMapping(value = "/rename/change-password", method = RequestMethod.GET)
+    public String showChangePasswordPage(Authentication authentication, Model model) {
+        String email = authentication.getName();
+        model.addAttribute("user", userService.findByAccountemail(email));
+        return "rename"; // ✅ Thymeleaf 模板名稱，沒有加斜線
+    }
+
 
 
 

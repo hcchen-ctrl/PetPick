@@ -5,6 +5,7 @@ import com.petpick.petpick.entity.UserEntity;
 import com.petpick.petpick.repository.UserRepository;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -71,6 +72,29 @@ public class UserService implements userService1{
         return true;
     }
 
+
+    //處理使用者更改帳號密碼
+    @Override
+    public String changePassword(String email, String currentPassword, String newPassword, String confirmPassword) {
+        UserEntity user = userRepository.findByAccountemail(email);
+
+        if (user == null) {
+            return "帳號不存在";
+        }
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            return "目前密碼不正確";
+        }
+
+        if (!newPassword.equals(confirmPassword)) {
+            return "新密碼與確認密碼不一致";
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        return "密碼更新成功";
+    }
 
 
 }

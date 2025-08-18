@@ -135,3 +135,19 @@ function setVerificationMethod(method, event) {
             break;
     }
 }
+
+
+//修改密碼的頁面
+//驗證新密碼與新確認密碼是否一致
+
+document.getElementById('changePasswordForm').addEventListener('submit', function(e) {
+    const newPassword = document.querySelector('[name="newPassword"]').value;
+    const confirmPassword = document.querySelector('[name="confirmPassword"]').value;
+
+    if (newPassword !== confirmPassword) {
+        e.preventDefault();
+        alert("新密碼與確認密碼不一致！");
+    }
+});
+
+
