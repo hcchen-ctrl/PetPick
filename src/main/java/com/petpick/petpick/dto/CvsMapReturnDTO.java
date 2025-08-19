@@ -8,8 +8,6 @@ import lombok.Data;
 public class CvsMapReturnDTO {
     // ── NewebPay 常見欄位 ─────────────────────────────────
     private String MerchantID;
-    private String MerchantTradeNo;   // 你送出地圖用的識別碼
-    private String LogisticsType;     // CVS
     private String LogisticsSubType;  // UNIMART / FAMI / HILIFE / OK
     private String IsCollection;      // Y / N
 
@@ -29,8 +27,6 @@ public class CvsMapReturnDTO {
         CvsMapReturnDTO dto = new CvsMapReturnDTO();
 
         dto.setMerchantID(val(form, "MerchantID"));
-        dto.setMerchantTradeNo(val(form, "MerchantTradeNo"));
-        dto.setLogisticsType(val(form, "LogisticsType"));
         dto.setLogisticsSubType(val(form, "LogisticsSubType"));
         dto.setIsCollection(val(form, "IsCollection"));
 

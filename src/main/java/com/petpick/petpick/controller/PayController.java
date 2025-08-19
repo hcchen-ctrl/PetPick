@@ -45,12 +45,12 @@ public class PayController {
 
     @PostMapping(path = "/checkout", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> checkoutPost(@RequestBody EcpayCheckoutRequest req) {
-        if (req.getOrderId() == null) {
-            return ResponseEntity.badRequest().contentType(MediaType.TEXT_PLAIN).body("orderId is required");
+        if (req == null || req.getOrderId() == null) {
+            return ResponseEntity.badRequest().body("orderId is required");
         }
         String html = (req.getOrigin() == null || req.getOrigin().isBlank())
                 ? ecpayService.buildAioCheckoutForm(req.getOrderId())
-                : ecpayService.buildAioCheckoutForm(req.getOrderId(), req.getOrigin());
+                : ecpayService.buildAioCheckoutForm(req.getOrderId(), req.getOrigin()); // 有多載就用多載
         return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(html);
     }
 

@@ -6,6 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.petpick.petpick.entity.Shipment;
 
-public interface ShipmentRepository extends JpaRepository<Shipment, Integer> {
-    Optional<Shipment> findFirstByOrderIdOrderByIdDesc(Integer orderId);
+public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
+    Optional<Shipment> findTopByOrderIdOrderByIdDesc(Integer orderId);
 }
