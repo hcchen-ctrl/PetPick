@@ -48,6 +48,7 @@ public class SecurityConfig {
 
 
                 .requestMatchers("/rename").authenticated()//登入後才可以進入修改頁面
+                .requestMatchers("/managersIndex").authenticated()//登入後才可以進入修改頁面
                 .requestMatchers("/adminpage").hasRole("ADMIN")
                 .requestMatchers("/managerpage").hasRole("MANAGER")
                 .requestMatchers("/employeepage").hasAnyRole("MANAGER", "EMPLOYEE")

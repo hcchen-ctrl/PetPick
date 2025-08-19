@@ -41,7 +41,7 @@ public class UserService implements userService1{
         // 這行非常重要，將密碼加密後再存入資料庫
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        user.setRole("MANAGER");
+        user.setRole("USER");
         user.setIsaccount("1");
         user.setIsblacklist("0");
 

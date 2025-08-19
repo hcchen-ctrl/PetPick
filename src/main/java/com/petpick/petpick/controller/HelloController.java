@@ -5,6 +5,7 @@ import com.petpick.petpick.entity.UserEntity;
 import com.petpick.petpick.service.UserService;
 import com.petpick.petpick.service.userService1;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -101,7 +102,11 @@ public class HelloController {
     }
 
 
-
+    @PreAuthorize("hasRole('ROLE_MANAGER')")
+    @RequestMapping("/managersIndex")
+    public String managersIndex() {
+        return "managersIndex";
+    }
 
 
     @RequestMapping("/adminpage")
