@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<body onload="document.forms[0].submit()">
+  <form method="post" action="https://logistics-stage.ecpay.com.tw/Express/map">
+    <input type="hidden" name="MerchantID" value="2000933">
+    <input type="hidden" name="MerchantTradeNo" value="LTEST1234567890">
+    <input type="hidden" name="LogisticsType" value="CVS">
+    <input type="hidden" name="LogisticsSubType" value="UNIMARTC2C">
+    <input type="hidden" name="IsCollection" value="N">
+    <input type="hidden" name="ServerReplyURL" value="https://8a163309e63d.ngrok-free.app/api/logistics/cvs/store-return">
+    <!-- 用測試金鑰與 IV 算出 CheckMacValue 後填入這裡 -->
+    <input type="hidden" name="CheckMacValue" value="(用 2000132 的物流 HashKey/IV 算出來的值)">
+    <noscript><button type="submit">送出</button></noscript>
+  </form>
+</body>
+</html>

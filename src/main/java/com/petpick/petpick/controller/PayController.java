@@ -63,7 +63,7 @@ public class PayController {
         body.forEach((k, v) -> map.put(k, (v == null || v.isEmpty()) ? "" : v.get(0)));
 
         // 驗證 CheckMacValue
-        boolean ok = EcpayCheckMac.verify(map, prop.getHashKey(), prop.getHashIv());
+        boolean ok = EcpayCheckMac.verify(map, prop.getPayment().getHashKey(), prop.getPayment().getHashIv());
         if (!ok) {
             return ResponseEntity.badRequest().body("0|CheckMacValue verify fail");
         }

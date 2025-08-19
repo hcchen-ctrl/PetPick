@@ -7,11 +7,14 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class EcpayCheckMac {
+
     public static String generate(Map<String, String> params, String hashKey, String hashIv) {
         Map<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (var e : params.entrySet()) {
             String k = e.getKey(), v = e.getValue();
-            if (k.equalsIgnoreCase("CheckMacValue") || v == null || v.isBlank()) continue;
+            if (k.equalsIgnoreCase("CheckMacValue") || v == null || v.isBlank()) {
+                continue;
+            }
             map.put(k, v);
         }
 
@@ -37,10 +40,14 @@ public class EcpayCheckMac {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(encoded.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
-            for (byte b : digest) hex.append(String.format("%02X", b));
+            for (byte b : digest) {
+                hex.append(String.format("%02X", b));
+            }
             return hex.toString(); // 大寫
         } catch (Exception e) {
+            System.out.println("XXX");
             throw new RuntimeException("CheckMacValue error", e);
+            
         }
     }
 
