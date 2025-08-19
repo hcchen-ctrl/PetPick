@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>申請審核中心 - PetPick</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="icon" href="/images/pet-icon.png" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/gov-list.css">
+    <link rel="stylesheet" href="/css/loading.css">
+    <style>
+        .card-thumb {
+            width: 100%;
+            height: 200px;
+            background: #f8f9fa;
+            border-radius: .5rem;
+            overflow: hidden
+        }
+
+        .card-thumb>img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block
+        }
+
+        .badge-status {
+            font-weight: 600
+        }
+
+        #tabs .btn.active {
+            background: #cfa178;
+            color: #fff;
+            border-color: #cfa178
+        }
+
+        .carousel-img {
+            width: 100%;
+            height: 420px;
+            object-fit: contain;
+            background: #f8f9fa;
+            border-radius: .5rem
+        }
+
+        @media (max-width:576px) {
+            .carousel-img {
+                height: 300px
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <!-- 共用 Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/index.html"><img src="/images/pet-icon.png" width="36" height="36"
+                    class="d-inline-block align-top" alt="logo"> PetPick</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span
+                    class="navbar-toggler-icon"></span></button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle btn btn-login m-1" href="#" id="adoptDropdown"
+                                role="button" data-bs-toggle="dropdown">尋找領養</a>
+                            <ul class="dropdown-menu" aria-labelledby="adoptDropdown">
+                                <li><a class="dropdown-item" href="/gov-list.html">公立認養</a></li>
+                                <li><a class="dropdown-item" href="/adopt-list.html">領養認養</a></li>
+                                <li><a class="dropdown-item" href="/post-adopt.html">刊登送養</a></li>
+                                <li><a class="dropdown-item" href="/adopt-report.html">收養回報</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1"
+                                href="/mission/missonMain.html">尋找任務</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="/shop/index.html">寵物商城</a></li>
+                    </ul>
+                    <div id="authArea" class="ms-auto d-flex gap-2 align-items-center"></div>
+                    <div class="d-lg-none mt-2 mobile-iconbar">
+                        <button class="btn btn-material"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material"><span class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" id="mobileAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+                    <div id="desktop-iconbar" class="d-none d-lg-block position-fixed end-0 m-4" style="z-index:1030;">
+                        <button class="btn btn-material"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material"><span class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" id="desktopAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-5 pt-4 py-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+            <h3 class="mb-0">申請審核中心</h3>
+            <form id="filters" class="row g-2">
+                <div class="col-12 col-sm-3">
+                    <label class="form-label mb-1">狀態</label>
+                    <select id="fStatus" class="form-select form-select-sm">
+                        <option value="all">全部</option>
+                        <option value="pending" selected>審核中</option>
+                        <option value="approved">已通過</option>
+                        <option value="rejected">已退回</option>
+                        <option value="cancelled">已取消</option>
+                    </select>
+                </div>
+                <div class="col-12 col-sm-3">
+                    <label class="form-label mb-1">動物種類</label>
+                    <select id="fSpecies" class="form-select form-select-sm">
+                        <option value="">全部</option>
+                        <option>狗</option>
+                        <option>貓</option>
+                        <option>兔</option>
+                        <option>蛇</option>
+                        <option>豬</option>
+                    </select>
+                </div>
+                <div class="col-12 col-sm-4">
+                    <label class="form-label mb-1">關鍵字</label>
+                    <input id="fQ" type="text" class="form-control form-select-sm" placeholder="申請者/標題/電話…">
+                </div>
+                <div class="col-12 col-sm-2 d-grid">
+                    <button class="btn btn-outline-secondary btn-sm mt-4" type="submit">搜尋</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="tabs" class="btn-group mb-3">
+            <a href="/post-review.html" class="btn btn-outline-secondary">貼文審核</a>
+            <a href="/apply-review.html" class="btn btn-outline-secondary active">申請審核</a>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div id="resultCount" class="text-muted small"></div>
+            <div id="pager" class="btn-group btn-group-sm"></div>
+        </div>
+
+        <div id="empty" class="alert alert-secondary d-none">目前沒有資料。</div>
+        <div class="row g-3" id="list"></div>
+    </main>
+
+    <!-- 詳情 Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mTitle">申請詳情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body" id="mBody">
+                    <div class="text-center text-muted">載入中…</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" id="mReject">退回</button>
+                    <button class="btn btn-success" id="mApprove">通過</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/authbar.js"></script>
+
+    <script type="module">
+        import { requireAdmin } from '/js/auth.js';
+        await requireAdmin();
+
+        const list = document.getElementById('list');
+        const empty = document.getElementById('empty');
+        const filters = document.getElementById('filters');
+        const fStatus = document.getElementById('fStatus');
+        const fSpecies = document.getElementById('fSpecies');
+        const fQ = document.getElementById('fQ');
+        const resultCount = document.getElementById('resultCount');
+        const pager = document.getElementById('pager');
+
+        const m = new bootstrap.Modal('#detailModal');
+        const mTitle = document.getElementById('mTitle');
+        const mBody = document.getElementById('mBody');
+        const mApprove = document.getElementById('mApprove');
+        const mReject = document.getElementById('mReject');
+
+        const qs = new URLSearchParams(location.search);
+        const state = {
+            page: +(qs.get('page') || 0),
+            size: 24,
+            status: qs.get('status') || 'pending',
+            species: qs.get('species') || '',
+            q: qs.get('q') || ''
+        };
+
+        fStatus.value = ['pending', 'approved', 'rejected', 'cancelled'].includes(state.status) ? state.status : 'all';
+        fSpecies.value = state.species;
+        fQ.value = state.q;
+
+        const fallback = '/images/no-image.jpg';
+        const fmt = {
+            badge(s) {
+                if (s === 'approved') return '<span class="badge bg-success badge-status">已通過</span>';
+                if (s === 'rejected') return '<span class="badge bg-danger badge-status">已退回</span>';
+                if (s === 'cancelled') return '<span class="badge bg-secondary badge-status">已取消</span>';
+                return '<span class="badge bg-warning text-dark badge-status">審核中</span>';
+            },
+            place(p) { return [p.city, p.district].filter(Boolean).join(' '); },
+            sexText(s) { return s === 'male' ? '公' : s === 'female' ? '母' : '—'; },
+            animalLine(p) {
+                return [p.species, p.breed, [this.sexText(p.sex)].filter(Boolean).join(' '), p.age, p.bodyType].filter(Boolean).join('｜');
+            }
+        };
+
+        function buildParams() {
+            const p = new URLSearchParams();
+            const status = fStatus.value;    // all / pending / approved / rejected...
+            const species = fSpecies.value;  // all / dog / cat / ...
+            const q = (fQ.value || '').trim();
+
+            if (status && status !== 'all' && status !== '全部') p.set('status', status);
+            if (species && species !== 'all' && species !== '全部') p.set('species', species);
+            if (q) p.set('q', q);
+
+            p.set('page', state.page);
+            p.set('size', state.size);
+            return p.toString();
+        }
+
+        function syncUrl(push = false) {
+            const url = `/apply-review.html?${buildParams()}`;
+            if (push) history.pushState(null, '', url); else history.replaceState(null, '', url);
+        }
+
+        window.addEventListener('popstate', () => {
+            const q = new URLSearchParams(location.search);
+            state.page = +(q.get('page') || 0);
+            state.status = q.get('status') || 'pending';
+            state.species = q.get('species') || '';
+            state.q = q.get('q') || '';
+            fStatus.value = ['pending', 'approved', 'rejected', 'cancelled'].includes(state.status) ? state.status : 'all';
+            fSpecies.value = state.species; fQ.value = state.q;
+            load();
+        });
+
+        async function load() {
+            const r = await fetch(`/api/applications?${buildParams()}`);
+            if (!r.ok) { list.innerHTML = ''; empty.classList.remove('d-none'); resultCount.textContent = '讀取失敗'; pager.innerHTML = ''; return; }
+            const data = await r.json();
+            const items = data.content ?? data ?? [];
+
+            empty.classList.toggle('d-none', items.length > 0);
+            resultCount.textContent = (data.totalElements != null)
+                ? `共 ${data.totalElements} 筆，第 ${data.number + 1}/${data.totalPages} 頁`
+                : `共 ${items.length} 筆`;
+
+            list.innerHTML = items.map(a => {
+                const p = a.post || {};
+                const img = p.image1 || p.image2 || p.image3 || fallback;
+                return `
+          <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+              <div class="card-thumb"><img src="${img}" onerror="this.src='${fallback}'"></div>
+              <div class="card-body">
+                <h5 class="mb-1 d-flex align-items-center justify-content-between">
+                  <span>${p.title || '未命名'}</span>
+                  ${fmt.badge(a.status)}
+                </h5>
+                <div class="text-muted small mb-1">${fmt.place(p)}</div>
+                <div class="small mb-1">動物：${fmt.animalLine(p)}</div>
+                <div class="small mb-1">申請者：${a.applicantName || a.applicantId}</div>
+                <div class="small mb-2">留言：${a.message || '—'}</div>
+                <div class="d-flex flex-wrap gap-2">
+                  <button class="btn btn-outline-primary btn-sm" data-view="${a.id}">詳情</button>
+                  ${a.status === 'pending' ? `
+                    <button class="btn btn-success btn-sm" data-pass="${a.id}">通過</button>
+                    <button class="btn btn-danger btn-sm"  data-reject="${a.id}">退回</button>` : ``}
+                </div>
+              </div>
+            </div>
+          </div>`;
+            }).join('');
+
+            list.querySelectorAll('[data-view]').forEach(b => b.onclick = () => openDetail(b.dataset.view));
+            list.querySelectorAll('[data-pass]').forEach(b => b.onclick = () => approveApp(b.dataset.pass));
+            list.querySelectorAll('[data-reject]').forEach(b => b.onclick = () => rejectApp(b.dataset.reject));
+
+            if (data.totalPages != null) {
+                pager.innerHTML = `
+          <button class="btn btn-outline-secondary" ${data.number <= 0 ? 'disabled' : ''} id="pgPrev">上一頁</button>
+          <button class="btn btn-outline-secondary" ${data.number >= data.totalPages - 1 ? 'disabled' : ''} id="pgNext">下一頁</button>`;
+                pager.querySelector('#pgPrev')?.addEventListener('click', () => { state.page = Math.max(0, data.number - 1); syncUrl(true); load(); });
+                pager.querySelector('#pgNext')?.addEventListener('click', () => { state.page = Math.min(data.totalPages - 1, data.number + 1); syncUrl(true); load(); });
+            } else { pager.innerHTML = ''; }
+        }
+
+        async function openDetail(id) {
+            mTitle.textContent = '申請詳情';
+            mBody.innerHTML = `<div class="text-center text-muted">載入中…</div>`;
+            m.show();
+
+            const r = await fetch(`/api/applications/${id}`);
+            if (!r.ok) { mBody.innerHTML = `<div class="text-danger">讀取失敗</div>`; return; }
+            const a = await r.json();
+            const p = a.post || {};
+            const imgs = [p.image1, p.image2, p.image3].filter(u => !!u && u.trim());
+            const useImgs = imgs.length ? imgs : [fallback];
+            const slides = useImgs.map((u, i) => `<div class="carousel-item ${i === 0 ? 'active' : ''}"><img src="${u}" class="d-block w-100 carousel-img" onerror="this.src='${fallback}'"></div>`).join('');
+            const indicators = useImgs.map((_, i) => `<button type="button" data-bs-target="#mCarousel" data-bs-slide-to="${i}" class="${i === 0 ? 'active' : ''}" ${i === 0 ? 'aria-current="true"' : ''} aria-label="第 ${i + 1} 張"></button>`).join('');
+
+            mTitle.innerHTML = `申請詳情　${fmt.badge(a.status)}`;
+            mBody.innerHTML = `
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div id="mCarousel" class="carousel slide" data-bs-ride="true">
+              <div class="carousel-indicators">${indicators}</div>
+              <div class="carousel-inner">${slides}</div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#mCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span><span class="visually-hidden">上一張</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#mCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span><span class="visually-hidden">下一張</span>
+              </button>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-2 text-muted">${fmt.place(p)}</div>
+            <div class="mb-2"><strong>動物：</strong>${fmt.animalLine(p)}</div>
+            <hr class="my-2">
+            <div class="mb-2"><strong>申請者：</strong>${a.applicantName || a.applicantId}</div>
+            <div class="mb-2"><strong>申請時間：</strong>${(a.createdAt || '').replace('T', ' ')}</div>
+            <div class="mb-2"><strong>留言：</strong>${a.message || '—'}</div>
+          </div>
+        </div>`;
+
+            const pending = a.status === 'pending';
+            mApprove.disabled = !pending;
+            mReject.disabled = !pending;
+            mApprove.onclick = () => approveApp(id, true);
+            mReject.onclick = () => rejectApp(id, true);
+        }
+
+        // --- Admin actions for Applications ---
+        async function approveApp(id, close = false) {
+            const ok = await fetch(`/api/applications/${id}/approve`, { method: 'PATCH' }).then(r => r.ok);
+            alert(ok ? '已通過' : '操作失敗'); if (ok) { if (close) m.hide(); load(); }
+        }
+        async function rejectApp(id, close = false) {
+            const reason = prompt('退件原因（可留空）') || '';
+            const ok = await fetch(`/api/applications/${id}/reject?reason=${encodeURIComponent(reason)}`, { method: 'PATCH' }).then(r => r.ok);
+            alert(ok ? '已退回' : '操作失敗'); if (ok) { if (close) m.hide(); load(); }
+        }
+
+        filters.addEventListener('submit', e => {
+            e.preventDefault();
+            state.status = fStatus.value; state.species = fSpecies.value; state.q = fQ.value.trim(); state.page = 0;
+            syncUrl(true); load();
+        });
+
+        syncUrl();
+        load();
+    </script>
+</body>
+
+</html>
