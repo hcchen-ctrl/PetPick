@@ -1,9 +1,11 @@
 package com.petpick.petpick.config;
 
 import com.petpick.petpick.handle.MyAccessDeniedHandler;
+import com.petpick.petpick.service.CustomOAuth2UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -23,6 +25,10 @@ public class SecurityConfig {
     @Autowired
     private MyAccessDeniedHandler myAccessDeniedHandler;
 
+    @Autowired
+    @Lazy
+    private CustomOAuth2UserService customOAuth2UserService;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf
@@ -40,6 +46,16 @@ public class SecurityConfig {
                 .defaultSuccessUrl("/", true)  // welcome 頁面
                 // 登入失敗後要造訪的頁面
                 .failureUrl("/loginpage?error=true")        );
+
+        // ✅ Google OAuth2 登入設定
+        http.oauth2Login(oauth2 -> oauth2
+                .loginPage("/loginpage") // 使用同一個登入頁
+                .userInfoEndpoint(userInfo -> userInfo
+                        .userService(customOAuth2UserService) // 自訂 OAuth2UserService
+                )
+                .defaultSuccessUrl("/", true) // Google 登入成功也導向 /
+                .failureUrl("/loginpage?error=true")    // 登入失敗後要造訪的頁面
+        );
 
         // 授權認證
         http.authorizeHttpRequests(authorize -> authorize

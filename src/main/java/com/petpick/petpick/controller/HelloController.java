@@ -7,6 +7,8 @@ import com.petpick.petpick.service.userService1;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -34,11 +36,25 @@ public class HelloController {
     }
 
 
-
+//新增google地方登入API
     @RequestMapping("/")
-    public String welcome() {
+    public String welcome(Model model, Authentication authentication) {
+        String userIdentifier;
+
+        if (authentication instanceof OAuth2AuthenticationToken) {
+            // 是 Google 登入
+            OAuth2AuthenticationToken oauth2Token = (OAuth2AuthenticationToken) authentication;
+            OAuth2User oauthUser = oauth2Token.getPrincipal();
+            userIdentifier = oauthUser.getAttribute("email"); // Google 登入者 email
+        } else {
+            // 是一般表單登入
+            userIdentifier = authentication.getName(); // 你的 UserDetails.username
+        }
+
+        model.addAttribute("userName", userIdentifier);
         return "welcome";
     }
+
 
     @RequestMapping("/loginpage")
     public String loginpage(@RequestParam(value = "error", required = false) String error,

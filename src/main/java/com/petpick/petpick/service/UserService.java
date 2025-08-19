@@ -97,4 +97,10 @@ public class UserService implements userService1{
     }
 
 
+    //google登入存進資料庫
+    public void saveUser(UserEntity user) {
+        userRepository.save(user);
+    }
+
+
 }
