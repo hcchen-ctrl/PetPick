@@ -127,6 +127,13 @@ public class HelloController {
         return "adopt/gov-list-page";
     }
 
+    //回傳商城首頁
+    @RequestMapping(value = "/shop/commodity", method = RequestMethod.GET)
+    public String commodity() {
+        return "shop/commodity";
+    }
+
+
 
     @PreAuthorize("hasRole('ROLE_MANAGER')")
     @RequestMapping("/managersIndex")

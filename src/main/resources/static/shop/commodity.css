@@ -1,0 +1,331 @@
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    font-family: "Noto Sans TC", sans-serif;
+    background-color: #f9f9f9;
+    padding-top: 60px;
+    display: flex;
+    /*使物件依序排列*/
+    flex-direction: column;
+    /*使物件垂直排列*/
+}
+
+.navbar-light {
+    background-color: #f8f2e9 !important;
+    /* 柔和米色 */
+}
+
+.navbar-light .navbar-brand {
+    font-weight: bold;
+    font-size: 1.6rem;
+    color: #4e4e4e;
+}
+
+.navbar-light .nav-link {
+    color: #4e4e4e;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: color 0.3s ease;
+}
+
+.navbar-light .nav-link:hover {
+    color: #c48b5f;
+}
+
+.navbar-nav .btn {
+    background-color: #d19f72;
+    color: white;
+    border-radius: 20px;
+    border: none;
+    padding: 6px 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.navbar-nav .btn:hover {
+    background-color: #b9845e;
+}
+
+.site-title {
+    font-size: 1.5rem;
+    color: #444;
+}
+
+section {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 2rem 0 1rem;
+}
+
+.section-title i {
+    margin-right: 8px;
+}
+
+.text-block {
+    max-width: 900px;
+    margin: auto;
+    padding: 0 1rem;
+    line-height: 1.8;
+    text-align: justify;
+}
+
+.footer {
+    text-align: center;
+    background-color: #f8f2e9;
+    color: #333;
+    padding: 2rem 1rem;
+    width: 100%;
+}
+
+.footer p {
+    margin-bottom: 0.2rem;
+}
+
+.card img {
+    height: 200px;
+    object-fit: cover;
+}
+
+/* 右下角置頂按鈕 */
+#backToTop {
+    position: fixed;
+    bottom: 40px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background-color: #d19f72;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    z-index: 999;
+    cursor: pointer;
+    transition: opacity 0.3s ease-in-out;
+}
+
+#backToTop:hover {
+    background-color: #b9845e;
+}
+
+/* 控制顯示與隱藏的動畫 */
+.navbar {
+    transition: top 0.3s;
+}
+
+/* 隱藏狀態：往下滑時觸發 */
+.navbar.hide-navbar {
+    top: -80px;
+    /* 根據 navbar 高度調整 */
+}
+
+.btn-login {
+    background-color: #d19f72;
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-weight: bold;
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-login:hover {
+    background-color: #b9845e;
+}
+
+.btn-addToCart {
+    background-color: #d19f72;
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-weight: bold;
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-addToCart:hover {
+    background-color: #b9845e;
+}
+
+
+.content {
+    padding: 2rem;
+}
+
+.filter-selector {
+    margin-top: 20px;
+    background-color: #f8f2e9;
+    border-radius: 15px;
+    padding: 10px 20px;
+}
+
+.card-img-top {
+    transition: transform 0.3s ease;
+}
+
+.card:hover .card-img-top {
+    transform: scale(1.08);
+}
+
+.card {
+    overflow: hidden;
+}
+
+.cardBtnImg {
+    font-size: 20px;
+    /* 控制高度 */
+    object-fit: contain;
+    /* 防止圖片被裁切 */
+    display: inline-block;
+}
+
+.card-material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 30px;
+    /* Preferred icon size */
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    vertical-align: middle;
+
+    /* Support for all WebKit browsers. */
+    -webkit-font-smoothing: antialiased;
+    /* Support for Safari and Chrome. */
+    text-rendering: optimizeLegibility;
+
+    /* Support for Firefox. */
+    -moz-osx-font-smoothing: grayscale;
+
+    /* Support for IE. */
+    font-feature-settings: 'liga';
+}
+
+.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 40px;
+    /* Preferred icon size */
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    vertical-align: middle;
+
+    /* Support for all WebKit browsers. */
+    -webkit-font-smoothing: antialiased;
+    /* Support for Safari and Chrome. */
+    text-rendering: optimizeLegibility;
+
+    /* Support for Firefox. */
+    -moz-osx-font-smoothing: grayscale;
+
+    /* Support for IE. */
+    font-feature-settings: 'liga';
+}
+
+.btn-material {
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-filter {
+    background-color: #d19f72;
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-weight: bold;
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-filter:hover {
+    background-color: #b9845e;
+}
+
+.btn-material :hover {
+    background-color: burlywood;
+    border-radius: 50%;
+    border: none;
+    transition: 0.3s;
+}
+
+#cart-badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+    border-radius: 999px;
+}
+
+.group {
+    margin: 2rem auto;
+    width: 60%;
+}
+
+.form-check-input {
+    visibility: hidden;
+    /* 把原本的input藏起來 */
+}
+
+.form-check-label {
+    font-size: 1.2rem;
+    cursor: pointer;
+    position: relative;
+    padding-left: 3rem;
+}
+
+.form-check {
+    background-color: #d19f72;
+}
+
+
+
+
+/* 手機版導覽列改為直式 */
+@media (max-width: 991.98px) {
+    .navbar-collapse>.d-flex {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .navbar-nav {
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 0.5rem;
+        text-align: center;
+    }
+
+    .navbar-nav .nav-link {
+        text-align: center;
+    }
+
+    .navbar .navbar-nav:first-child {
+        margin-right: auto;
+    }
+
+    .navbar .navbar-nav:last-child {
+        margin-left: auto;
+    }
+}

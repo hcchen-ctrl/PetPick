@@ -71,16 +71,9 @@
                                 class="material-icons">chat_bubble_outline</span></button>
                         <button class="btn btn-material" aria-label="購物車"><span
                                 class="material-icons">shopping_cart</span></button>
-                        <div class="dropdown d-inline">
-                            <button class="btn btn-material dropdown-toggle" type="button" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                <span class="material-icons">account_circle</span>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
-                                <li><a class="dropdown-item" th:href="@{/rename}" sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_USER')">修改資料</a></li>
-                                <li>  <a class="dropdown-item" sec:authorize="hasAuthority('ROLE_MANAGER')" th:href="@{/managersIndex}">管理按鈕</a></li>
-                                <li>   <a class="dropdown-item" sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_USER')" onclick="location.href='/logout';" >離開按鈕</a></li>
-                            </ul>
-                        </div>
+                        <button class="btn btn-material" aria-label="帳號" onclick="location.href='/loginpage'">
+                            <span class="material-icons">account_circle</span>
+                        </button>
                     </div>
                 </div>
             </div>
