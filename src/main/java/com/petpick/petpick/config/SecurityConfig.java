@@ -10,9 +10,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.cors.*;
 
 @Configuration
 public class SecurityConfig {
@@ -20,45 +18,45 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // CORS：對應下面的 corsConfigurationSource()
-            .cors(Customizer.withDefaults())
-
-            // CSRF：只忽略第三方回拋與你方 JSON POST
-            .csrf(csrf -> csrf.ignoringRequestMatchers(
-                new AntPathRequestMatcher("/api/pay/ecpay/**",   "POST"),
-                new AntPathRequestMatcher("/api/logistics/**",   "POST"),
-                new AntPathRequestMatcher("/api/orders/checkout","POST"),
-                new AntPathRequestMatcher("/api/cart/**",        "POST")
-            ))
-
-            // 若有在 iframe 內嵌頁面，可開 sameOrigin
-            .headers(h -> h.frameOptions(f -> f.sameOrigin()))
-
-            .authorizeHttpRequests(auth -> auth
-                // 預檢請求一定放行
+                .cors(Customizer.withDefaults())
+                // ★ 只有第三方直接 POST 回來/不帶 CSRF token 的端點需要忽略 CSRF
+                .csrf(csrf -> csrf.ignoringRequestMatchers(
+                new AntPathRequestMatcher("/payment/v2/result"),
+                new AntPathRequestMatcher("/payment/v2/result/**"),
+                new AntPathRequestMatcher("/payment/result"), // ★ 相容端點
+                new AntPathRequestMatcher("/payment/result/**"), // ★ 相容端點
+                new AntPathRequestMatcher("/api/pay/**"),
+                new AntPathRequestMatcher("/api/logistics/**"),
+                new AntPathRequestMatcher("/api/orders/**"),
+                new AntPathRequestMatcher("/api/cart/**")
+        // 若仍保留舊相容端點再打開下面兩行
+        // , new AntPathRequestMatcher("/payment/result"),
+        // new AntPathRequestMatcher("/payment/result/**")
+        ))
+                .headers(h -> h.frameOptions(f -> f.sameOrigin()))
+                .authorizeHttpRequests(auth -> auth
+                // CORS Preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                // 靜態資源 / 頁面
-                .requestMatchers("/", "/index.html",
+                // 靜態頁與資源
+                .requestMatchers("/", "/index.html", "/success.html", "/fail.html",
                         "/cart.html", "/order.html", "/orderDetail.html",
                         "/payment/result", "/payment/result/**",
                         "/css/**", "/js/**", "/images/**", "/figure/**", "/webjars/**")
                 .permitAll()
-
-                // API（測試階段先放行，上線再縮）
-                .requestMatchers("/api/pay/ecpay/**").permitAll()
-                .requestMatchers("/api/logistics/**").permitAll()
-                .requestMatchers("/api/cart/**").permitAll()
-                .requestMatchers("/api/orders/**").permitAll()
-
-                // 其他（測試放行）
+                // 金流/物流回呼與開放 API
+                .requestMatchers("/payment/v2/result", "/payment/v2/result/**",
+                     "/payment/result", "/payment/result/**").permitAll()
+                // 若仍保留舊相容端點再放行
+                // .requestMatchers("/payment/result", "/payment/result/**").permitAll()
+                .requestMatchers("/api/pay/**", "/api/logistics/**").permitAll()
+                .requestMatchers("/api/cart/**", "/api/orders/**").permitAll()
+                // 其他按需調整；目前全開
                 .anyRequest().permitAll()
-            );
+                );
 
         return http.build();
     }
 
-    // CORS：測試模式允許全部；上線請改為你的前端網域
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();

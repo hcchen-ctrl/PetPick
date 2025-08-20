@@ -62,4 +62,10 @@ public class Order {
     @Column(name = "tracking_no")
     private String trackingNo;
 
+    @Column(name = "trade_no", unique = true, length = 50)
+    private String tradeNo;
+
+    @Column(name = "paid_at")
+    private LocalDateTime PaidAt;
+
 }

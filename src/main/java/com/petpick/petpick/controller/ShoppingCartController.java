@@ -53,7 +53,9 @@ public class ShoppingCartController {
         return ResponseEntity.noContent().build(); // 204
     }
 
-    @DeleteMapping("/user/{userId}")
+   
+
+    @DeleteMapping("/clear/{userId}")
     public ResponseEntity<Void> clearCart(@PathVariable Integer userId) {
         shoppingCartService.clearCart(userId);
         return ResponseEntity.noContent().build(); // 204

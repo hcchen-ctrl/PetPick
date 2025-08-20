@@ -119,7 +119,7 @@ document.getElementById("checkout-form")?.addEventListener("submit", async (e) =
         if (!res.ok) throw new Error((await res.text().catch(() => "")) || "訂單建立失敗");
         const order = await res.json();
         const orderId = order?.orderId;
-        setBadge(0); // 後端通常會清空購物車，前端一起清零
+        // setBadge(0); // 後端通常會清空購物車，前端一起清零
 
         // 2) 分流：信用卡
         if (payment === "credit") {
@@ -251,3 +251,11 @@ phoneInput?.addEventListener("input", () => {
 window.addEventListener("DOMContentLoaded", () => {
     deliveryMethod?.dispatchEvent(new Event("change"));
 });
+
+const p = new URLSearchParams(location.search);
+const orderId = p.get('orderId');
+if (orderId) {
+    // 例如：把它塞到某個 <span id="oid"></span>
+    const el = document.getElementById('oid');
+    if (el) el.textContent = '#' + orderId;
+}

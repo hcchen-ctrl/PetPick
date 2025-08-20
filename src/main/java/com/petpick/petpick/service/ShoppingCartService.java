@@ -91,9 +91,10 @@ public class ShoppingCartService {
      * 刪除購物車中的全部商品
      */
     @Transactional
-    public void clearCart(Integer userId) {
+    public int clearCart(Integer userId) {
         int affected = shoppingCartRepository.deleteByUserId(userId);
-
+        System.out.println("[Cart] clear userId=" + userId + ", affected=" + affected);
+        return affected;
     }
 
     /**

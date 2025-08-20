@@ -1,5 +1,3 @@
-// === js/orderDetail.js（改為打後端）===
-
 // 讀取 URL 的 orderId
 const params = new URLSearchParams(window.location.search);
 const orderId = params.get("orderId");
