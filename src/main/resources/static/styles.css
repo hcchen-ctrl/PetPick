@@ -4,6 +4,12 @@ body {
     padding-top: 60px;
 }
 
+header .carousel-item img {
+    height: 500px;
+    object-fit: cover;
+    width: 100%;
+}
+
 .navbar-light {
     background-color: #f8f2e9 !important;
 }
@@ -35,36 +41,55 @@ body {
     transition: background-color 0.3s ease;
 }
 
-.navbar-nav .btn:hover,
-.btn-login:hover {
+.navbar-nav .btn:hover {
     background-color: #b9845e;
 }
 
-.btn-login {
-    background-color: #d19f72;
-    border-radius: 30px;
-    padding: 6px 16px;
+.site-title {
+    font-size: 1.5rem;
+    color: #444;
+}
+
+section {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    font-size: 1.5rem;
     font-weight: bold;
-    border: none;
-    transition: 0.3s;
+    text-align: center;
+    margin: 2rem 0 1rem;
 }
 
-.material-icons {
-    font-family: 'Material Icons';
-    font-size: 40px;
-    vertical-align: middle;
+.section-title i {
+    margin-right: 8px;
 }
 
-.btn-material {
-    border: none;
-    transition: 0.3s;
+.text-block {
+    max-width: 900px;
+    margin: auto;
+    padding: 0 1rem;
+    line-height: 1.8;
+    text-align: justify;
 }
 
-.btn-material :hover {
-    background-color: burlywood;
-    border-radius: 50%;
-    border: none;
-    transition: 0.3s;
+.footer {
+    background-color: #f8f2e9;
+    color: #333;
+    padding: 2rem 1rem;
+}
+
+.footer p {
+    margin-bottom: 0.2rem;
+}
+
+.card img {
+    height: 200px;
+    object-fit: cover;
 }
 
 /* 右下角置頂按鈕 */
@@ -87,6 +112,270 @@ body {
     cursor: pointer;
     transition: opacity 0.3s ease-in-out;
 }
+
+#backToTop:hover {
+    background-color: #b9845e;
+}
+
+/* Navbar 捲動隱藏動畫 */
+.navbar {
+    transition: top 0.3s;
+}
+
+.navbar.hide-navbar {
+    top: -80px;
+}
+
+.btn-login {
+    background-color: #d19f72;
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-weight: bold;
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-login:hover {
+    background-color: #b9845e;
+}
+
+.btn-outline-secondary {
+    background-color: #d19f72;
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-weight: bold;
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #b9845e;
+}
+
+/* 手機版導覽列改為直式 */
+@media (max-width: 991.98px) {
+    .navbar-collapse .d-flex {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .navbar-nav {
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 0.5rem;
+        text-align: center;
+    }
+
+    .navbar-nav .nav-link {
+        text-align: center;
+    }
+
+    .btn-login {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+
+    .navbar .navbar-nav:first-child {
+        margin-right: auto;
+    }
+
+    .navbar .navbar-nav:last-child {
+        margin-left: auto;
+    }
+}
+
+.mission-card {
+    border-radius: 3px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s;
+}
+
+.mission-card:hover {
+    transform: translateY(-5px);
+}
+
+.mission-tag {
+    font-size: 0.8rem;
+    color: #5b7f6e;
+    background-color: #e6f1ec;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+}
+
+.card-header {
+    background-color: burlywood;
+}
+
+.list-group-item {
+    border-radius: 0px;
+    box-shadow: 0 1px 2px rgba(209, 159, 114, 0.2);
+}
+
+.list-group-item.active {
+    background-color: burlywood;
+    color: #333;
+}
+
+.list-group {
+    border-radius: 1px;
+}
+
+.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 40px;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    vertical-align: middle;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'liga';
+}
+
+.btn-material {
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-material:hover {
+    background-color: burlywood;
+    border-radius: 50%;
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-recommend {
+    transition: 0.3s;
+    border-radius: 3px;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    margin-bottom: 0;
+}
+
+.btn-recommend.active {
+    background-color: burlywood;
+    transition: 0.3s;
+    border: none;
+}
+
+.btn-recommend:hover {
+    background-color: burlywood;
+    transition: 0.3s;
+}
+
+.score-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 16px;
+    background-color: #9fad44;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+}
+
+#search-input {
+    height: 36px;
+}
+
+.index-header {
+    background-image: url('/images/banner12.jpg');
+    width: 100%;
+    height: 600px;
+    background-position: center;
+    background-size: cover;
+}
+
+/* 手機：讓手機按鈕列橫排、置中、間距 */
+@media (max-width: 991.98px) {
+    .mobile-iconbar {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .mobile-iconbar .btn-material {
+        width: auto;
+    }
+}
+
+/* 右上角三顆 icon：navbar 內用 flex 右對齊 */
+#desktop-iconbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 不要 Bootstrap 自動加的 caret 小箭頭 */
+#desktop-iconbar .dropdown-toggle::after {
+    display: none;
+}
+
+/* dropdown 菜單層級夠高 */
+#desktop-iconbar .dropdown-menu {
+    z-index: 2000;
+}
+
+
+/* 條款卡片 header 取消底線/外框（如果還看到細線）*/
+.card,
+.card .card-header {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+
+/* Checkbox 同品牌色 */
+.form-check-input:checked {
+    background-color: var(--brand) !important;
+    border-color: var(--brand) !important;
+}
+
+.form-check-input:focus {
+    border-color: var(--brand-hover) !important;
+    box-shadow: 0 0 0 .25rem rgba(209, 159, 114, .25) !important;
+}
+
+/* 移除 card header 底線 */
+.card .card-header {
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+    /* 保險：避免某些主題加陰影 */
+}
+
+/* （可選）移除整張卡片的外框，只留陰影 */
+.card {
+    border: none !important;
+    /* 若想更圓潤也可一起加上圓角與裁切 */
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.form-check-input:checked {
+    background-color: #d19f72 !important;
+    border-color: #d19f72 !important;
+}
+
+.form-check-input:focus {
+    border-color: #b9845e !important;
+    box-shadow: 0 0 0 .25rem rgba(209, 159, 114, .25) !important;
+}
+
+
+
+
+
 
 /* 會員註冊/登入/忘記密碼表單 */
 .auth-container {

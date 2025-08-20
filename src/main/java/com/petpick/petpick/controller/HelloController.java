@@ -19,6 +19,14 @@ public class HelloController {
     @Autowired
     private UserService userService;
 
+    //放行首頁
+    @RequestMapping(value = "/index", method = RequestMethod.GET)
+        public String index() {
+            return "index"; // 對應 src/main/resources/templates/index.html
+        }
+
+
+//註冊頁面
     @RequestMapping(value = "/register", method = RequestMethod.GET)
     public String showRegisterForm(Model model) {
         model.addAttribute("registerRequest", new RegisterRequest());
@@ -55,20 +63,14 @@ public class HelloController {
         return "welcome";
     }
 
-
-    @RequestMapping("/loginpage")
+//會員登入頁面
+    @RequestMapping(value = "/loginpage", method = RequestMethod.GET)
     public String loginpage(@RequestParam(value = "error", required = false) String error,
                             Model model) {
         if (error != null) {
             model.addAttribute("errorMessage", "登入失敗，請檢查帳號密碼");
         }
         return "loginpage";
-    }
-
-    @RequestMapping("/fail")
-    @ResponseBody
-    public String fail() {
-        return "fail";
     }
 
     //更新個人資料頁面
@@ -118,6 +120,14 @@ public class HelloController {
     }
 
 
+
+    //回傳公認領養的html
+    @RequestMapping("/gov-list-page")
+    public String showGovListPage() {
+        return "adopt/gov-list-page";
+    }
+
+
     @PreAuthorize("hasRole('ROLE_MANAGER')")
     @RequestMapping("/managersIndex")
     public String managersIndex() {
@@ -125,22 +135,5 @@ public class HelloController {
     }
 
 
-    @RequestMapping("/adminpage")
-    @ResponseBody
-    public String adminpage() {
-        return "adminpage";
-    }
-
-    @RequestMapping("/managerpage")
-    @ResponseBody
-    public String managerpage() {
-        return "managerpage";
-    }
-
-    @RequestMapping("/employeepage")
-    @ResponseBody
-    public String employeepage() {
-        return "employeepage";
-    }
 
 }
