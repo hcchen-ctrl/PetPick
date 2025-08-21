@@ -199,3 +199,5 @@ function refreshCheckoutButtonState() {
     btn.disabled = disabled;
     btn.classList.toggle("disabled", disabled);
 }
+
+

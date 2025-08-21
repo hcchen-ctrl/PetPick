@@ -51,30 +51,39 @@ public class EcpayServiceImpl implements EcpayService {
         String itemName = (o.getItems() == null || o.getItems().isEmpty())
                 ? "PetPick 訂單"
                 : o.getItems().stream()
-                    .map(it -> {
-                        String n = it.getPname();
-                        return (n == null || n.isBlank()) ? ("商品" + it.getProductId()) : n;
-                    })
-                    .collect(Collectors.joining("#")); // 多品項用 # 接
+                        .map(it -> {
+                            String n = it.getPname();
+                            return (n == null || n.isBlank()) ? ("商品" + it.getProductId()) : n;
+                        })
+                        .collect(Collectors.joining("#")); // 多品項用 # 接
 
         LocalDateTime tradeTime = (o.getCreatedAt() != null) ? o.getCreatedAt() : LocalDateTime.now();
         int totalAmount = (o.getTotalPrice() == null) ? 0 : o.getTotalPrice();
 
         String merchantId = prop.getPayment().getMerchantId();
-        String hashKey    = prop.getPayment().getHashKey();
-        String hashIv     = prop.getPayment().getHashIv();
+        String hashKey = prop.getPayment().getHashKey();
+        String hashIv = prop.getPayment().getHashIv();
 
-        String returnUrl      = nullSafe(prop.getReturnUrl());
+        String returnUrl = nullSafe(prop.getReturnUrl());
         String orderResultUrl = (origin == null || origin.isBlank())
                 ? nullSafe(prop.getOrderResultUrl())
                 : origin + "/payment/result";
-        String clientBackUrl  = (origin == null || origin.isBlank())
+        String clientBackUrl = (origin == null || origin.isBlank())
                 ? nullSafe(prop.getClientBackUrl())
                 : origin + "/cart.html";
+
+        var ordEntity = orderRepo.findById(orderId).orElseThrow();
+        String mtn = ordEntity.getMerchantTradeNo();
+        if (mtn == null || mtn.isBlank()) {
+            mtn = buildMerchantTradeNo(orderId);     // 例如：PP{orderId}{timestamp}，長度<=20
+            ordEntity.setMerchantTradeNo(mtn);
+            orderRepo.save(ordEntity);               // 寫回 DB，之後就重用同一組 MTN
+        }
 
         // 3) 先放原始值
         Map<String, String> p = new LinkedHashMap<>();
         p.put("MerchantID", merchantId);
+        p.put("MerchantTradeNo", mtn);
         p.put("MerchantTradeNo", buildMerchantTradeNo(orderId));
         p.put("MerchantTradeDate", tradeTime.format(FMT));
         p.put("PaymentType", "aio");
@@ -108,10 +117,13 @@ public class EcpayServiceImpl implements EcpayService {
     }
 
     // ===== Helpers =====
-
     private static Map<String, String> compact(Map<String, String> src) {
         Map<String, String> out = new LinkedHashMap<>();
-        src.forEach((k, v) -> { if (v != null && !v.isBlank()) out.put(k, v); });
+        src.forEach((k, v) -> {
+            if (v != null && !v.isBlank()) {
+                out.put(k, v);
+        
+            }});
         return out;
     }
 
@@ -144,25 +156,35 @@ public class EcpayServiceImpl implements EcpayService {
     }
 
     private static String escapeHtml(String s) {
-        if (s == null) return "";
+        if (s == null) {
+            return "";
+        }
         StringBuilder out = new StringBuilder(s.length() + 16);
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             switch (c) {
-                case '&' -> out.append("&amp;");
-                case '<' -> out.append("&lt;");
-                case '>' -> out.append("&gt;");
-                case '"' -> out.append("&quot;");
-                case '\'' -> out.append("&#x27;");
-                default -> out.append(c);
+                case '&' ->
+                    out.append("&amp;");
+                case '<' ->
+                    out.append("&lt;");
+                case '>' ->
+                    out.append("&gt;");
+                case '"' ->
+                    out.append("&quot;");
+                case '\'' ->
+                    out.append("&#x27;");
+                default ->
+                    out.append(c);
             }
         }
         return out.toString();
     }
 
-    private static String nullSafe(String s) { return s == null ? "" : s; }
+    private static String nullSafe(String s) {
+        return s == null ? "" : s;
+    }
 
-    private static String safe4(String s){
-        return (s == null || s.length() < 4) ? "null" : s.substring(0,2) + "**" + s.substring(s.length()-2);
+    private static String safe4(String s) {
+        return (s == null || s.length() < 4) ? "null" : s.substring(0, 2) + "**" + s.substring(s.length() - 2);
     }
 }

@@ -68,4 +68,7 @@ public class Order {
     @Column(name = "paid_at")
     private LocalDateTime PaidAt;
 
+    @Column(name = "merchant_trade_no")
+private String merchantTradeNo;
+
 }

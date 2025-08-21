@@ -28,7 +28,8 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/api/pay/**"),
                 new AntPathRequestMatcher("/api/logistics/**"),
                 new AntPathRequestMatcher("/api/orders/**"),
-                new AntPathRequestMatcher("/api/cart/**")
+                new AntPathRequestMatcher("/api/cart/**"),
+                new AntPathRequestMatcher("/api/order-details/**")
         // 若仍保留舊相容端點再打開下面兩行
         // , new AntPathRequestMatcher("/payment/result"),
         // new AntPathRequestMatcher("/payment/result/**")
@@ -50,6 +51,7 @@ public class SecurityConfig {
                 // .requestMatchers("/payment/result", "/payment/result/**").permitAll()
                 .requestMatchers("/api/pay/**", "/api/logistics/**").permitAll()
                 .requestMatchers("/api/cart/**", "/api/orders/**").permitAll()
+                .requestMatchers("/api/order-details/**").permitAll()
                 // 其他按需調整；目前全開
                 .anyRequest().permitAll()
                 );
