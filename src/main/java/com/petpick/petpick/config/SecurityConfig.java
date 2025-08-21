@@ -42,16 +42,19 @@ public class SecurityConfig {
                 .requestMatchers("/", "/index.html", "/success.html", "/fail.html",
                         "/cart.html", "/order.html", "/orderDetail.html",
                         "/payment/result", "/payment/result/**",
-                        "/css/**", "/js/**", "/images/**", "/figure/**", "/webjars/**")
+                        "/css/**", "/js/**", "/images/**", "/figure/**", "/webjars/**",
+                        "/api/admin/orders/**","/api/admin/**")
                 .permitAll()
                 // 金流/物流回呼與開放 API
                 .requestMatchers("/payment/v2/result", "/payment/v2/result/**",
-                     "/payment/result", "/payment/result/**").permitAll()
+                        "/payment/result", "/payment/result/**").permitAll()
                 // 若仍保留舊相容端點再放行
                 // .requestMatchers("/payment/result", "/payment/result/**").permitAll()
                 .requestMatchers("/api/pay/**", "/api/logistics/**").permitAll()
                 .requestMatchers("/api/cart/**", "/api/orders/**").permitAll()
                 .requestMatchers("/api/order-details/**").permitAll()
+                .requestMatchers("/api/admin/orders/**").permitAll()
+                .requestMatchers("/api/admin/**").permitAll()
                 // 其他按需調整；目前全開
                 .anyRequest().permitAll()
                 );

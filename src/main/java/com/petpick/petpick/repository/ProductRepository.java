@@ -1,11 +1,30 @@
 package com.petpick.petpick.repository;
 
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.petpick.petpick.entity.Product;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Integer> {
-    // 可以加入自訂查詢方法，如：List<Product> findByIsActiveTrue();
+
+    @Modifying
+    @Query("""
+        UPDATE Product p
+           SET p.stock = p.stock - :qty
+         WHERE p.productId = :pid
+           AND p.stock >= :qty
+    """)
+    int decreaseStock(@Param("pid") Integer productId, @Param("qty") int qty);
+
+    @Modifying
+    @Query("""
+        UPDATE Product p
+           SET p.stock = p.stock + :qty
+         WHERE p.productId = :pid
+    """)
+    int increaseStock(@Param("pid") Integer productId, @Param("qty") int qty);
 }

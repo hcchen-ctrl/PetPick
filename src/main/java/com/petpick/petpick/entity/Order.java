@@ -71,6 +71,9 @@ public class Order {
     @Column(name = "merchant_trade_no", length = 20)
     private String merchantTradeNo;
 
+    @Column(name = "store_brand")
+    private String storeBrand;
+
     public String getMerchantTradeNo() {
         return merchantTradeNo;
     }

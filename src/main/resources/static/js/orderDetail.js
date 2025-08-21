@@ -60,7 +60,7 @@ async function resolveOrderId() {
         return String(list[0].orderId ?? list[0].id);
       }
     }
-  } catch { }
+  } catch { /* ignore */ }
 
   return null;
 }
@@ -92,34 +92,63 @@ async function loadOrder(id) {
 
 function renderHeader(o) {
   const lines = [];
-  // 顯示優先：綠界訂單編號（MerchantTradeNo）
-  const displayNo = o.orderId ? escapeHtml(o.orderId) : `#${escapeHtml(o.orderId)}`;
-  lines.push(`<p><strong>訂單編號：</strong> ${displayNo}</p>`);
+
+  // 同時顯示：#orderId ＋（merchantTradeNo 如果有）
+  const leftNo  = `#${escapeHtml(o.orderId)}`;
+  const rightNo = o.merchantTradeNo ? `（${escapeHtml(o.merchantTradeNo)}）` : "";
+  lines.push(`<p><strong>訂單編號：</strong> ${leftNo}${rightNo}</p>`);
+
   if (o.tradeNo) {
     lines.push(`<p><strong>綠界交易序號：</strong> <span class="font-monospace">${escapeHtml(o.tradeNo)}</span></p>`);
   }
+
   lines.push(`<p><strong>訂購日期：</strong> ${fmtDateTime(o.createdAt)}</p>`);
   lines.push(`<p><strong>狀態：</strong> ${escapeHtml(o.status ?? "")}</p>`);
   lines.push(`<p><strong>收件人：</strong> ${escapeHtml(o.receiverName ?? "")}（${escapeHtml(o.receiverPhone ?? "")}）</p>`);
-  lines.push(`<p><strong>配送：</strong> ${escapeHtml(o.shippingType ?? "")} ${escapeHtml(o.addr ?? o.storeName ?? "")} ${o.storeAddress ? `（${escapeHtml(o.storeAddress)}）` : ""}</p>`);
 
-  document.getElementById("order-info").innerHTML = lines.join("\n");
+  // ★ 配送顯示（cvs_cod 顯示：品牌＋門市＋地址）
+  let deliveryHtml = "";
+  const st = (o.shippingType || "").toLowerCase();
+  if (st === "cvs_cod") {
+    // 期待後端提供 storeBrand（中文，如 7-ELEVEN / 全家 / 萊爾富 / OK）
+    const brand = o.storeBrand || "";
+    const parts = [brand, o.storeName, o.storeAddress].filter(Boolean).join(" ");
+    deliveryHtml = `超商取貨付款${parts ? `（${escapeHtml(parts)}）` : ""}`;
+  } else if (st === "address") {
+    deliveryHtml = `宅配 ${escapeHtml(o.addr || "")}`;
+  } else {
+    // 其他類型就保留原本資料
+    const where = o.addr || o.storeName || "";
+    const extra = o.storeAddress ? `（${escapeHtml(o.storeAddress)}）` : "";
+    deliveryHtml = `${escapeHtml(o.shippingType || "")} ${escapeHtml(where)}${extra}`;
+  }
+  lines.push(`<p><strong>配送方式：</strong> ${deliveryHtml}</p>`);
+
+  const box = document.getElementById("order-info");
+  if (box) box.innerHTML = lines.join("\n");
 }
 
+/** 渲染明細表格（缺少時補上空表列） */
 function renderItems(items) {
   const tbody = document.getElementById("order-items");
-  const rows = items.map(it => {
+  if (!tbody) return;
+
+  const rows = (Array.isArray(items) ? items : []).map(it => {
+    // 後端欄位兼容：優先 unitPrice/subtotal；沒有就用 price*quantity 推算
     const unit = num(it.unitPrice, it.price);
-    const qty = num(it.quantity);
-    const sub = num(it.subtotal, unit * qty);
+    const qty  = num(it.quantity);
+    const sub  = num(it.subtotal, unit * qty);
+
     return `
       <tr>
-        <td>${escapeHtml(it.pname ?? it.productId)}</td>
+        <td>${escapeHtml(it.pname ?? it.productId ?? "")}</td>
         <td>${fmtCurrency(unit)}</td>
         <td>${qty}</td>
         <td>${fmtCurrency(sub)}</td>
-      </tr>`;
-  }).join('');
+      </tr>
+    `;
+  }).join("");
+
   tbody.innerHTML = rows || `<tr><td colspan="4" class="text-muted text-center py-4">此訂單沒有明細資料</td></tr>`;
 }
 
@@ -134,8 +163,8 @@ function fmtDateTime(iso) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
+  const hh = String(d.getHours()).toString().padStart(2, "0");
+  const mm = String(d.getMinutes()).toString().padStart(2, "0");
   return `${y}-${m}-${day} ${hh}:${mm}`;
 }
 function escapeHtml(s) {
@@ -164,5 +193,5 @@ async function updateCartBadge() {
     const data = await r.json();
     const badge = document.getElementById('cart-badge');
     if (badge) badge.textContent = (Array.isArray(data) ? data.length : 0);
-  } catch { }
+  } catch { /* ignore */ }
 }

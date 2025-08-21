@@ -26,6 +26,7 @@ public class OrderDTO {
     private String trackingNo;
 
     private String tradeNo;
+    private String storeBrand;
 
     private List<OrderDetailDTO> items;
 }

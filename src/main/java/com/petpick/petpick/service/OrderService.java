@@ -37,7 +37,7 @@ public interface OrderService {
     /**
      * （選用）設定超商門市資訊：C2C 選店完成後寫入。
      */
-    void setStoreInfo(Integer orderId, String storeId, String storeName, String storeAddress);
+    void setStoreInfo(Integer orderId, String brandCodeOrLabel, String storeId, String storeName, String storeAddress);
 
     /**
      * （選用）設定宅配/物流資訊：建立託運成功後寫入（託運單號、追蹤碼）。
@@ -64,4 +64,5 @@ public interface OrderService {
      * 付款失敗／取消時，釋放保留（恢復庫存、保留的 cart 標記清除）。
      */
     void releaseReservation(Integer orderId);
+
 }

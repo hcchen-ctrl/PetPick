@@ -53,6 +53,7 @@ public class OrderQueryService {
         dto.setStoreId(o.getStoreId());
         dto.setStoreName(o.getStoreName());
         dto.setStoreAddress(o.getStoreAddress());
+        dto.setStoreBrand(o.getStoreBrand());
         dto.setLogisticsId(o.getLogisticsId());
         dto.setTrackingNo(o.getTrackingNo());
 
