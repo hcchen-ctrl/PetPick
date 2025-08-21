@@ -127,6 +127,12 @@ public class HelloController {
         return "adopt/gov-list-page";
     }
 
+    //回傳領養的html
+    @RequestMapping("/adopt-list")
+    public String showadoptlist() {
+        return "adopt//adopt-list";
+    }
+
     //回傳商城首頁
     @RequestMapping(value = "/shop/commodity", method = RequestMethod.GET)
     public String commodity() {

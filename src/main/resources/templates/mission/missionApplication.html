@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PetPick｜任務控制台</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../../../../Downloads/styles.css" />
+  <link rel="stylesheet" href="chatroom.css" />
+  <link rel="icon" href="./pet-icon.png" type="image/x-icon" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="../PetPickMain/index.html">
+        <img src="./pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo" />
+        PetPick
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+          <ul class="navbar-nav mb-2 mb-lg-0">
+            <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">尋找領養</a></li>
+            <li class="nav-item"><a class="nav-link btn btn-login m-1" href="missionMain.html">尋找任務</a></li>
+            <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">寵物商城</a></li>
+          </ul>
+          <div class="position-fixed end-0 m-4">
+             <a href="Chat.html" id="chatBubbleBtn" class="btn btn-material position-relative">
+              <span id="chatBubbleBadge" class="material-icons">chat_bubble_outline</span>
+              <span id="chatBubbleBadge-unread" class="material-icons d-none">mark_chat_unread</span>
+            </a>
+            <button class="btn btn-material"><span class="material-icons">shopping_cart</span></button>
+            <button class="btn btn-material"><span class="material-icons">account_circle</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 任務控制台 -->
+  <main class="container mt-4 w-75">
+    <h4 class="mb-3">📋 任務控制台</h4>
+    <!-- 插入任務 -->
+    <div id="applicationList"></div>
+  </main>
+
+  <!-- 聊天清單/視窗 -->
+  <div id="chat-selector" class="position-fixed bottom-0 end-0 m-4">
+    <div class="chat-header d-flex justify-content-center align-items-center"><strong>對話清單</strong></div>
+    <ul class="list-group" id="chatList"></ul>
+  </div>
+  <div id="chatWindows"></div>
+
+  <!-- 回頂 -->
+  <button id="backToTop" class="btn btn-primary shadow">↑</button>
+
+  <!-- Footer -->
+  <footer class="footer text-center mt-5">
+    <div class="container">
+      <p>快速連結：領養 / 商城 / 醫療回報 / 寵物救助</p>
+      <p>email: ispan@gmail.com</p>
+      <p>地址：台中市南屯區公益路二段51號</p>
+      <p>本站所有資訊來自開放平台與會員自行刊登，若有侵權請聯繫移除。</p>
+    </div>
+    <ul class="navbar-nav mx-lg-auto text-center">
+      <li class="nav-item"><a class="nav-link" href="#">關於我們</a></li>
+      <li class="nav-item"><a class="nav-link" href="#">領養須知</a></li>
+      <li class="nav-item"><a class="nav-link" href="#">認養服務</a></li>
+      <li class="nav-item"><a class="nav-link" href="#">收養回報</a></li>
+    </ul>
+  </footer>
+
+  <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/mission/missionApplication.js"></script>
+</body>
+
+</html>

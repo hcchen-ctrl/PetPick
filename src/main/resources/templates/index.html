@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" xmlns:th="http://www.w3.org/1999/xhtml">
+<html lang="zh-Hant" xmlns:th="http://www.w3.org/1999/xhtml" xmlns:sec="http://www.w3.org/1999/xhtml">
 
 <head>
     <meta charset="UTF-8">
@@ -42,9 +42,9 @@
                                 role="button" data-bs-toggle="dropdown" aria-expanded="false">尋找領養</a>
                             <ul class="dropdown-menu" aria-labelledby="adoptDropdown">
                                 <li><a class="dropdown-item" href="/gov-list-page">公立認養</a></li>
-                                <li><a class="dropdown-item" href="/adopt-list.html">領養認養</a></li>
-                                <li><a class="dropdown-item" href="/post-adopt.html">刊登送養</a></li>
-                                <li><a class="dropdown-item" href="/adopt-report.html">收養回報</a></li>
+                                <li><a class="dropdown-item" href="/adopt-list">領養認養</a></li>
+                                <li><a class="dropdown-item" href="/post-adopt.html" sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_USER')">刊登送養</a></li>
+                                <li><a class="dropdown-item" href="/adopt-report.html" sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_USER')">收養回報</a></li>
                             </ul>
                         </li>
                         <li class="nav-item"><a class="nav-link btn btn-login m-1"

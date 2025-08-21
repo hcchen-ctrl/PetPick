@@ -60,7 +60,7 @@ public class SecurityConfig {
         // 授權認證
         http.authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css","/adopt/**","/shop/**","/memFunction.js", "/favicon.ico").permitAll()
-                .requestMatchers("/index","/api/**","/gov-list-page","/shop/commodity","/loginpage", "/register").permitAll() // ⬅ 加上 /register
+                .requestMatchers("/index","/api/**","/gov-list-page","/adopt-list","/shop/commodity","/loginpage", "/register").permitAll() // ⬅ 加上 /register
 
 
                 .requestMatchers("/rename").authenticated()//登入後才可以進入修改頁面
