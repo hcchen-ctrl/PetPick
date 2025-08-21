@@ -1,8 +1,8 @@
-// OrderDetail.java
 package com.petpick.petpick.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -11,50 +11,54 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import lombok.Data;
 
-@Data
-// OrderDetail.java
 @Entity
 @Table(name = "order_details")
 public class OrderDetail {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "order_detail_id")         // ← PK 對齊 DB 欄位
     private Integer id;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "order_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "product_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
-    // ★ 整數單價
     @Column(name = "unit_price", nullable = false)
-    private Integer unitPrice;
+    private Integer unitPrice;                 // 整數金額
 
-    // ★ 整數小計
     @Column(name = "subtotal", nullable = false)
-    private Integer subtotal;
+    private Integer subtotal;                  // 整數小計
 
-    @PrePersist
-    @PreUpdate
-    private void calcSubtotal() {
-        int up = unitPrice == null ? 0 : unitPrice;
-        int q  = quantity  == null ? 0 : quantity;
-        long s = (long) up * (long) q; // 先用 long 相乘避免溢位
+    @PrePersist @PreUpdate
+    public void recomputeSubtotal() {
+        int q = quantity == null ? 0 : quantity;
+        int u = unitPrice == null ? 0 : unitPrice;
+        long s = (long) q * (long) u;         // 防溢位
         if (s > Integer.MAX_VALUE) s = Integer.MAX_VALUE;
-        if (s < Integer.MIN_VALUE) s = Integer.MIN_VALUE;
+        if (s < 0) s = 0;
         this.subtotal = (int) s;
     }
 
-    /** 若你在 Service 端手動呼叫重算 */
-    public void recomputeSubtotal() { calcSubtotal(); }
-
-    // getters/setters ...
+    // getters / setters
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
+    public Product getProduct() { return product; }
+    public void setProduct(Product product) { this.product = product; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    public Integer getUnitPrice() { return unitPrice; }
+    public void setUnitPrice(Integer unitPrice) { this.unitPrice = unitPrice; }
+    public Integer getSubtotal() { return subtotal; }
+    public void setSubtotal(Integer subtotal) { this.subtotal = subtotal; }
 }

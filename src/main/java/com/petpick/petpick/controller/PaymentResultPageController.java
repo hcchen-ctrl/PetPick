@@ -33,11 +33,18 @@ public class PaymentResultPageController {
         String tradeNo = p.getOrDefault("TradeNo", "");
         String rtnMsg = p.getOrDefault("RtnMsg", "交易未完成或被取消");
 
+        String paymentType = p.getOrDefault("PaymentType", "");
+        String paymentDate = p.getOrDefault("PaymentDate", "");
+        String tradeAmt = p.getOrDefault("TradeAmt", "");
+
         session.setAttribute("orderResultParams", p);
 
         if ("1".equals(rtnCode)) {
             String url = UriComponentsBuilder.fromPath("/success.html")
                     .queryParam("mtn", p.getOrDefault("MerchantTradeNo", "")) // 綠界訂單編號（你送出去的）
+                    .queryParam("PaymentType", paymentType) // ★ 新增
+                    .queryParam("PaymentDate", paymentDate) // ★ 新增
+                    .queryParam("TradeAmt", tradeAmt) // ★ 新增
                     .queryParam("tradeNo", p.getOrDefault("TradeNo", "")) // 綠界交易序號
                     .queryParam("orderId", p.getOrDefault("CustomField1", "")) // 你系統內的 orderId（先前在送單時放在 CustomField1）
                     .queryParam("ok", "1")

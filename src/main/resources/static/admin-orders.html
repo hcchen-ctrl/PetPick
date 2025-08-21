@@ -2,10 +2,38 @@
 <html lang="zh-Hant">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>訂單管理</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+    <style>
+        .sidebar {
+            min-height: 100vh;
+        }
+
+        .table thead th {
+            white-space: nowrap;
+        }
+
+        .loading-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, .6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .toast-container {
+            z-index: 2100;
+        }
+
+        .font-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+    </style>
 </head>
 
 <body>
@@ -15,34 +43,106 @@
             <nav class="col-md-2 d-none d-md-block bg-light sidebar">
                 <div class="position-sticky pt-3">
                     <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link" href="admin-dashboard.html">首頁</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="admin-products.html">商品管理</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="admin-orders.html">訂單管理</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="admin-users.html">會員管理</a>
-                        </li>
+                        <li class="nav-item"><a class="nav-link" href="admin-dashboard.html">首頁</a></li>
+                        <li class="nav-item"><a class="nav-link" href="admin-products.html">商品管理</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="admin-orders.html">訂單管理</a></li>
+                        <li class="nav-item"><a class="nav-link" href="admin-users.html">會員管理</a></li>
                     </ul>
                 </div>
             </nav>
 
             <!-- 主內容 -->
             <main class="col-md-10 ms-sm-auto px-md-4 mt-4">
-                <h2>📑 訂單管理</h2>
+                <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+                    <h2 class="m-0">📑 訂單管理</h2>
+                    <div class="text-muted small">
+                        共 <span id="orderCount">0</span> 筆
+                        <span class="ms-3">最後更新：<span id="lastRefreshed">—</span></span>
+                    </div>
+                </div>
 
+                <!-- 篩選列 -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <form id="filterForm" class="row g-2 align-items-end">
+                            <div class="col-12 col-md-3">
+                                <label class="form-label">關鍵字（訂單/會員/電話）</label>
+                                <input type="text" class="form-control" id="qFilter" placeholder="例如：#1024、王小明、0912...">
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label">狀態</label>
+                                <select class="form-select" id="statusFilter">
+                                    <option value="">全部</option>
+                                    <option value="Pending">待付款</option>
+                                    <option value="Paid">已付款</option>
+                                    <option value="Shipped">已出貨</option>
+                                    <option value="Cancelled">取消</option>
+                                    <option value="Failed">付款失敗</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label">配送</label>
+                                <select class="form-select" id="deliveryFilter">
+                                    <option value="">全部</option>
+                                    <option value="address">宅配</option>
+                                    <option value="store">到店取貨</option>
+                                    <option value="cvs_cod">超商取貨付款</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label">起日</label>
+                                <input type="date" class="form-control" id="fromDate">
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label">迄日</label>
+                                <input type="date" class="form-control" id="toDate">
+                            </div>
+                            <div class="col-12 col-md-1 d-grid">
+                                <button type="button" id="btnSearch" class="btn btn-primary">查詢</button>
+                            </div>
+                            <div class="col-12 col-md-1 d-grid">
+                                <button type="button" id="btnReset" class="btn btn-outline-secondary">重設</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 批次操作 -->
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <div class="form-check me-3">
+                        <input class="form-check-input" type="checkbox" value="" id="chkAll">
+                        <label class="form-check-label" for="chkAll">全選</label>
+                    </div>
+
+                    <button class="btn btn-success btn-sm" id="btnBulkMarkPaid" disabled>批次標記已付款</button>
+                    <button class="btn btn-info btn-sm" id="btnBulkShip" disabled>批次標記出貨</button>
+                    <button class="btn btn-outline-danger btn-sm" id="btnBulkCancel" disabled>批次取消</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="btnExport">匯出 CSV</button>
+
+                    <div class="ms-auto d-flex align-items-center gap-2">
+                        <label for="pageSize" class="form-label m-0 small">每頁</label>
+                        <select id="pageSize" class="form-select form-select-sm" style="width: auto;">
+                            <option>10</option>
+                            <option>20</option>
+                            <option>50</option>
+                            <option>100</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 表格 -->
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-dark">
                             <tr>
+                                <th style="width:36px;">
+                                    <input class="form-check-input" type="checkbox" id="chkHeader">
+                                </th>
                                 <th>訂單編號</th>
                                 <th>會員</th>
                                 <th>金額</th>
                                 <th>狀態</th>
+                                <th>配送</th>
                                 <th>下單時間</th>
                                 <th>操作</th>
                             </tr>
@@ -52,30 +152,143 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- 分頁 -->
+                <nav>
+                    <ul class="pagination" id="pagination">
+                        <!-- JS render -->
+                    </ul>
+                </nav>
             </main>
         </div>
     </div>
 
-    <script>
-        fetch("order.json")
-            .then(res => res.json())
-            .then(data => {
-                const tbody = document.getElementById("order-table-body");
-                tbody.innerHTML = data.map(order => `
-          <tr>
-            <td>#${order.orderId}</td>
-            <td>${order.receiver}</td>
-            <td>NT$${order.total}</td>
-            <td><span class="badge bg-${order.status === '已出貨' ? 'success' : 'secondary'}">${order.status}</span></td>
-            <td>${order.date}</td>
-            <td>
-              <a class="btn btn-sm btn-primary" href="order-detail.html?id=${order.id}">查看</a>
-            </td>
-          </tr>
-        `).join('');
-            });
-    </script>
+    <!-- ===== Modals ===== -->
 
+    <!-- 更新狀態 -->
+    <div class="modal fade" id="statusModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">更新狀態</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2 text-muted">訂單編號：<span id="statusOrderId" class="font-mono">—</span></div>
+                    <div class="mb-3">
+                        <label class="form-label">狀態</label>
+                        <select id="statusSelect" class="form-select">
+                            <option value="Pending">Pending</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Failed">Failed</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">備註（可選）</label>
+                        <textarea id="statusNote" class="form-control" rows="3" placeholder="備註說明…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="btnStatusSave">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 標記已付款 -->
+    <div class="modal fade" id="markPaidModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">標記已付款</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2 text-muted">訂單編號：<span id="markPaidOrderId" class="font-mono">—</span></div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">金流</label>
+                            <input id="gatewayInput" class="form-control" placeholder="ECPay / Cash / ...">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">交易序號</label>
+                            <input id="tradeNoInput" class="form-control" placeholder="TradeNo / 票據號">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">金額</label>
+                            <input id="paidAmountInput" type="number" min="0" class="form-control" placeholder="整數金額">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" id="btnMarkPaid">標記已付款</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 設定物流 -->
+    <div class="modal fade" id="logisticsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">設定物流資訊</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2 text-muted">訂單編號：<span id="logisticsOrderId" class="font-mono">—</span></div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">託運單號</label>
+                            <input id="logisticsIdInput" class="form-control" placeholder="Logistics ID">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">追蹤碼</label>
+                            <input id="trackingNoInput" class="form-control" placeholder="Tracking No.">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-info" id="btnLogisticsSave">儲存物流資訊</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 取消訂單 -->
+    <div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">取消訂單</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2 text-muted">訂單編號：<span id="cancelOrderId" class="font-mono">—</span></div>
+                    <label class="form-label">原因（可選）</label>
+                    <textarea id="cancelReasonInput" class="form-control" rows="3"
+                        placeholder="例如：買家要求、付款逾期…"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-danger" id="btnCancelSave">確認取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Toasts / Loading ===== -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer"></div>
+
+    <div class="loading-backdrop" id="loading">
+        <div class="spinner-border text-primary" role="status" aria-label="Loading"></div>
+    </div>
+
+    <!-- Bootstrap bundle (含 Modal/Dropdown/Toast) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 你的頁面行為 -->
+    <script src="js/adminOrders.js"></script>
 </body>
 
 </html>

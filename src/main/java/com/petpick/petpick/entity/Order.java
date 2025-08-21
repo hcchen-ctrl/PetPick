@@ -66,9 +66,17 @@ public class Order {
     private String tradeNo;
 
     @Column(name = "paid_at")
-    private LocalDateTime PaidAt;
+    private LocalDateTime paidAt;
 
-    @Column(name = "merchant_trade_no")
-private String merchantTradeNo;
+    @Column(name = "merchant_trade_no", length = 20)
+    private String merchantTradeNo;
+
+    public String getMerchantTradeNo() {
+        return merchantTradeNo;
+    }
+
+    public void setMerchantTradeNo(String merchantTradeNo) {
+        this.merchantTradeNo = merchantTradeNo;
+    }
 
 }

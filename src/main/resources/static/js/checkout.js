@@ -82,6 +82,12 @@ document.getElementById("checkout-form")?.addEventListener("submit", async (e) =
     const payment = safeText(document.getElementById("payment")?.value);
     const cvsBrand = document.querySelector('input[name="cvsBrand"]:checked')?.value;
 
+    const effectivePayment =
+        delivery === "cvs_cod" ? "cod" :
+            (delivery === "store" ? "cash" :
+                (payment || "").toLowerCase());
+    sessionStorage.setItem("last_payment", effectivePayment);
+
     const addr =
         delivery === "address"
             ? safeText(addressInput?.value).trim()
@@ -140,6 +146,17 @@ document.getElementById("checkout-form")?.addEventListener("submit", async (e) =
             });
             submitEcpayFormFromHtml(html);
             return;
+        }
+
+        if (payment === "cash" || delivery === "store") {
+            // 後端若已清空也沒關係，這是冪等的
+            await clearCartOnLocalPayment(userId);
+            await refreshCartBadge(userId);
+
+            const link = document.querySelector("#checkoutModal .modal-footer a");
+            if (link && orderId) link.href = `order.html?orderId=${orderId}`;
+            new bootstrap.Modal(document.getElementById("checkoutModal")).show();
+            return; // 記得 return
         }
 
         // 其他：顯示成功 modal
@@ -233,6 +250,11 @@ deliveryMethod?.addEventListener("change", () => {
         if (cvsOptions) cvsOptions.style.display = "none";
         if (storeInfoWrap) storeInfoWrap.style.display = "none";
     }
+    const v =
+        val === "cvs_cod" ? "cod" :
+            val === "store" ? "cash" :
+                (paymentSelect.value || "").toLowerCase();
+    sessionStorage.setItem("last_payment", v);
 });
 
 // ---- 超商品牌切換 → 立即更新文案 ----
@@ -258,4 +280,24 @@ if (orderId) {
     // 例如：把它塞到某個 <span id="oid"></span>
     const el = document.getElementById('oid');
     if (el) el.textContent = '#' + orderId;
+}
+
+async function clearCartOnLocalPayment(userId) {
+    // 先嘗試通用端點，再嘗試備用端點（兩個都呼叫沒關係，後端冪等）
+    try { await fetch(`/api/cart/user/${encodeURIComponent(userId)}`, { method: "DELETE" }); } catch { }
+    try { await fetch(`/api/cart/clear/${encodeURIComponent(userId)}`, { method: "DELETE" }); } catch { }
+}
+
+async function refreshCartBadge(userId) {
+    const setBadge = (n) => {
+        const el = document.getElementById("cart-badge");
+        if (el) el.textContent = String(n ?? 0);
+    };
+    try {
+        const r = await fetch(`/api/cart/withProduct/${encodeURIComponent(userId)}`);
+        const items = r.ok ? await r.json() : [];
+        setBadge(Array.isArray(items) ? items.length : 0);
+    } catch {
+        setBadge(0);
+    }
 }

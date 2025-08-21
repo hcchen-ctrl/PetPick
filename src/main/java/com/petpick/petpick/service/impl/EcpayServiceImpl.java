@@ -29,80 +29,82 @@ public class EcpayServiceImpl implements EcpayService {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
-    // 若你的介面只有這個方法，這個會 @Override
     @Override
     public String buildAioCheckoutForm(Integer orderId) {
         return buildAioCheckoutForm(orderId, null);
     }
 
-    // 若你的介面也宣告了兩參數版本，可以加上 @Override；否則就保留成一般 public 方法
+    // 若介面也宣告了兩參數版本可以加 @Override；否則保留 public
     public String buildAioCheckoutForm(Integer orderId, String origin) {
         // 1) 讀訂單（含明細）
         OrderDTO o = orderQueryService.getOne(orderId);
 
-        // （可選）避免重複付款
+        // 避免重複付款
         orderRepo.findById(orderId).ifPresent(ord -> {
             if ("Paid".equalsIgnoreCase(ord.getStatus())) {
                 throw new IllegalStateException("此訂單已完成付款");
             }
         });
 
-        // 2) 組必要欄位（中文商品名可；TradeDesc 建議英數）
+        // 2) 組必要欄位
         String itemName = (o.getItems() == null || o.getItems().isEmpty())
                 ? "PetPick 訂單"
                 : o.getItems().stream()
-                        .map(it -> {
-                            String n = it.getPname();
-                            return (n == null || n.isBlank()) ? ("商品" + it.getProductId()) : n;
-                        })
-                        .collect(Collectors.joining("#")); // 多品項用 # 接
+                    .map(it -> {
+                        String n = it.getPname();
+                        return (n == null || n.isBlank()) ? ("商品" + it.getProductId()) : n;
+                    })
+                    .collect(Collectors.joining("#")); // 多品項用 # 接
 
         LocalDateTime tradeTime = (o.getCreatedAt() != null) ? o.getCreatedAt() : LocalDateTime.now();
         int totalAmount = (o.getTotalPrice() == null) ? 0 : o.getTotalPrice();
 
         String merchantId = prop.getPayment().getMerchantId();
-        String hashKey = prop.getPayment().getHashKey();
-        String hashIv = prop.getPayment().getHashIv();
+        String hashKey    = prop.getPayment().getHashKey();
+        String hashIv     = prop.getPayment().getHashIv();
 
+        // Server 回拋（ReturnURL）/ 使用者頁（OrderResultURL）
         String returnUrl = nullSafe(prop.getReturnUrl());
-        String orderResultUrl = (origin == null || origin.isBlank())
-                ? nullSafe(prop.getOrderResultUrl())
-                : origin + "/payment/result";
-        String clientBackUrl = (origin == null || origin.isBlank())
+        String orderResultUrl = nullSafe(prop.getOrderResultUrl()); // 預設用設定檔
+        if (origin != null && !origin.isBlank()) {
+            // 與你的 Controller: /payment/v2/result 對齊
+            orderResultUrl = origin + "/payment/v2/result";
+        }
+        String clientBackUrl  = (origin == null || origin.isBlank())
                 ? nullSafe(prop.getClientBackUrl())
                 : origin + "/cart.html";
 
-        var ordEntity = orderRepo.findById(orderId).orElseThrow();
-        String mtn = ordEntity.getMerchantTradeNo();
+        // 3) 取得/寫入唯一 MerchantTradeNo，並回存 DB（關鍵！）
+        var ord = orderRepo.findById(orderId).orElseThrow();
+        String mtn = ord.getMerchantTradeNo();
         if (mtn == null || mtn.isBlank()) {
-            mtn = buildMerchantTradeNo(orderId);     // 例如：PP{orderId}{timestamp}，長度<=20
-            ordEntity.setMerchantTradeNo(mtn);
-            orderRepo.save(ordEntity);               // 寫回 DB，之後就重用同一組 MTN
+            mtn = buildMerchantTradeNo(orderId);       // ≤ 20
+            ord.setMerchantTradeNo(mtn);
+            orderRepo.save(ord);                       // ★ 必須回存，列表/查詢才看得到
         }
 
-        // 3) 先放原始值
+        // 4) 組參數
         Map<String, String> p = new LinkedHashMap<>();
         p.put("MerchantID", merchantId);
-        p.put("MerchantTradeNo", mtn);
-        p.put("MerchantTradeNo", buildMerchantTradeNo(orderId));
+        p.put("MerchantTradeNo", mtn);                 // ★ 不要再覆蓋
         p.put("MerchantTradeDate", tradeTime.format(FMT));
         p.put("PaymentType", "aio");
-        p.put("TotalAmount", String.valueOf(totalAmount)); // 整數字串
-        p.put("TradeDesc", "PetPickCheckout");             // 避免中文造成 encode 誤差
+        p.put("TotalAmount", String.valueOf(totalAmount));
+        p.put("TradeDesc", "PetPickCheckout");
         p.put("ItemName", itemName);
-        p.put("ReturnURL", returnUrl);                     // 伺服器回拋（https 可外部存取）
-        p.put("OrderResultURL", orderResultUrl);           // 用戶端導回
-        p.put("ClientBackURL", clientBackUrl);             // 綠界頁 返回商店
+        p.put("ReturnURL", returnUrl);
+        p.put("OrderResultURL", orderResultUrl);
+        p.put("ClientBackURL", clientBackUrl);
         p.put("ChoosePayment", "Credit");
         p.put("EncryptType", "1");
-        p.put("CustomField1", String.valueOf(orderId));    // 回拋辨識
+        p.put("CustomField1", String.valueOf(orderId));
 
-        // 4) 濾空 → 簽章 → 回填
+        // 5) 濾空 → 簽章
         p = compact(p);
         String mac = EcpayCheckMac.generate(p, hashKey, hashIv);
         p.put("CheckMacValue", mac);
 
-        // 5) 端點
+        // 6) 端點
         String action = prop.isStage()
                 ? "https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5"
                 : "https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5";
@@ -112,18 +114,14 @@ public class EcpayServiceImpl implements EcpayService {
                 prop.isStage(), action, merchantId, safe4(hashKey), safe4(hashIv));
         p.forEach((k, v) -> log.debug("[Pay-DEBUG] {}={}", k, v));
 
-        // 6) 回傳表單（不含 inline script）
+        // 7) 回傳表單（不含 inline script；前端會 parse 成 form 並 submit）
         return buildFormHtml(action, p);
     }
 
     // ===== Helpers =====
     private static Map<String, String> compact(Map<String, String> src) {
         Map<String, String> out = new LinkedHashMap<>();
-        src.forEach((k, v) -> {
-            if (v != null && !v.isBlank()) {
-                out.put(k, v);
-        
-            }});
+        src.forEach((k, v) -> { if (v != null && !v.isBlank()) out.put(k, v); });
         return out;
     }
 
@@ -136,8 +134,8 @@ public class EcpayServiceImpl implements EcpayService {
         StringBuilder inputs = new StringBuilder();
         params.forEach((k, v) -> {
             inputs.append("<input type=\"hidden\" name=\"")
-                    .append(escapeHtml(k)).append("\" value=\"")
-                    .append(escapeHtml(v)).append("\"/>\n");
+                  .append(escapeHtml(k)).append("\" value=\"")
+                  .append(escapeHtml(v)).append("\"/>\n");
         });
 
         return """
@@ -156,35 +154,25 @@ public class EcpayServiceImpl implements EcpayService {
     }
 
     private static String escapeHtml(String s) {
-        if (s == null) {
-            return "";
-        }
+        if (s == null) return "";
         StringBuilder out = new StringBuilder(s.length() + 16);
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             switch (c) {
-                case '&' ->
-                    out.append("&amp;");
-                case '<' ->
-                    out.append("&lt;");
-                case '>' ->
-                    out.append("&gt;");
-                case '"' ->
-                    out.append("&quot;");
-                case '\'' ->
-                    out.append("&#x27;");
-                default ->
-                    out.append(c);
+                case '&' -> out.append("&amp;");
+                case '<' -> out.append("&lt;");
+                case '>' -> out.append("&gt;");
+                case '"' -> out.append("&quot;");
+                case '\'' -> out.append("&#x27;");
+                default -> out.append(c);
             }
         }
         return out.toString();
     }
 
-    private static String nullSafe(String s) {
-        return s == null ? "" : s;
-    }
+    private static String nullSafe(String s) { return s == null ? "" : s; }
 
-    private static String safe4(String s) {
-        return (s == null || s.length() < 4) ? "null" : s.substring(0, 2) + "**" + s.substring(s.length() - 2);
+    private static String safe4(String s){
+        return (s == null || s.length() < 4) ? "null" : s.substring(0,2) + "**" + s.substring(s.length()-2);
     }
 }

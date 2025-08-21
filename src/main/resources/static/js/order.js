@@ -17,18 +17,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // 撈使用者的訂單列表
 async function loadOrders() {
-    try {
-        const res = await fetch(`/api/orders/user/${userId}`);
-        if (!res.ok) throw new Error(await res.text());
-        const list = await res.json();
-        renderTable(Array.isArray(list) ? list : []);
-    } catch (err) {
-        console.error(err);
-        renderTable([]); // 顯示空狀態
-    }
+  try {
+    const res = await fetch(`/api/orders/user/${userId}`);
+    if (!res.ok) throw new Error(await res.text());
+    const list = await res.json();
+    // Debug：看 API 的鍵名
+    console.log("orders sample:", list?.[0]);
+    console.log("keys:", list?.[0] ? Object.keys(list[0]) : []);
+    renderTable(Array.isArray(list) ? list : []);
+  } catch (err) {
+    console.error(err);
+    renderTable([]); // 顯示空狀態
+  }
 }
 
 // 渲染表格
+function escapeHtml(s) {
+    return String(s ?? "")
+        .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+// 渲染表格（同欄顯示：第一行 orderId、第二行 merchantTradeNo；無則留空）
 function renderTable(orders) {
     if (!orders.length) {
         tbody.innerHTML = `
@@ -46,24 +57,26 @@ function renderTable(orders) {
 
     tbody.innerHTML = orders.map(o => {
         const id = o.orderId ?? o.id;
+        const mtn = (o.merchantTradeNo ?? o.mtn ?? "").trim(); 
         const created = fmtDateTime(o.createdAt);
         const total = Number(o.totalPrice ?? 0);
         const status = o.status ?? "";
+
         return `
       <tr>
-        <td>#${id}</td>
+        <td class="lh-sm">
+          <div class="font-monospace">#${escapeHtml(id)}/${mtn ? escapeHtml(mtn) : ""}</div>
+        </td>
         <td>${created}</td>
-        <td>NT$${total}</td>
-        <td><span class="badge ${statusBadgeClass(status)}">${status}</span></td>
+        <td>NT$${total.toLocaleString("zh-Hant-TW")}</td>
+        <td><span class="badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span></td>
         <td>
-          <!-- 連到詳細頁；若你想用同一頁呈現，也可改成 order.html?orderId=${id} 並在頁面新增詳細容器 -->
-          <a class="btn btn-sm btn-outline-primary" href="order-detail.html?orderId=${id}">查看</a>
+          <a class="btn btn-sm btn-outline-primary" href="orderdetail.html?orderId=${encodeURIComponent(id)}">查看</a>
         </td>
       </tr>
     `;
     }).join('');
 }
-
 // 狀態對應顏色（可按你的實際狀態調整）
 function statusBadgeClass(s) {
     const k = (s || "").toLowerCase();
