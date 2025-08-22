@@ -2,8 +2,23 @@ package com.petpick.petpick_server.dto;
 
 import java.time.LocalDateTime;
 
-public record ConversationItemDTO(
-        Long conversationId, Long missionId, String missionTitle,
-        Long otherUserId, String otherName, String otherAvatarUrl,
-        String lastMessage, LocalDateTime lastTime) {
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class ConversationItemDTO {
+        private Long conversationId;
+        private Long missionId;
+        private String missionTitle;
+        private Long otherUserId;
+        private String otherName;
+        private String otherAvatarUrl;
+        private String lastMessage;
+        private LocalDateTime lastTime;
+        private long unreadCount; 
 }

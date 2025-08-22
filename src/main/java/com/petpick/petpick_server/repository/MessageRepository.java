@@ -24,4 +24,12 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             """)
     int markAsRead(@Param("cid") Long conversationId, @Param("uid") Long userId);
 
+    @Query("""
+              select count(m) from Message m
+              where m.conversation.conversationId = :cid
+                and m.readFlag = false
+                and m.sender.userId <> :uid
+            """)
+    long countUnread(@Param("cid") Long conversationId, @Param("uid") Long userId);
+
 }

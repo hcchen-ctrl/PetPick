@@ -52,9 +52,16 @@ public class ChatService {
             boolean amOwner = c.getOwner().getUserId().equals(userId);
             var other = amOwner ? c.getApplicant() : c.getOwner();
             return new ConversationItemDTO(
-                    c.getConversationId(), c.getMission().getMissionId(), c.getMission().getTitle(),
-                    other.getUserId(), other.getUsername(), "/api/users/avatar/" + other.getUserId(),
-                    c.getLastMessagePreview(), c.getLastMessageAt());
+                    c.getConversationId(),
+                    c.getMission().getMissionId(),
+                    c.getMission().getTitle(),
+                    other.getUserId(),
+                    other.getUsername(),
+                    "/api/users/avatar/" + other.getUserId(),
+                    c.getLastMessagePreview(),
+                    c.getLastMessageAt(),
+                    msgRepo.countUnread(c.getConversationId(), userId)
+            );
         }).toList();
     }
 
