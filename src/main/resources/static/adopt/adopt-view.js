@@ -1,4 +1,4 @@
-import { getAuth } from '/js/auth.js';
+import { getAuth } from '/adopt/auth.js';
 
 // ===== 顯示 helper =====
 const normalizeSex = s => {
@@ -25,7 +25,7 @@ const contactLine = p => {
 const id = new URLSearchParams(location.search).get('id');
 const [auth, post] = await Promise.all([
     getAuth(),
-    fetch('/api/adopts/' + id).then(r => r.ok ? r.json() : Promise.reject('not found'))
+    fetch('/adopts/' + id).then(r => r.ok ? r.json() : Promise.reject('not found'))
 ]);
 
 const loggedIn = !!auth?.loggedIn;
@@ -79,14 +79,32 @@ if (!loggedIn) {
 }
 
 
-const imgs = [post.image1, post.image2, post.image3].filter(u => !!u && u.trim());
+// 1. 設定圖片前綴（你後端放在 /adopt/uploads/）
+const uploadPrefix = '/adopt/uploads/';
+
+// 2. 拼接完整的圖片 URL（排除 null、空字串）
+const imgs = [post.image1, post.image2, post.image3]
+  .filter(u => !!u && u.trim())
+  .map(u => uploadPrefix + u); // <<< 這行是關鍵！
+
+// 3. 沒圖就顯示預設圖片
 if (!imgs.length) imgs.push('/images/no-image.jpg');
+
+// 4. 產生輪播 indicator
 const indicators = imgs.map((_, i) =>
-    `<button type="button" data-bs-target="#petCarousel" data-bs-slide-to="${i}"
-        class="${i === 0 ? 'active' : ''}" ${i === 0 ? 'aria-current="true"' : ''} aria-label="Slide ${i + 1}"></button>`).join('');
+  `<button type="button" data-bs-target="#petCarousel" data-bs-slide-to="${i}"
+    class="${i === 0 ? 'active' : ''}" ${i === 0 ? 'aria-current="true"' : ''} aria-label="Slide ${i + 1}"></button>`
+).join('');
+
+// 5. 產生圖片輪播內容
 const slides = imgs.map((u, i) =>
-    `<div class="carousel-item ${i === 0 ? 'active' : ''}"><div class="carousel-fitbox">
-         <img src="${u}" onerror="this.src='/images/no-image.jpg'"></div></div>`).join('');
+  `<div class="carousel-item ${i === 0 ? 'active' : ''}">
+     <div class="carousel-fitbox">
+       <img src="${u}" onerror="this.src='/images/no-image.jpg'">
+     </div>
+   </div>`
+).join('');
+
 
 // 擁有者/管理員控制面板（依狀態顯示）
 const ownerPanel = canControl ? (() => {

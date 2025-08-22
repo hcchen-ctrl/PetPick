@@ -25,7 +25,7 @@ const badge = (srcType) =>
 
 // ====== 城市/地區資料 ======
 const AREA_SOURCES = [
-  '/data/tw-areas.json',
+  '/adopt/tw-areas.json',
   'https://cdn.jsdelivr.net/gh/donma/TaiwanAddressCityAreaRoadChinese@master/CityCountyData.json'
 ];
 const normalizeCity = s => (s || '').replace('臺', '台');

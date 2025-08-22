@@ -62,6 +62,7 @@ public class SecurityConfig {
                 .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css","/memFunction.js", "/favicon.ico").permitAll()
                 .requestMatchers("/index","/api/**","/gov-list-page","/loginpage", "/register").permitAll() // ⬅ 加上 /register
                 .requestMatchers("/adopts", "/adopts/**","/error").permitAll()
+                .requestMatchers("/*.html").permitAll()
 
 
 
