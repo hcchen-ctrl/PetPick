@@ -59,6 +59,18 @@ public class EcpayProperties {
         private String homeCreateUrl;
         private String homeServerReplyUrl;
 
+        // ====== 寄件人（綠界宅配必填）======
+        private String senderName;          // 寄件人姓名
+        private String senderPhone;         // 市話（可空）
+        private String senderCellPhone;     // 手機（與上擇一）
+        private String senderZip;           // 郵遞區號
+        private String senderAddress;       // 寄件地址
+
+        private String returnContactName;
+        private String returnContactPhone;
+        private String returnZip;
+        private String returnAddress;
+
         /** 超商選店：ServerReplyURL（地圖選完回你這裡） */
         private String cvsMapReturnUrl;
 

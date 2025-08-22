@@ -73,6 +73,24 @@ public class Order {
 
     @Column(name = "store_brand")
     private String storeBrand;
+    
+    @Column(name = "receiver_zip")
+    private String receiverZip;
+    
+    @Column(name = "logistics_status")
+    private String logisticsStatus;
+    
+    @Column(name = "payment_gateway")
+    private String paymentGateway;
+    
+    @Column(name = "payment_fail_reason")
+    private String paymentFailReason;
+    
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt;
+    
+    @Column(name = "received_at")
+    private LocalDateTime receivedAt;
 
     public String getMerchantTradeNo() {
         return merchantTradeNo;
