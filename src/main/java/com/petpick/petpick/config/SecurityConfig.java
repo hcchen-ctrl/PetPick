@@ -16,7 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
-@EnableWebSecurity
+@EnableWebSecurity(debug = true)
 public class SecurityConfig {
 
     @Autowired
@@ -59,8 +59,10 @@ public class SecurityConfig {
 
         // 授權認證
         http.authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css","/adopt/**","/memFunction.js", "/favicon.ico").permitAll()
+                .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css","/memFunction.js", "/favicon.ico").permitAll()
                 .requestMatchers("/index","/api/**","/gov-list-page","/loginpage", "/register").permitAll() // ⬅ 加上 /register
+                .requestMatchers("/adopts", "/adopts/**","/error").permitAll()
+
 
 
                 .requestMatchers("/rename").authenticated()//登入後才可以進入修改頁面
@@ -104,3 +106,6 @@ public class SecurityConfig {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 }
+
+
+

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>我的領養申請 - PetPick</title>
+    <link rel="icon" href="/images/pet-icon.png" type="image/x-icon">
+
+    <!-- Bootstrap 5.3.2 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome（保留一種載入方式即可） -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- 主樣式 -->
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        /* 與 my-adopt-progress 對齊的縮圖樣式 */
+        .thumb-box {
+            width: 100%;
+            height: 220px;
+            background: #f8f9fa;
+            border-radius: .5rem;
+            overflow: hidden
+        }
+
+        .bg-contain {
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain
+        }
+
+        .badge-status {
+            font-weight: 600
+        }
+
+        #tabs-cross .btn.active,
+        #tabs-status .btn.active {
+            background: #cfa178;
+            color: #fff;
+            border-color: #cfa178
+        }
+
+        /* 讓 stretched-link 在 z-index 1，按鈕區塊 z-index 2 */
+        .card .stretched-link::after {
+            z-index: 1;
+        }
+
+        .action-area {
+            position: relative;
+            z-index: 2;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/index.html">
+                <img src="/images/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+                PetPick
+            </a>
+
+            <!-- Bootstrap 5 屬性 -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle btn btn-login m-1" href="#" id="adoptDropdown"
+                                role="button" data-bs-toggle="dropdown" aria-expanded="false">尋找領養</a>
+                            <ul class="dropdown-menu" aria-labelledby="adoptDropdown">
+                                <li><a class="dropdown-item" href="/gov-list.html">公立認養</a></li>
+                                <li><a class="dropdown-item" href="/adopt-list.html">領養認養</a></li>
+                                <li><a class="dropdown-item" href="/post-adopt.html">刊登送養</a></li>
+                                <li><a class="dropdown-item" href="/adopt-report.html">收養回報</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1"
+                                href="/mission/missonMain.html">尋找任務</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="/shop/index.html">寵物商城</a></li>
+
+                    </ul>
+
+                    <!-- ✅ 這裡放登入/登出 & 管理員入口 -->
+                    <div id="authArea" class="ms-auto d-flex gap-2 align-items-center"></div>
+
+                    <!-- 手機版：選單最下面一排的三顆 -->
+                    <div class="d-lg-none mt-2 mobile-iconbar">
+                        <button class="btn btn-material" aria-label="聊天"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material" aria-label="購物車"><span
+                                class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" aria-label="帳號" id="mobileAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+
+                    <!-- 桌機版：固定右上角三顆（與 index.html 同步隱藏） -->
+                    <div id="desktop-iconbar" class="d-none d-lg-block position-fixed end-0 m-4" style="z-index:1030;">
+                        <button class="btn btn-material" aria-label="聊天"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material" aria-label="購物車"><span
+                                class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" aria-label="帳號" id="desktopAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-5 pt-4 py-4">
+        <!-- 跨頁切換：我的刊登 / 我的申請 -->
+        <div id="tabs-cross" class="btn-group mb-3">
+            <a class="btn btn-outline-secondary" href="/my-adopt-progress.html?status=pending">我的刊登</a>
+            <a class="btn btn-outline-secondary active" href="/my-apply.html?status=pending">我的申請</a>
+        </div>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+            <h3 class="mb-0">我的領養申請</h3>
+            <!-- 本頁的狀態過濾 -->
+            <form id="filters" class="row g-2">
+                <div class="col-12 col-sm-8">
+                    <label class="form-label mb-1">狀態</label>
+                    <div id="tabs-status" class="btn-group btn-group-sm d-flex">
+                        <a href="#" data-status="all" class="btn btn-outline-secondary flex-fill">全部</a>
+                        <a href="#" data-status="pending" class="btn btn-outline-secondary flex-fill">審核中</a>
+                        <a href="#" data-status="approved" class="btn btn-outline-secondary flex-fill">已通過</a>
+                        <a href="#" data-status="rejected" class="btn btn-outline-secondary flex-fill">已退回</a>
+                        <a href="#" data-status="cancelled" class="btn btn-outline-secondary flex-fill">已取消</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div id="resultCount" class="text-muted small"></div>
+            <div id="pager" class="btn-group btn-group-sm"></div>
+        </div>
+
+        <div id="empty" class="alert alert-secondary d-none">目前沒有申請。</div>
+        <div class="row g-3" id="list"></div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/authbar.js"></script>
+    <script type="module" src="/js/my-apply.js"></script>
+</body>
+
+</html>

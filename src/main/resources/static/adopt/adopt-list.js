@@ -51,7 +51,7 @@ async function fetchAreas() {
 
 // ====== 主查詢（公開列表固定只看 approved） ======
 async function loadPosts() {
-  const url = new URL('/api/adopts', location.origin);
+  const url = new URL('/adopts', location.origin);
   url.searchParams.set('page', currentPage);
   url.searchParams.set('size', pageSize);
   url.searchParams.set('status', 'approved'); // ★ 只取審核通過的
