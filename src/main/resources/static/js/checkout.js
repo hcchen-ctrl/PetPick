@@ -133,6 +133,27 @@ document.getElementById("checkout-form")?.addEventListener("submit", async (e) =
     }
 
     // 2) 分流：宅配貨到付款（address + cod）
+    if (delivery === "address") {
+      // 若付款方式選「cod」，就建立黑貓貨到付款；否則可先不代收
+      const isCollection = (payment === "cod");
+
+      try {
+        const r = await fetch("/api/logistics/home/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId, isCollection })
+        });
+        const j = await r.json();
+        if (!r.ok || !j.ok) throw new Error(j.error || "宅配託運單建立失敗");
+
+        // 這裡 j.logisticsId / j.trackingNo 已經寫回訂單，前端可提示一下
+        alert(`已建立黑貓託運單：${j.trackingNo || j.logisticsId || "（待查）"}`);
+      } catch (e) {
+        console.error(e);
+        alert(`宅配建單失敗：${e.message}`);
+      }
+    }
+
     if (delivery === "address" && effectivePayment === "cod") {
       await clearCartOnLocalPayment(userId); // 後端通常已清，這裡為了更新徽章
       await refreshCartBadge(userId);

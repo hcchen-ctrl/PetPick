@@ -56,6 +56,9 @@ public class EcpayProperties {
         /** 物流 HashIV（測試用：v77hoKGq4kWxNNIS） */
         private String hashIv;
 
+        private String homeCreateUrl;
+        private String homeServerReplyUrl;
+
         /** 超商選店：ServerReplyURL（地圖選完回你這裡） */
         private String cvsMapReturnUrl;
 

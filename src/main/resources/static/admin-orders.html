@@ -239,6 +239,10 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-2 text-muted">訂單編號：<span id="logisticsOrderId" class="font-mono">—</span></div>
+
+                    <!-- 新增：顯示配送/門市資訊的小區塊（程式會填） -->
+                    <div id="logisticsMeta" class="small text-muted mb-3"></div>
+
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="form-label">託運單號</label>
@@ -251,6 +255,10 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <!-- 新增：只有宅配時才會顯示 -->
+                    <button class="btn btn-outline-primary d-none" id="btnHomeCreate" type="button">
+                        建立黑貓宅配託運單
+                    </button>
                     <button class="btn btn-info" id="btnLogisticsSave">儲存物流資訊</button>
                 </div>
             </div>

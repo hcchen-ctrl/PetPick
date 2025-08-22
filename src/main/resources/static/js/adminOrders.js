@@ -28,6 +28,9 @@
   const lastRefreshedEl = $("#lastRefreshed");
   const loading = $("#loading");
   const toastContainer = $("#toastContainer");
+  const logisticsMeta = $("#logisticsMeta");
+  const btnHomeCreate = $("#btnHomeCreate");
+
 
   // 篩選元件
   const qFilter = $("#qFilter");
@@ -61,6 +64,8 @@
   const tradeNoInput = $("#tradeNoInput");
   const paidAmountInput = $("#paidAmountInput");
   const btnMarkPaid = $("#btnMarkPaid");
+
+  const orderCache = new Map();
 
   // Modals：物流
   const logisticsModal = new bootstrap.Modal($("#logisticsModal"));
@@ -365,13 +370,55 @@
     }
   }
 
-  function onOpenLogistics(e) {
-    const id = e.currentTarget.dataset.id;
+  async function onOpenLogistics(e) {
+    const id = Number(e.currentTarget.dataset.id);
     logisticsOrderId.textContent = `#${id}`;
     logisticsIdInput.value = "";
     trackingNoInput.value = "";
-    logisticsModal.show();
-    logisticsModal._currentId = Number(id);
+    logisticsMeta.textContent = "讀取中…";
+    btnHomeCreate.classList.add("d-none"); // 預設先隱藏
+    logisticsModal._currentId = id;
+
+    try {
+      showLoading(true);
+      const o = await fetchOrderOne(id);
+
+      // 預填既有物流欄位（若有）
+      if (o.logisticsId) logisticsIdInput.value = o.logisticsId;
+      if (o.trackingNo) trackingNoInput.value = o.trackingNo;
+
+      // 顯示配送資訊
+      const t = String(o.shippingType || "").toLowerCase();
+      if (t === "address") {
+        logisticsMeta.innerHTML = `
+        <div><span class="badge bg-secondary">宅配</span> ${escapeHtml(o.addr || "")}</div>
+        <div class="text-muted">收件人：${escapeHtml(o.receiverName || "—")}（${escapeHtml(o.receiverPhone || "—")}）</div>
+      `;
+        // 宅配：顯示「建立黑貓」按鈕
+        btnHomeCreate.classList.remove("d-none");
+        btnHomeCreate.onclick = () => createHomeFor(id);
+      } else if (t === "cvs_cod") {
+        const brand = o.storeBrand || "";
+        const brandText = brand ? `（${escapeHtml(brand)}）` : "";
+        logisticsMeta.innerHTML = `
+        <div><span class="badge bg-info text-dark">超商取貨付款</span> ${brandText}</div>
+        <div class="text-muted">${escapeHtml(o.storeName || "—")}　${o.storeAddress ? "｜" + escapeHtml(o.storeAddress) : ""}</div>
+      `;
+        // 超商：不顯示建立黑貓（不適用）
+        btnHomeCreate.classList.add("d-none");
+        btnHomeCreate.onclick = null;
+      } else {
+        logisticsMeta.innerHTML = `<div class="text-muted">配送：${escapeHtml(o.shippingType || "—")}</div>`;
+        btnHomeCreate.classList.add("d-none");
+        btnHomeCreate.onclick = null;
+      }
+
+      logisticsModal.show();
+    } catch (err) {
+      toast(`讀取訂單失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
   }
 
   async function onSaveLogistics() {
@@ -383,6 +430,12 @@
         logisticsId: logisticsIdInput.value || "",
         trackingNo: trackingNoInput.value || ""
       });
+
+      // ★ 若有追蹤碼或物流編號 → 順便標記為已出貨（可依你需求）
+      if ((trackingNoInput.value || logisticsIdInput.value)) {
+        await apiPatch(`${API_BASE}/${id}/status`, { status: "Shipped", note: "" });
+      }
+
       logisticsModal.hide();
       toast("物流資訊已儲存");
       loadPage(state.page);
@@ -392,7 +445,6 @@
       showLoading(false);
     }
   }
-
   function onOpenCancel(e) {
     const id = e.currentTarget.dataset.id;
     cancelOrderId.textContent = `#${id}`;
@@ -692,5 +744,53 @@ async function hydrateDelivery() {
     } catch {
       /* 忽略失敗，維持「—」 */
     }
+  }
+  // ====== 輔助：抓單筆訂單（有快取） ======
+}
+async function fetchOrderOne(id) {
+  id = Number(id);
+  if (orderCache.has(id)) return orderCache.get(id);
+  const r = await fetch(`${API_BASE}/${id}`);
+  if (!r.ok) throw new Error(`讀取訂單失敗 (${r.status})`);
+  const data = await r.json();
+  orderCache.set(id, data);
+  return data;
+}
+async function createHomeFor(orderId) {
+  if (!orderId) return;
+  try {
+    showLoading(true);
+    // 預設不代收；若你想支援「宅配貨到付款」，把下面 isCollection: true
+    const r = await fetch("/api/logistics/home/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, isCollection: false })
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.error || "建立失敗");
+
+    // 寫回輸入框
+    if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+    if (j.trackingNo) trackingNoInput.value = j.trackingNo;
+
+    // 立刻存到訂單（冪等）
+    await apiPost(`${API_BASE}/${orderId}/logistics`, {
+      logisticsId: j.logisticsId || "",
+      trackingNo: j.trackingNo || ""
+    });
+
+    // 詢問是否標記出貨
+    if (confirm("已建立黑貓託運單，是否將訂單標記為 Shipped？")) {
+      await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立黑貓宅配" });
+      // 更新列表資料（簡單作法：清空快取 + 重新載入）
+      orderCache.delete(Number(orderId));
+      await loadPage(state.page);
+    }
+
+    toast("黑貓託運單建立完成");
+  } catch (err) {
+    toast(`黑貓建立失敗：${escapeHtml(err.message || "")}`, "danger");
+  } finally {
+    showLoading(false);
   }
 }
