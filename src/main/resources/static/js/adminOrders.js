@@ -2,6 +2,8 @@
 (function () {
   // ====== Config / State ======
   const API_BASE = "/api/admin/orders";
+  // ★ 管理端請求一律帶上 ADMIN 標頭（對應後端 DemoAuthFilter）
+  const ADMIN_HEADERS = { "X-Demo-Role": "ADMIN" };
 
   const state = {
     page: 1,                   // 1-based
@@ -30,7 +32,6 @@
   const toastContainer = $("#toastContainer");
   const logisticsMeta = $("#logisticsMeta");
   const btnHomeCreate = $("#btnHomeCreate");
-
 
   // 篩選元件
   const qFilter = $("#qFilter");
@@ -65,6 +66,7 @@
   const paidAmountInput = $("#paidAmountInput");
   const btnMarkPaid = $("#btnMarkPaid");
 
+  // 單筆快取
   const orderCache = new Map();
 
   // Modals：物流
@@ -129,7 +131,7 @@
     btnBulkCancel.addEventListener("click", () => openBulkCancel());
     btnExport.addEventListener("click", () => exportCSV());
     updateBulkButtons();
-
+    
     // Modals 行為
     btnStatusSave.addEventListener("click", onSaveStatus);
     btnMarkPaid.addEventListener("click", onMarkPaid);
@@ -149,7 +151,7 @@
     p.set("size", String(state.size));
 
     const url = `${API_BASE}?${p.toString()}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: { ...ADMIN_HEADERS } });
     if (!res.ok) throw new Error(`讀取失敗 (${res.status})`);
 
     const data = await res.json();
@@ -168,7 +170,7 @@
   async function apiPatch(url, body) {
     const r = await fetch(url, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...ADMIN_HEADERS },
       body: JSON.stringify(body || {}),
     });
     if (!r.ok) throw new Error(await safeText(r));
@@ -178,7 +180,7 @@
   async function apiPost(url, body) {
     const r = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...ADMIN_HEADERS },
       body: JSON.stringify(body || {}),
     });
     if (!r.ok) throw new Error(await safeText(r));
@@ -233,6 +235,8 @@
     $$(".btn-paid").forEach(btn => btn.addEventListener("click", onOpenMarkPaid));
     $$(".btn-logistics").forEach(btn => btn.addEventListener("click", onOpenLogistics));
     $$(".btn-cancel").forEach(btn => btn.addEventListener("click", onOpenCancel));
+
+    // 補齊配送欄顯示（必要時）
     hydrateDelivery();
   }
 
@@ -269,6 +273,7 @@
     </tr>
   `;
   }
+
   function renderPagination() {
     const { page, totalPages } = state;
     if (totalPages <= 1) { pagination.innerHTML = ""; return; }
@@ -283,9 +288,9 @@
     html += item("‹", Math.max(1, page - 1), page === 1);
 
     // 簡單視窗
-    const window = 2;
-    const start = Math.max(1, page - window);
-    const end = Math.min(totalPages, page + window);
+    const pageWindow = 2; // 避免與全域 window 混淆
+    const start = Math.max(1, page - pageWindow);
+    const end = Math.min(totalPages, page + pageWindow);
     for (let i = start; i <= end; i++) {
       html += item(String(i), i, false, i === page);
     }
@@ -391,20 +396,19 @@
       const t = String(o.shippingType || "").toLowerCase();
       if (t === "address") {
         logisticsMeta.innerHTML = `
-        <div><span class="badge bg-secondary">宅配</span> ${escapeHtml(o.addr || "")}</div>
-        <div class="text-muted">收件人：${escapeHtml(o.receiverName || "—")}（${escapeHtml(o.receiverPhone || "—")}）</div>
-      `;
-        // 宅配：顯示「建立黑貓」按鈕
+          <div><span class="badge bg-secondary">宅配</span> ${escapeHtml(o.addr || "")}</div>
+          <div class="text-muted">收件人：${escapeHtml(o.receiverName || "—")}（${escapeHtml(o.receiverPhone || "—")}）</div>
+        `;
+        // 宅配：顯示「建立宅配託運單」按鈕（綠界）
         btnHomeCreate.classList.remove("d-none");
         btnHomeCreate.onclick = () => createHomeFor(id);
       } else if (t === "cvs_cod") {
         const brand = o.storeBrand || "";
         const brandText = brand ? `（${escapeHtml(brand)}）` : "";
         logisticsMeta.innerHTML = `
-        <div><span class="badge bg-info text-dark">超商取貨付款</span> ${brandText}</div>
-        <div class="text-muted">${escapeHtml(o.storeName || "—")}　${o.storeAddress ? "｜" + escapeHtml(o.storeAddress) : ""}</div>
-      `;
-        // 超商：不顯示建立黑貓（不適用）
+          <div><span class="badge bg-info text-dark">超商取貨付款</span> ${brandText}</div>
+          <div class="text-muted">${escapeHtml(o.storeName || "—")}　${o.storeAddress ? "｜" + escapeHtml(o.storeAddress) : ""}</div>
+        `;
         btnHomeCreate.classList.add("d-none");
         btnHomeCreate.onclick = null;
       } else {
@@ -445,6 +449,7 @@
       showLoading(false);
     }
   }
+
   function onOpenCancel(e) {
     const id = e.currentTarget.dataset.id;
     cancelOrderId.textContent = `#${id}`;
@@ -573,7 +578,6 @@
       try {
         showLoading(true);
         const ids = selectedIds();
-        // 批次「已付款」等同於批次狀態更新到 Paid（你後端也可做專用 API）
         await apiPost(`${API_BASE}/bulk-status`, {
           orderIds: ids,
           status: "Paid",
@@ -722,75 +726,77 @@
   }
   function escapeAttr(s) { return String(s ?? "").replaceAll('"', '&quot;'); }
   async function safeText(r) { try { return await r.text(); } catch { return `HTTP ${r.status}`; } }
-})();
 
-async function hydrateDelivery() {
-  // 找出目前顯示為「—」的配送欄位，逐筆去拿詳情補上
-  const rows = Array.from(tbody.querySelectorAll("tr[data-row-id]"));
-  for (const tr of rows) {
-    const td = tr.querySelector(".td-delivery");
-    if (!td) continue;
-    const current = (td.textContent || "").trim();
-    if (current && current !== "—") continue; // 已有資料就略過
+  // ====== (修正) 這三個函式移進 IIFE 內，才抓得到 tbody / API_BASE 等 ======
+  async function hydrateDelivery() {
+    // 找出目前顯示為「—」的配送欄位，逐筆去拿詳情補上
+    const rows = Array.from(tbody.querySelectorAll("tr[data-row-id]"));
+    for (const tr of rows) {
+      const td = tr.querySelector(".td-delivery");
+      if (!td) continue;
+      const current = (td.textContent || "").trim();
+      if (current && current !== "—") continue; // 已有資料就略過
 
-    const id = tr.getAttribute("data-row-id");
-    if (!id) continue;
+      const id = tr.getAttribute("data-row-id");
+      if (!id) continue;
 
+      try {
+        const r = await fetch(`${API_BASE}/${encodeURIComponent(id)}`, { headers: { ...ADMIN_HEADERS } });
+        if (!r.ok) continue;
+        const o = await r.json();
+        td.textContent = displayDelivery(o);
+      } catch {
+        /* 忽略失敗，維持「—」 */
+      }
+    }
+  }
+
+  async function fetchOrderOne(id) {
+    id = Number(id);
+    if (orderCache.has(id)) return orderCache.get(id);
+    const r = await fetch(`${API_BASE}/${id}`, { headers: { ...ADMIN_HEADERS } });
+    if (!r.ok) throw new Error(`讀取訂單失敗 (${r.status})`);
+    const data = await r.json();
+    orderCache.set(id, data);
+    return data;
+  }
+
+  async function createHomeFor(orderId) {
+    if (!orderId) return;
     try {
-      const r = await fetch(`${API_BASE}/${encodeURIComponent(id)}`);
-      if (!r.ok) continue;
-      const o = await r.json();
-      td.textContent = displayDelivery(o);
-    } catch {
-      /* 忽略失敗，維持「—」 */
+      showLoading(true);
+      // 綠界宅配建單端點（新版）
+      const r = await fetch("/api/logistics/home/ecpay/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...ADMIN_HEADERS },
+        body: JSON.stringify({ orderId, isCollection: false })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok === false) throw new Error(j.error || "建立失敗");
+
+      // 寫回輸入框
+      if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+      if (j.trackingNo) trackingNoInput.value = j.trackingNo;
+
+      // 立刻存到訂單（冪等）
+      await apiPost(`${API_BASE}/${orderId}/logistics`, {
+        logisticsId: j.logisticsId || "",
+        trackingNo: j.trackingNo || ""
+      });
+
+      // 詢問是否標記出貨
+      if (confirm("已建立宅配託運單，是否將訂單標記為 Shipped？")) {
+        await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界宅配" });
+        orderCache.delete(Number(orderId));
+        await loadPage(state.page);
+      }
+
+      toast("宅配託運單建立完成");
+    } catch (err) {
+      toast(`宅配建立失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
     }
   }
-  // ====== 輔助：抓單筆訂單（有快取） ======
-}
-async function fetchOrderOne(id) {
-  id = Number(id);
-  if (orderCache.has(id)) return orderCache.get(id);
-  const r = await fetch(`${API_BASE}/${id}`);
-  if (!r.ok) throw new Error(`讀取訂單失敗 (${r.status})`);
-  const data = await r.json();
-  orderCache.set(id, data);
-  return data;
-}
-async function createHomeFor(orderId) {
-  if (!orderId) return;
-  try {
-    showLoading(true);
-    // 預設不代收；若你想支援「宅配貨到付款」，把下面 isCollection: true
-    const r = await fetch("/api/logistics/home/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, isCollection: false })
-    });
-    const j = await r.json();
-    if (!r.ok || !j.ok) throw new Error(j.error || "建立失敗");
-
-    // 寫回輸入框
-    if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
-    if (j.trackingNo) trackingNoInput.value = j.trackingNo;
-
-    // 立刻存到訂單（冪等）
-    await apiPost(`${API_BASE}/${orderId}/logistics`, {
-      logisticsId: j.logisticsId || "",
-      trackingNo: j.trackingNo || ""
-    });
-
-    // 詢問是否標記出貨
-    if (confirm("已建立黑貓託運單，是否將訂單標記為 Shipped？")) {
-      await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立黑貓宅配" });
-      // 更新列表資料（簡單作法：清空快取 + 重新載入）
-      orderCache.delete(Number(orderId));
-      await loadPage(state.page);
-    }
-
-    toast("黑貓託運單建立完成");
-  } catch (err) {
-    toast(`黑貓建立失敗：${escapeHtml(err.message || "")}`, "danger");
-  } finally {
-    showLoading(false);
-  }
-}
+  // ====== /moved inside IIFE ======
+})();

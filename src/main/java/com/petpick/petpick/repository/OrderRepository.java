@@ -15,4 +15,6 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
     Optional<Order> findByTradeNo(String tradeNo);
 
     Optional<Order> findByMerchantTradeNo(String merchantTradeNo);
+
+    Optional<Order> findByLogisticsId(String logisticsId);
 }

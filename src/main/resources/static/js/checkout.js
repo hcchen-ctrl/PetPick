@@ -14,6 +14,8 @@ const cartBadgeEl = document.getElementById("cart-badge");
 const totalPriceEl = document.getElementById("total-price");
 
 const deliveryMethod = document.getElementById("delivery-method");
+const nameInput = document.getElementById("name");
+const nameErrEl = document.getElementById("name-error"); // 若頁面有此提示元素會自動顯示
 const phoneInput = document.getElementById("phone");
 const phoneErrEl = document.getElementById("phone-error");
 
@@ -31,13 +33,8 @@ const storeInfoWrap = storeInfoEl ? storeInfoEl.parentElement : null;
 
 // ---- 小工具 ----
 const safeText = (x) => (x == null ? "" : String(x));
-
-function setBadge(n) {
-  if (cartBadgeEl) cartBadgeEl.textContent = String(n ?? 0);
-}
-function setTotal(n) {
-  if (totalPriceEl) totalPriceEl.textContent = `NT$${(n ?? 0).toLocaleString("zh-Hant-TW")}`;
-}
+function setBadge(n) { if (cartBadgeEl) cartBadgeEl.textContent = String(n ?? 0); }
+function setTotal(n) { if (totalPriceEl) totalPriceEl.textContent = `NT$${(n ?? 0).toLocaleString("zh-Hant-TW")}`; }
 function showToast(message, type = "primary") {
   const id = "t" + Math.random().toString(36).slice(2);
   const html = `
@@ -52,6 +49,27 @@ function showToast(message, type = "primary") {
   const el = document.getElementById(id);
   new bootstrap.Toast(el, { delay: 2800 }).show();
   el.addEventListener("hidden.bs.toast", () => el.remove());
+}
+
+// ---- 姓名規則（與後端一致） ----
+// 中文 2~5 或 英文 4~10（不含空白與符號）
+function isValidReceiverName(name) {
+  if (!name) return false;
+  const clean = name.trim().replace(/\s+/g, "").replace(/[^A-Za-z\u4E00-\u9FFF]/g, "");
+  const hasCJK = /[\u4E00-\u9FFF]/.test(clean);
+  if (hasCJK) return clean.length >= 2 && clean.length <= 5;
+  return clean.length >= 4 && clean.length <= 10;
+}
+// 送綠界前，將姓名做相同清洗（避免被拒）
+function sanitizeNameForEcpay(name) {
+  return (name || "").trim().replace(/\s+/g, "").replace(/[^A-Za-z\u4E00-\u9FFF]/g, "");
+}
+function setInvalid(el, show) {
+  if (!el) return;
+  el.classList[show ? "add" : "remove"]("is-invalid");
+  // 若頁面有對應的錯誤提示元素，順便切換顯示
+  if (el === nameInput && nameErrEl) nameErrEl.style.display = show ? "block" : "none";
+  if (el === phoneInput && phoneErrEl) phoneErrEl.style.display = show ? "block" : "none";
 }
 
 // 解析第三方回傳 HTML → 自動提交
@@ -101,6 +119,24 @@ async function postForHtmlForm(url, payload) {
   return text;
 }
 
+// 共用：POST JSON 並把錯誤訊息抽出
+async function postJson(url, body) {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...DEMO_HEADERS },
+    credentials: "include",
+    body: JSON.stringify(body || {})
+  });
+  const text = await resp.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  if (!resp.ok) {
+    const msg = data.message || data.error || text || `HTTP ${resp.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
 // ---- 初始載入購物車合計 ----
 fetch(`/api/cart/withProduct/${encodeURIComponent(userId)}`, {
   credentials: "include",
@@ -120,11 +156,10 @@ form?.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (submitBtn) submitBtn.disabled = true;
 
-  const name = safeText(document.getElementById("name")?.value).trim();
+  const name = safeText(nameInput?.value).trim();
   const phone = safeText(phoneInput?.value).trim();
   const delivery = safeText(deliveryMethod?.value);  // address | cvs_cod
   const payment = safeText(document.getElementById("payment")?.value); // credit | cod
-  const cvsBrand = document.querySelector('input[name="cvsBrand"]:checked')?.value;
 
   const effectivePayment = delivery === "cvs_cod" ? "cod" : (payment || "").toLowerCase();
   sessionStorage.setItem("last_payment", effectivePayment);
@@ -133,30 +168,56 @@ form?.addEventListener("submit", async (e) => {
   const zip = delivery === "address" ? safeText(zipInput?.value).trim() : "";
 
   // 基本驗證
-  if (!name) { showToast("請填寫姓名", "danger"); if (submitBtn) submitBtn.disabled=false; return; }
-  if (!/^09\d{8}$/.test(phone)) { showToast("請輸入正確手機號碼", "danger"); if (submitBtn) submitBtn.disabled=false; return; }
+  if (!name) {
+    showToast("請填寫姓名", "danger");
+    setInvalid(nameInput, true);
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+
+  // ★ 姓名即時規則驗證（與後端一致）
+  if (!isValidReceiverName(name)) {
+    showToast("姓名格式不符：中文 2~5、英文 4~10（不含空白與符號）", "danger");
+    setInvalid(nameInput, true);
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  } else {
+    setInvalid(nameInput, false);
+  }
+
+  if (!/^09\d{8}$/.test(phone)) {
+    showToast("請輸入正確手機號碼", "danger");
+    setInvalid(phoneInput, true);
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  } else {
+    setInvalid(phoneInput, false);
+  }
+
   if (delivery === "address") {
-    if (!addr || addr.length < 3) { showToast("請填寫正確收件地址", "danger"); if (submitBtn) submitBtn.disabled=false; return; }
-    if (zip && !/^\d{3,5}$/.test(zip)) { showToast("郵遞區號格式不正確", "danger"); if (submitBtn) submitBtn.disabled=false; return; }
+    if (!addr || addr.length < 3) {
+      showToast("請填寫正確收件地址", "danger");
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+    if (zip && !/^\d{3,5}$/.test(zip)) {
+      showToast("郵遞區號格式不正確", "danger");
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
   }
 
   try {
     // 1) 建立訂單（後端以 Header 判斷 userId）
-    const res = await fetch("/api/orders/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...DEMO_HEADERS },
-      credentials: "include",
-      body: JSON.stringify({
-        addr,
-        receiverZip: zip || null,
-        receiverName: name,
-        receiverPhone: phone,
-        shippingType: delivery
-      })
+    const order = await postJson("/api/orders/checkout", {
+      addr,
+      receiverZip: zip || null,
+      receiverName: name,
+      receiverPhone: phone,
+      shippingType: delivery
     });
-    if (!res.ok) throw new Error((await res.text().catch(() => "")) || "訂單建立失敗");
-    const order = await res.json();
     const orderId = order?.orderId;
+    if (!orderId) throw new Error("訂單建立失敗（缺少 orderId）");
 
     // 2) 分流
     // 2-1) 超商取貨付款（固定全家 FAMIC2C 測試）
@@ -180,26 +241,18 @@ form?.addEventListener("submit", async (e) => {
       return;
     }
 
-    // 2-3) 宅配 + 貨到付款 → 建綠界宅配託運單
+    // 2-3) 宅配 + 貨到付款 → 建綠界宅配託運單（姓名改用清洗後版本）
     if (delivery === "address" && effectivePayment === "cod") {
       try {
-        const r = await fetch("/api/logistics/home/ecpay/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...DEMO_HEADERS },
-          credentials: "include",
-          body: JSON.stringify({
-            orderId,
-            receiverName: name,
-            receiverPhone: phone,
-            receiverZip: zip || null,
-            receiverAddr: addr,
-            isCollection: true
-          })
+        const cleanName = sanitizeNameForEcpay(name);
+        const j = await postJson("/api/logistics/home/ecpay/create", {
+          orderId,
+          receiverName: cleanName,
+          receiverPhone: phone,
+          receiverZip: zip || null,
+          receiverAddr: addr,
+          isCollection: true
         });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || j.ok === false) {
-          throw new Error(j.error || `宅配建單失敗 (HTTP ${r.status})`);
-        }
         showToast(`已建立宅配託運單：${j.trackingNo || j.logisticsId || "已送出"}`, "success");
       } catch (e) {
         console.error(e);
@@ -296,6 +349,12 @@ phoneInput?.addEventListener("input", () => {
     /^09\d{8}$/.test(phoneInput.value) || phoneInput.value === "" ? "none" : "block";
 });
 
+// 姓名即時驗證
+nameInput?.addEventListener("input", () => {
+  const ok = isValidReceiverName(nameInput.value);
+  setInvalid(nameInput, !ok && nameInput.value.trim() !== "");
+});
+
 // Back-to-top
 const backToTop = document.getElementById("backToTop");
 window.addEventListener("scroll", () => {
@@ -308,19 +367,12 @@ window.addEventListener("DOMContentLoaded", () => {
   deliveryMethod?.dispatchEvent(new Event("change"));
 });
 
-// ---- 購物車徽章相關（加 DEMO_HEADERS）----
+// ---- 購物車徽章相關（只打現存 API，帶 DEMO_HEADERS）----
 async function clearCartOnLocalPayment(userId) {
-  try {
-    await fetch(`/api/cart/user/${encodeURIComponent(userId)}`, {
-      method: "DELETE",
-      credentials:"include",
-      headers: { ...DEMO_HEADERS }
-    });
-  } catch {}
   try {
     await fetch(`/api/cart/clear/${encodeURIComponent(userId)}`, {
       method: "DELETE",
-      credentials:"include",
+      credentials: "include",
       headers: { ...DEMO_HEADERS }
     });
   } catch {}
@@ -329,7 +381,7 @@ async function refreshCartBadge(userId) {
   const setBadgeSafe = (n) => { const el = document.getElementById("cart-badge"); if (el) el.textContent = String(n ?? 0); };
   try {
     const r = await fetch(`/api/cart/withProduct/${encodeURIComponent(userId)}`, {
-      credentials:"include",
+      credentials: "include",
       headers: { ...DEMO_HEADERS }
     });
     const items = r.ok ? await r.json() : [];
