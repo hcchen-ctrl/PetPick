@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>領養認養 - PetPick</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="icon" href="/images/pet-icon.png" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/adopt/styles.css">
+    <link rel="stylesheet" href="/adopt/gov-list.css">
+    <link rel="stylesheet" href="/adopt/loading.css">
+    <style>
+        .filter-bar {
+            row-gap: .5rem;
+            margin-top: .25rem;
+            margin-bottom: .75rem;
+        }
+
+        @media (min-width:992px) {
+            .filter-bar {
+                flex-wrap: nowrap;
+            }
+        }
+
+        .filter-bar .form-select,
+        .filter-bar .form-control {
+            min-width: 140px;
+        }
+
+        .filter-bar .city,
+        .filter-bar .district {
+            width: 180px;
+        }
+
+        .filter-bar .species {
+            width: 160px;
+        }
+
+        .filter-bar .sex,
+        .filter-bar .age,
+        .filter-bar .source {
+            width: 140px;
+        }
+
+        .filter-bar .keyword {
+            width: 300px;
+            flex: 0 0 300px;
+        }
+
+        .filter-bar .keyword .btn {
+            white-space: nowrap;
+        }
+
+        h2.page-title {
+            margin-bottom: .75rem;
+        }
+
+        #post-list {
+            margin-top: .25rem;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/index.html">
+                <img src="/images/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+                PetPick
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle btn btn-login m-1" href="#" id="adoptDropdown"
+                                role="button" data-bs-toggle="dropdown">尋找領養</a>
+                            <ul class="dropdown-menu" aria-labelledby="adoptDropdown">
+                                <li><a class="dropdown-item" href="/gov-list.html">公立認養</a></li>
+                                <li><a class="dropdown-item" href="/adopt-list.html">領養認養</a></li>
+                                <li><a class="dropdown-item" href="/post-adopt.html">刊登送養</a></li>
+                                <li><a class="dropdown-item" href="/adopt-report.html">收養回報</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1"
+                                href="/mission/missonMain.html">尋找任務</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="/shop/index.html">寵物商城</a></li>
+                    </ul>
+                    <div id="authArea" class="ms-auto d-flex gap-2 align-items-center"></div>
+                    <div class="d-lg-none mt-2 mobile-iconbar">
+                        <button class="btn btn-material"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material"><span class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" id="mobileAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+                    <div id="desktop-iconbar" class="d-none d-lg-block position-fixed end-0 m-4" style="z-index:1030;">
+                        <button class="btn btn-material"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material"><span class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" id="desktopAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-4">
+        <h2 class="text-center page-title">🐾 領養認養列表</h2>
+
+        <div class="container my-3">
+            <div class="row g-2 align-items-center">
+                <div class="filter-bar d-flex align-items-center flex-wrap flex-lg-nowrap gap-2 mt-3">
+                    <select id="cityFilter" class="form-select city">
+                        <option value="">全部縣市</option>
+                    </select>
+
+                    <select id="districtFilter" class="form-select district" disabled>
+                        <option value="">全部地區</option>
+                    </select>
+
+                    <select id="speciesFilter" class="form-select species">
+                        <option value="">全部種類</option>
+                        <option>狗</option>
+                        <option>貓</option>
+                        <option>兔</option>
+                        <option>鼠</option>
+                        <option>龜</option>
+                        <option>蛇</option>
+                        <option>鳥</option>
+                        <option>豬</option>
+                        <option>其他</option>
+                    </select>
+
+                    <select id="sexFilter" class="form-select sex">
+                        <option value="">全部性別</option>
+                        <option value="male">公</option>
+                        <option value="female">母</option>
+                        <option value="unknown">不確定</option>
+                    </select>
+
+                    <select id="ageFilter" class="form-select age">
+                        <option value="">全部年齡</option>
+                        <option>幼年</option>
+                        <option>成年</option>
+                        <option>老年</option>
+                    </select>
+
+                    <select id="sourceFilter" class="form-select source">
+                        <option value="">全部來源</option>
+                        <option value="platform">我方救助</option>
+                        <option value="user">民眾送養</option>
+                    </select>
+
+                    <div class="keyword input-group flex-nowrap">
+                        <input id="keyword" class="form-control" placeholder="關鍵字搜尋...">
+                        <button id="searchBtn" class="btn btn-outline-secondary ms-2">搜尋</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row" id="post-list"></div>
+
+            <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap">
+                <div id="page-info" class="text-muted small mb-2 mb-sm-0"></div>
+                <div class="input-group" style="max-width:320px;">
+                    <span class="input-group-text">前往第</span>
+                    <input type="number" min="1" class="form-control" id="gotoPageInput" placeholder="頁碼">
+                    <button class="btn btn-outline-secondary ms-2" id="gotoPageBtn">前往</button>
+                </div>
+            </div>
+            <nav>
+                <ul class="pagination justify-content-center mt-3" id="pagination"></ul>
+            </nav>
+        </div>
+    </main>
+
+    <div id="global-loading">
+        <div class="spinner"></div>
+    </div>
+    <button id="backToTop" class="btn btn-primary shadow">↑</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/adopt/authbar.js"></script>
+    <script>
+        const backToTopBtn = document.getElementById("backToTop");
+        window.addEventListener("scroll", () => {
+            backToTopBtn.style.display = window.scrollY > 200 ? "flex" : "none";
+        });
+        backToTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+        let lastScrollTop = 0; const navbar = document.querySelector('.navbar');
+        window.addEventListener("scroll", () => {
+            const st = window.pageYOffset || document.documentElement.scrollTop;
+            if (st > lastScrollTop) navbar.classList.add("hide-navbar"); else navbar.classList.remove("hide-navbar");
+            lastScrollTop = st <= 0 ? 0 : st;
+        });
+        const desktopBar = document.getElementById('desktop-iconbar');
+        window.addEventListener('scroll', () => {
+            if (navbar.classList.contains('hide-navbar')) desktopBar.classList.add('hide-navbar'); else desktopBar.classList.remove('hide-navbar');
+        });
+    </script>
+
+    <!-- 頁面用 JS -->
+    <script src="/adopt/theme.js"></script>
+    <script src="/adopt/loading.js"></script>
+    <script src="/adopt/adopt-list.js"></script>
+    <script src="/adopt/auth.js"></script>
+</body>
+
+</html>

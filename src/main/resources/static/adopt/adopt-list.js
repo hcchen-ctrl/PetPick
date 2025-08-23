@@ -25,7 +25,7 @@ const badge = (srcType) =>
 
 // ====== 城市/地區資料 ======
 const AREA_SOURCES = [
-  '/data/tw-areas.json',
+  '/adopt/tw-areas.json',
   'https://cdn.jsdelivr.net/gh/donma/TaiwanAddressCityAreaRoadChinese@master/CityCountyData.json'
 ];
 const normalizeCity = s => (s || '').replace('臺', '台');
@@ -51,7 +51,7 @@ async function fetchAreas() {
 
 // ====== 主查詢（公開列表固定只看 approved） ======
 async function loadPosts() {
-  const url = new URL('/api/adopts', location.origin);
+  const url = new URL('/adopts', location.origin);
   url.searchParams.set('page', currentPage);
   url.searchParams.set('size', pageSize);
   url.searchParams.set('status', 'approved'); // ★ 只取審核通過的
@@ -119,7 +119,7 @@ async function loadPosts() {
               </p>
 
               <div class="d-flex align-items-center mt-2">
-                <a class="btn btn-outline-secondary ms-2" href="/adopt-view.html?id=${p.id}">查看</a>
+                <a class="btn btn-outline-secondary ms-2" href="/adopt/adopt-view.html?id=${p.id}">查看</a>
                 ${normalizeSex(p.sex) === 'unknown'
           ? `<span class="ms-auto badge rounded-pill bg-light text-secondary border"
                        data-bs-toggle="tooltip" title="刊登者未填寫性別">未提供性別</span>`

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/index.html">
+        <img src="/images/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+        PetPick
+      </a>
+
+      <!-- Bootstrap 5 屬性 -->
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+          <ul class="navbar-nav mb-2 mb-lg-0">
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle btn btn-login m-1" href="#" id="adoptDropdown" role="button"
+                data-bs-toggle="dropdown" aria-expanded="false">尋找領養</a>
+              <ul class="dropdown-menu" aria-labelledby="adoptDropdown">
+                <li><a class="dropdown-item" href="/gov-list.html">公立認養</a></li>
+                <li><a class="dropdown-item" href="/adopt-list.html">領養認養</a></li>
+                <li><a class="dropdown-item" href="/post-adopt.html">刊登送養</a></li>
+                <li><a class="dropdown-item" href="/adopt-report.html">收養回報</a></li>
+              </ul>
+            </li>
+            <li class="nav-item"><a class="nav-link btn btn-login m-1" href="/mission/missonMain.html">尋找任務</a></li>
+            <li class="nav-item"><a class="nav-link btn btn-login m-1" href="/shop/index.html">寵物商城</a></li>
+
+          </ul>
+
+          <!-- ✅ 這裡放登入/登出 & 管理員入口 -->
+          <div id="authArea" class="ms-auto d-flex gap-2 align-items-center"></div>
+
+          <!-- 手機版：選單最下面一排的三顆 -->
+          <div class="d-lg-none mt-2 mobile-iconbar">
+            <button class="btn btn-material" aria-label="聊天"><span
+                class="material-icons">chat_bubble_outline</span></button>
+            <button class="btn btn-material" aria-label="購物車"><span class="material-icons">shopping_cart</span></button>
+            <button class="btn btn-material" aria-label="帳號" id="mobileAccountBtn"><span
+                class="material-icons">account_circle</span></button>
+          </div>
+
+          <!-- 桌機版：固定右上角三顆（與 index.html 同步隱藏） -->
+          <div id="desktop-iconbar" class="d-none d-lg-block position-fixed end-0 m-4" style="z-index:1030;">
+            <button class="btn btn-material" aria-label="聊天"><span
+                class="material-icons">chat_bubble_outline</span></button>
+            <button class="btn btn-material" aria-label="購物車"><span class="material-icons">shopping_cart</span></button>
+            <button class="btn btn-material" aria-label="帳號" id="desktopAccountBtn"><span
+                class="material-icons">account_circle</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <script>
+    fetch('/api/posts')
+      .then(r => r.json())
+      .then(data => {
+        const box = document.getElementById('list');
+        box.innerHTML = data.map(p => `
+        <div class="col">
+          <div class="card h-100">
+            <img src="${p.image1 || '/images/no-image.jpg'}" class="card-img-top">
+            <div class="card-body">
+              <h5>${p.title}</h5>
+              <div class="text-muted small">${p.city ?? ''} ${p.district ?? ''}</div>
+            </div>
+          </div>
+        </div>`).join('');
+      });
+  </script>
+</body>
+
+</html>

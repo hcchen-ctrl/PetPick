@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>刊登送養資訊 - PetPick</title>
+
+    <!-- Bootstrap 5 + 全站主樣式（跟 index.html 一樣） -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="icon" href="/images/pet-icon.png" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+
+    <!-- 本頁額外樣式（放在主樣式之後） -->
+    <link rel="stylesheet" href="/adopt/gov-list.css">
+    <link rel="stylesheet" href="/adopt/loading.css">
+
+    <style>
+        /* Stepper */
+        .step-circle {
+            width: 86px;
+            height: 86px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1e6da;
+            color: #a87954;
+            font-weight: 600;
+            font-size: 32px;
+            margin: 0 auto;
+        }
+
+        .step-active {
+            background: #cfa178;
+            color: #fff;
+        }
+
+        .step-text {
+            margin-top: .5rem;
+            color: #7a7066
+        }
+
+        /* 表單視覺 */
+        .form-section {
+            background: #fff;
+            border-radius: 16px;
+            padding: 20px 18px;
+        }
+
+        .form-section+.form-section {
+            margin-top: 16px
+        }
+
+        .card-header.bg-danger {
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px
+        }
+
+        .btn-submit {
+            min-width: 140px
+        }
+
+        /* 右側固定（到 navbar 下方） */
+        .sticky-sidebar {
+            position: sticky;
+            top: 88px
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+
+    <!-- Navbar（與 index.html 同版） -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/index.html">
+                <img src="/images/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+                PetPick
+            </a>
+
+            <!-- Bootstrap 5 屬性 -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle btn btn-login m-1" href="#" id="adoptDropdown"
+                                role="button" data-bs-toggle="dropdown" aria-expanded="false">尋找領養</a>
+                            <ul class="dropdown-menu" aria-labelledby="adoptDropdown">
+                                <li><a class="dropdown-item" href="/adopt/gov-list">公立認養</a></li>
+                                <li><a class="dropdown-item" href="/adopt/adopt-list">領養認養</a></li>
+                                <li><a class="dropdown-item" href="/adopt/post-adopt">刊登送養</a></li>
+                                <li><a class="dropdown-item" href="/adopt/adopt-report">收養回報</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1"
+                                href="/mission/missonMain.html">尋找任務</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="/shop/index.html">寵物商城</a></li>
+
+                    </ul>
+
+                    <!-- ✅ 這裡放登入/登出 & 管理員入口 -->
+                    <div id="authArea" class="ms-auto d-flex gap-2 align-items-center"></div>
+
+                    <!-- 手機版：選單最下面一排的三顆 -->
+                    <div class="d-lg-none mt-2 mobile-iconbar">
+                        <button class="btn btn-material" aria-label="聊天"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material" aria-label="購物車"><span
+                                class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" aria-label="帳號" id="mobileAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+
+                    <!-- 桌機版：固定右上角三顆（與 index.html 同步隱藏） -->
+                    <div id="desktop-iconbar" class="d-none d-lg-block position-fixed end-0 m-4" style="z-index:1030;">
+                        <button class="btn btn-material" aria-label="聊天"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material" aria-label="購物車"><span
+                                class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" aria-label="帳號" id="desktopAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-5 pt-5">
+        <!-- Stepper -->
+        <div class="row text-center mb-4">
+            <div class="col">
+                <div id="step1" class="step-circle step-active">1</div>
+                <div class="step-text">填寫資訊</div>
+            </div>
+            <div class="col">
+                <div id="step2" class="step-circle">2</div>
+                <div class="step-text">審核中</div>
+            </div>
+            <div class="col">
+                <div id="step3" class="step-circle">3</div>
+                <div class="step-text">刊登成功</div>
+            </div>
+        </div>
+
+        <h2 class="text-center mb-4">刊登送養資訊</h2>
+
+        <div class="row g-4">
+            <!-- 左：表單 -->
+            <div class="col-lg-8">
+                <form id="postForm" class="needs-validation" novalidate>
+                    <!-- 新增：真正的選檔 input（隱藏），與顯示用的三個 URL 欄位照舊 -->
+                    <input id="imgPicker" type="file" accept="image/*" multiple class="d-none">
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">圖片1（URL）</label>
+                            <div class="input-group">
+                                <input name="image1" class="form-control" placeholder="">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    onclick="pickAndUpload(1)">上傳</button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">圖片2（URL）</label>
+                            <div class="input-group">
+                                <input name="image2" class="form-control" placeholder="">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    onclick="pickAndUpload(2)">上傳</button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">圖片3（URL）</label>
+                            <div class="input-group">
+                                <input name="image3" class="form-control" placeholder="">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    onclick="pickAndUpload(3)">上傳</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 基本資訊 -->
+                    <div class="form-section shadow-sm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">動物暱稱 / 小名 *</label>
+                                <input name="title" type="text" class="form-control" required>
+                                <div class="invalid-feedback">請填寫暱稱</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">品種 *</label>
+                                <input name="breed" type="text" class="form-control" placeholder="如：柴犬" required>
+                                <div class="invalid-feedback">請填寫品種</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">動物種類 *</label>
+                                <select name="species" class="form-select" required>
+                                    <option value="" selected disabled>請選擇</option>
+                                    <option>貓</option>
+                                    <option>狗</option>
+                                    <option>兔</option>
+                                    <option>鼠</option>
+                                    <option>龜</option>
+                                    <option>蛇</option>
+                                    <option>鳥</option>
+                                    <option>豬</option>
+                                    <option>其他</option>
+                                </select>
+                                <div class="invalid-feedback">請選擇種類</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">動物性別 *</label>
+                                <select id="sex" name="sex" class="form-select" required>
+                                    <option value="" selected disabled>請選擇</option>
+                                    <option value="male">公</option>
+                                    <option value="female">母</option>
+                                    <option value="unknown">不確定</option>
+                                </select>
+                                <div class="invalid-feedback">請選擇性別</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">體型 *</label>
+                                <select name="bodyType" class="form-select" required>
+                                    <option value="" selected disabled>請選擇</option>
+                                    <option>小型</option>
+                                    <option>中型</option>
+                                    <option>大型</option>
+                                </select>
+                                <div class="invalid-feedback">請選擇體型</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">毛色描述</label>
+                                <input name="color" type="text" class="form-control" placeholder="如：咖啡混黑色">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">年紀 *</label>
+                                <select name="age" class="form-select" required>
+                                    <option value="" selected disabled>請選擇</option>
+                                    <option>幼年</option>
+                                    <option>成年</option>
+                                    <option>老年</option>
+                                </select>
+                                <div class="invalid-feedback">請選擇年紀</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">是否結紮 *</label>
+                                <select name="neutered" class="form-select" required>
+                                    <option value="" selected disabled>請選擇</option>
+                                    <option value="yes">是</option>
+                                    <option value="no">否</option>
+                                    <option value="unknown">不確定</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">所在地：縣市 *</label>
+                                <select id="citySelect" name="city" class="form-select" required>
+                                    <option value="" selected disabled>請選擇縣市</option>
+                                </select>
+                                <div class="invalid-feedback">請選擇縣市</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">所在地：地區 *</label>
+                                <select id="districtSelect" name="district" class="form-select" required disabled>
+                                    <option value="" selected disabled>請先選縣市</option>
+                                </select>
+                                <div class="invalid-feedback">請選擇地區</div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">其他說明 *</label>
+                                <textarea name="description" class="form-control" rows="3" maxlength="1000"
+                                    required></textarea>
+                                <div class="invalid-feedback">請填寫說明</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 聯絡/要求 -->
+                    <div class="form-section shadow-sm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">聯絡人名稱 *</label>
+                                <input name="contactName" type="text" class="form-control" required>
+                                <div class="invalid-feedback">請填寫聯絡人</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">手機號碼 *</label>
+                                <input name="contactPhone" type="tel" class="form-control" required>
+                                <div class="invalid-feedback">請填寫電話</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">聯絡方式</label>
+                                <select name="contactMethod" class="form-select">
+                                    <option value="call_sms" selected>可撥打電話及簡訊</option>
+                                    <option value="line_only">僅限LINE聯絡</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Line ID</label>
+                                <input name="contactLine" type="text" class="form-control" placeholder="可留空">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">領養人年齡限制</label>
+                                <select name="adopterAgeLimit" class="form-select">
+                                    <option value="any" selected>不限</option>
+                                    <option value="age20plus">20歲以上</option>
+                                    <option value="age25plus">25歲以上</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">是否接受家訪</label>
+                                <select name="requireHomeVisit" class="form-select">
+                                    <option value="false" selected>不需要</option>
+                                    <option value="true">需要</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">是否簽切結書</label>
+                                <select name="requireContract" class="form-select">
+                                    <option value="false" selected>不需要</option>
+                                    <option value="true">需要</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">是否回報領養情況</label>
+                                <select name="requireFollowup" class="form-select">
+                                    <option value="false" selected>不需要</option>
+                                    <option value="true">需要</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-4">
+                            <button class="btn btn-submit btn-outline-secondary px-4">送出</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 右：條款 + 小提醒（sticky） -->
+            <div class="col-lg-4">
+                <div class="sticky-sidebar">
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header text-white">刊登條款與注意事項</div>
+                        <div class="card-body">
+                            <ul class="mb-3">
+                                <li>刊登人使用由 PetPick 寵物資訊平台(以下簡稱「Petpick」)所提供之送養資訊刊登服務(以下簡稱「本服務」)時，均受到本「刊登條款」規範。
+                                </li>
+                            </ul>
+                            <ol>
+                                <li>PetPick
+                                    要求所有刊登送養資訊及查看送養資訊者均須加入會員且強制驗證手機號碼，是為了保證所有查看資訊的人都確實的留下紀錄，請送養人注意，如將動物送養後有查覺異常或有任何虐待事項，請立即通報政府單位，我們將配合政府單位之發文要求提供相關紀錄資料。
+                                </li><br>
+                                <li>送養資訊不限刊登時間，因此將動物確定送養後請回網站關閉送養資訊，避免造成自身困擾。</li><br>
+                                <li>目前不開放剛出生或尚未開眼之動物送養。</li><br>
+                                <li>PetPick 僅為資訊交流平台，無法保證刊登內容之正確性，刊登人對其刊登內容及送養之行為應負完全之責任，刊登人應提供確實之刊登內容，並自負相關法律責任。</li>
+                                <br>
+                                <li>平台不承擔線下交易與後續問題，請自留聯繫紀錄。</li><br>
+                                <li>PetPick 對刊登資訊保有最終篩選、修改、刪除及決定刊登與否之權利。</li><br>
+                                <li>PetPick 秉持以領養代替購買之精神，禁止以下類型之刊登內容：
+                                    <br>a.要求補貼、認養價、營養費、結紮費等一切任何額外費用或有實際販賣行為。<br>
+                                    b.捏造不實資訊。<br>
+                                    c.特意收集個人資料。<br>
+                                    如有違反上述條款之情事，Wepet 可能將其進行會員停權或封鎖之處置。
+                                </li><br>
+                                <li>刊登人應確定刊登之內容未使用未經授權之文字、圖片、影音或任何形式之資訊。</li><br>
+                                <li>刊登人同意授權於本服務刊登之資訊內容無償提供第三人分享、轉載或推廣。</li>
+                            </ol>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                                <label class="form-check-label" for="agreeTerms">我已閱讀並同意條款與注意事項</label>
+                                <div class="invalid-feedback">請勾選同意條款</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h5 class="mb-2">小提醒</h5>
+                            <p class="mb-0 text-muted">送出後進入審核，約 1–2 個工作日。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 置頂鈕（可保留你的樣式） -->
+    <button id="backToTop" class="btn btn-primary shadow">↑</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/adopt/authbar.js"></script>
+    <script src="/adopt/loading.js"></script>
+    <script src="/adopt/theme.js"></script>
+    <script type="module" src="/adopt/post-adopt.js"></script>
+
+</body>
+
+</html>
