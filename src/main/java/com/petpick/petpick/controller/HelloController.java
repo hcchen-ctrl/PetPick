@@ -4,15 +4,23 @@ import com.petpick.petpick.DTO.RegisterRequest;
 import com.petpick.petpick.entity.UserEntity;
 import com.petpick.petpick.service.UserService;
 import com.petpick.petpick.service.userService1;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 @Controller
 public class HelloController {
@@ -134,6 +142,42 @@ public class HelloController {
         return "managersIndex";
     }
 
+
+    // --- JSON API: 登入狀態與登出 ---
+    @ResponseBody
+    @GetMapping("/api/auth/status")
+    public Map<String, Object> getStatus(Authentication authentication) {
+        Map<String, Object> result = new HashMap<>();
+
+        if (authentication != null && authentication.isAuthenticated()) {
+            result.put("loggedIn", true);
+            result.put("uid", authentication.getName()); // 或 email、id 等
+            result.put("role", getUserRole(authentication));
+            result.put("name", getUserName(authentication)); // 視你的邏輯
+        } else {
+            result.put("loggedIn", false);
+        }
+
+        return result;
+    }
+
+    @ResponseBody
+    @PostMapping("/api/auth/logout")
+    public void logout(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        request.logout(); // Spring Security 登出
+    }
+
+
+    private String getUserRole(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .findFirst()
+                .map(GrantedAuthority::getAuthority)
+                .orElse("USER");
+    }
+
+    private String getUserName(Authentication authentication) {
+        return authentication.getName(); // 可視情況改為取 userService.getByEmail(...) 等
+    }
 
 
 }

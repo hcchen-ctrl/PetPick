@@ -1,7 +1,9 @@
 package com.petpick.petpick.entity;
 
 import jakarta.persistence.*;
+import org.springframework.security.core.userdetails.User;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -30,6 +32,7 @@ public class UserEntity {
     private String username;
     private String password;
     private String role;
+
 
     // 自定義建構子 (你可以保留這個)
     public UserEntity(String accountemail, String password) {

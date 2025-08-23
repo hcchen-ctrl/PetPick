@@ -119,7 +119,7 @@ async function loadPosts() {
               </p>
 
               <div class="d-flex align-items-center mt-2">
-                <a class="btn btn-outline-secondary ms-2" href="/adopt-view.html?id=${p.id}">查看</a>
+                <a class="btn btn-outline-secondary ms-2" href="/adopt/adopt-view.html?id=${p.id}">查看</a>
                 ${normalizeSex(p.sex) === 'unknown'
           ? `<span class="ms-auto badge rounded-pill bg-light text-secondary border"
                        data-bs-toggle="tooltip" title="刊登者未填寫性別">未提供性別</span>`

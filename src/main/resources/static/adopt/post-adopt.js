@@ -1,4 +1,4 @@
-import { requireLogin, getAuth } from '/js/auth.js';
+import { requireLogin, getAuth } from '/adopt/auth.js';
 
 // ---------- 登入檢查 ----------
 await requireLogin();                 // 若未登入會自動導去 /login.html

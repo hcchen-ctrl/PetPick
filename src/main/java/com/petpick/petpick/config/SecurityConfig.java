@@ -32,8 +32,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf
-                .ignoringRequestMatchers("/register")
-        );
+                .ignoringRequestMatchers("/register", "/api/posts")        );
 
         // 表單提交
         http.formLogin(form -> form
@@ -61,13 +60,15 @@ public class SecurityConfig {
         http.authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css","/memFunction.js", "/favicon.ico").permitAll()
                 .requestMatchers("/index","/api/**","/gov-list-page","/loginpage", "/register").permitAll() // ⬅ 加上 /register
-                .requestMatchers("/adopts", "/adopts/**","/error").permitAll()
-                .requestMatchers("/*.html").permitAll()
+                .requestMatchers("/adopt/**","/error").permitAll()
+//                .requestMatchers("/**/*.html").permitAll()
 
 
 
                 .requestMatchers("/rename").authenticated()//登入後才可以進入修改頁面
                 .requestMatchers("/managersIndex").authenticated()//登入後才可以進入修改頁面
+                .requestMatchers("/adopt/post-adopt.html").authenticated()//登入後才可以進入po送養文頁面
+
                 .requestMatchers("/adminpage").hasRole("ADMIN")
                 .requestMatchers("/managerpage").hasRole("MANAGER")
                 .requestMatchers("/employeepage").hasAnyRole("MANAGER", "EMPLOYEE")

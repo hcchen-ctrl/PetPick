@@ -8,9 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 
-public interface AdoptPostRepository
 
-    extends JpaRepository<AdoptPost, Long>, 
+public interface AdoptPostRepository
+    extends JpaRepository<AdoptPost, Long>,
     JpaSpecificationExecutor<AdoptPost> {
 
     // ① 讓「我的進度頁」撈到當前登入使用者的刊登（按建立時間新到舊）

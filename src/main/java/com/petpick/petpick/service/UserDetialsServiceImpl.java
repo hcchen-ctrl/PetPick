@@ -1,5 +1,6 @@
 package com.petpick.petpick.service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -8,6 +9,7 @@ import com.petpick.petpick.entity.UserEntity;
 import com.petpick.petpick.repository.UserDao;
 import com.petpick.petpick.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.User;
@@ -40,4 +42,5 @@ public class UserDetialsServiceImpl implements UserDetailsService {
                 .roles(user.getRole()) // 不要加 "ROLE_" 前綴，Spring Security 會自動加
                 .build();
     }
+
 }

@@ -12,7 +12,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import lombok.Data;
 
-
 @Data
 @Entity
 @Table(name = "adopt_posts")
