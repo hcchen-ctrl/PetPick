@@ -1,7 +1,10 @@
 package com.petpick.petpick.config;
 
 import com.petpick.petpick.handle.MyAccessDeniedHandler;
+import com.petpick.petpick.service.CustomOAuth2User;
 import com.petpick.petpick.service.CustomOAuth2UserService;
+import com.petpick.petpick.service.MyUserDetails;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,25 +39,49 @@ public class SecurityConfig {
 
         // 表單提交
         http.formLogin(form -> form
-                // loginpage.html 表單 action 內容
-
-                // 自定義登入頁面
                 .loginPage("/loginpage")
                 .loginProcessingUrl("/login")
-                // 登入成功之後要造訪的頁面
-                .defaultSuccessUrl("/", true)  // welcome 頁面
-                // 登入失敗後要造訪的頁面
-                .failureUrl("/loginpage?error=true")        );
+                .successHandler((request, response, authentication) -> {
+                    HttpSession session = request.getSession();
+                    Object principal = authentication.getPrincipal();
+
+                    if (principal instanceof MyUserDetails myUser) {
+                        session.setAttribute("uid", myUser.getId());
+                        session.setAttribute("role", myUser.getRole());
+                        System.out.println("登入成功：uid=" + myUser.getId() + ", role=" + myUser.getRole());
+                    }
+
+                    response.sendRedirect("/");
+                })
+                .failureUrl("/loginpage?error=true")
+        );
+
+
+
 
         // ✅ Google OAuth2 登入設定
         http.oauth2Login(oauth2 -> oauth2
-                .loginPage("/loginpage") // 使用同一個登入頁
+                .loginPage("/loginpage")
                 .userInfoEndpoint(userInfo -> userInfo
-                        .userService(customOAuth2UserService) // 自訂 OAuth2UserService
+                        .userService(customOAuth2UserService)
                 )
-                .defaultSuccessUrl("/", true) // Google 登入成功也導向 /
-                .failureUrl("/loginpage?error=true")    // 登入失敗後要造訪的頁面
+                .successHandler((request, response, authentication) -> {
+                    // 這段程式碼放這裡
+                    HttpSession session = request.getSession();
+
+                    CustomOAuth2User user = (CustomOAuth2User) authentication.getPrincipal();
+
+                    session.setAttribute("uid", user.getUserid());
+                    session.setAttribute("role", user.getRole());
+
+                    System.out.println("Google 登入成功：uid=" + user.getUserid() + ", role=" + user.getRole());
+
+                    response.sendRedirect("/");
+                })
+                .failureUrl("/loginpage?error=true")
         );
+
+
 
         // 授權認證
         http.authorizeHttpRequests(authorize -> authorize

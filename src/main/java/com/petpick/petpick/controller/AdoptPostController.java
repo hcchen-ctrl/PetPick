@@ -36,6 +36,8 @@ public class AdoptPostController {
      */
     @PostMapping
     public AdoptPost create(@RequestBody AdoptPost in, HttpSession session) {
+        // ✅ 這裡加上 log
+        System.out.println("Create called: " + in.getTitle());
         long uid = getUid(session);
         String role = String.valueOf(session.getAttribute("role"));
 

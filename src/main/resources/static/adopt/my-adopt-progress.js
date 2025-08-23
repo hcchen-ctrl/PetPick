@@ -13,7 +13,7 @@ else on('step2');   // 只亮 2
 const auth = await fetch('/api/auth/status', { credentials: 'include' }).then(r => r.json());
 if (!auth.loggedIn) {
     sessionStorage.setItem('redirect', location.pathname + location.search);
-    location.replace('/login.html');
+    location.replace('/loginpage.html');
     throw new Error('redirecting to login'); // ★ 加這行，中斷後續程式
 }
 

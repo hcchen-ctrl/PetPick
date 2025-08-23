@@ -21,7 +21,7 @@ export async function requireLogin() {
     if (!a.loggedIn) {
         // 登入後導回原頁
         sessionStorage.setItem('redirect', location.pathname + location.search);
-        location.href = '/login.html';
+        location.href = '/loginpage.html';
         throw new Error('redirecting to login');
     }
     return a;

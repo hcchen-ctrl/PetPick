@@ -35,12 +35,8 @@ public class UserDetialsServiceImpl implements UserDetailsService {
         if (user == null) {
             throw new UsernameNotFoundException("User not found");
         }
-        System.out.println("User found: " + user.getAccountemail() + ", password: " + user.getPassword());
-        return User.builder()
-                .username(user.getAccountemail())
-                .password(user.getPassword()) // 要有前綴 {noop}
-                .roles(user.getRole()) // 不要加 "ROLE_" 前綴，Spring Security 會自動加
-                .build();
+
+        return new MyUserDetails(user);
     }
 
 }

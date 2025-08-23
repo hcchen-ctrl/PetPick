@@ -140,21 +140,24 @@ form.addEventListener('submit', async (e) => {
         const res = await fetch('/api/posts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // <<< 加這行，才能帶 cookie
             body: JSON.stringify(data)
         });
 
         if (res.ok) {
             alert('已送出！');
             const dest = (auth && auth.role === 'ADMIN')
-                ? '/post-review.html?status=pending'
-                : '/my-adopt-progress.html?status=pending';
+                ? '/adopt/post-review.html?status=pending'
+                : '/adopt/my-adopt-progress.html?status=pending';  // 多加 /adopt/ 路徑前綴
+            location.href = dest;
+
             location.href = dest;
             return;
         }
 
         if (res.status === 401) {
             sessionStorage.setItem('redirect', '/post-adopt.html');
-            location.href = '/login.html';
+            location.href = '/loginpage';
             return;
         }
 
