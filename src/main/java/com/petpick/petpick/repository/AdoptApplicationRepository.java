@@ -77,9 +77,9 @@ public interface AdoptApplicationRepository extends JpaRepository<AdoptApplicati
     int rejectOthersPendingOfPost(
             @Param("postId") Long postId,
             @Param("acceptedId") Long acceptedId,
-            @Param("adopterId") Long adopterId,
             @Param("pendingStatus") ApplicationStatus pendingStatus,
-            @Param("rejectedStatus") ApplicationStatus rejectedStatus
+            @Param("rejectedStatus") ApplicationStatus rejectedStatus,
+            @Param("comment") String comment
     );
 
 }

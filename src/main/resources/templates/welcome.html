@@ -83,6 +83,8 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
                             <li><a class="dropdown-item" th:href="@{/rename}">修改資料</a></li>
+                            <li><a class="dropdown-item" href="/adopt/my-adopt-progress.html">送養/領養記錄</a></li>
+
                             <li>  <a class="dropdown-item" sec:authorize="hasAuthority('ROLE_MANAGER')" th:href="@{/managersIndex}">管理按鈕</a></li>
                             <li>   <a class="dropdown-item" sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_USER')" onclick="location.href='/logout';" >離開按鈕</a></li>
                         </ul>
