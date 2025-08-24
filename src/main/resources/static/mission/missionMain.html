@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PetPick 任務專區</title>
+    <link rel="icon" href="./pet-icon.png" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/index.html">
+                <img src="./pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+                PetPick
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">尋找領養</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="missionMain.html">尋找任務</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">寵物商城</a></li>
+                    </ul>
+
+                    <div class=" position-fixed end-0 m-4 ">
+                        <a href="Chat.html" id="chatBubbleBtn" class="btn btn-material position-relative">
+                            <span id="chatBubbleBadge" class="material-icons">chat_bubble_outline</span>
+                            <span id="chatBubbleBadge-unread" class="material-icons d-none">mark_chat_unread</span>
+                        </a>
+                        <button class="btn btn-material">
+                            <span class="material-icons">shopping_cart</span>
+                        </button>
+                        <button class="btn btn-material">
+                            <span class="material-icons">account_circle</span>
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+
+    <header>
+        <div id="carouselWepet" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <img src="/images/heroimage.png" class="d-block w-100" alt="廣告1">
+                </div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#carouselWepet" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#carouselWepet" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+        </div>
+    </header>
+
+
+    <div class="container py-5">
+        <h3 class="text-center fw-bold mb-4">查看任務專區 🐾</h3>
+        <div class="row mb-4">
+            <div class="col-md-3 mb-2">
+                <select class="form-select">
+                    <option selected>任務類型</option>
+
+                </select>
+            </div>
+            <div class="col-md-3 mb-2">
+                <select class="form-select">
+                    <option selected>地區</option>
+
+                </select>
+            </div>
+            <div class="col-md-3 mb-2">
+                <label for="search-input" class="search-bar">
+                    <form action="">
+                        <input type="search" id="search-input" placeholder="搜尋任務">
+                        <input type="submit" value="search" class="btn  material-icons"
+                            style="background-color: burlywood; ">
+                    </form>
+                </label>
+            </div>
+            <div class="col-md-3 mb-2">
+                <a href="missionUpload.html" class="text-black text-decoration-none">
+                    <button class="btn w-100" style="background-color: burlywood; ">
+                        <span class="material-icons">add_comment</span>發佈任務!
+                    </button></a>
+            </div>
+        </div>
+
+
+        <div class="container">
+            <button id="showAllBtn" class="btn active btn-recommend">全部任務</button>
+            <button id="showRecommendBtn" class="btn btn-recommend">
+                <span class="material-icons">
+                    local_fire_department
+                </span>智慧推薦</button>
+            <div class="row">
+                <div class="col-md-8">
+                    <div id="all-missions">
+                        <div class="row" id="mission-list">
+
+                        </div>
+                    </div>
+                    <div id="recommend-list" class="row" style="display: none;">
+
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card p-4 mb-4 shadow-sm" style="border-radius: 15px;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0 text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation"></i>
+                                PetPick的防詐騙五大提醒</h5>
+                        </div>
+                        <ul class="list-unstyled">
+                            <li class="d-flex align-items-start mb-2">
+                                <i class="fa-solid fa-circle-xmark text-danger me-2 mt-1"></i>
+                                <span>保持警覺，小心「保證獲利」的誘惑</span>
+                            </li>
+                            <li class="d-flex align-items-start mb-2">
+                                <i class="fa-solid fa-circle-xmark text-danger me-2 mt-1"></i>
+                                <span>仔細查證，不輕信陌生訊息</span>
+                            </li>
+                            <li class="d-flex align-items-start mb-2">
+                                <i class="fa-solid fa-circle-xmark text-danger me-2 mt-1"></i>
+                                <span>保護個人隱私，不隨意提供敏感資訊</span>
+                            </li>
+                            <li class="d-flex align-items-start mb-2">
+                                <i class="fa-solid fa-circle-xmark text-danger me-2 mt-1"></i>
+                                <span>溝通使用平台，勿私下交易</span>
+                            </li>
+                            <li class="d-flex align-items-start mb-2">
+                                <i class="fa-solid fa-circle-xmark text-danger me-2 mt-1"></i>
+                                <span>發現可疑，立即檢舉</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="chatWindows"></div>
+
+    <button id="backToTop" class="btn btn-primary shadow">↑</button>
+
+    <footer class="footer text-center mt-5">
+        <div class="container">
+            <p>快速連結：領養 / 商城 / 醫療回報 / 寵物救助</p>
+            <p>email: ispan@gmail.com</p>
+            <p>地址：台中市南屯區公益路二段51號</p>
+            <p>本站所有資訊來自開放平台與會員自行刊登，若有侵權請聯繫移除。</p>
+        </div>
+        <ul class="navbar-nav mx-lg-auto text-center">
+            <li class="nav-item"><a class="nav-link" href="#">關於我們</a></li>
+            <li class="nav-item"><a class="nav-link" href="#">領養須知</a></li>
+            <li class="nav-item"><a class="nav-link" href="#">認養服務</a></li>
+            <li class="nav-item"><a class="nav-link" href="#">收養回報</a></li>
+        </ul>
+    </footer>
+
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="/mission/realtime.js"></script>
+    <script>
+        const CURRENT_USER_ID = window.CURRENT_USER_ID || 1;
+        Realtime.init(CURRENT_USER_ID, {
+            unreadSelector: '#chatBubbleBadge-unread',
+            normalSelector: '#chatBubbleBadge',
+            chatButtonSelector: '#chatBubbleBtn'
+        });
+    </script>
+    <script src="/mission/missionMain.js" defer></script>
+    <script src="/mission/favorite.js" defer></script>
+    <script src="/mission/favoriteAndShare.js" defer></script>
+</body>
+
+</html>

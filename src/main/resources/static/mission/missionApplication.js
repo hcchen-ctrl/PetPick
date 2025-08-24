@@ -1,6 +1,3 @@
-
-
-const CURRENT_USER_ID = 1; // TODO: 換成實際登入者
 const API = {
   ownerMissions: `/api/owners/${CURRENT_USER_ID}/missions`,
   ownerApps:     `/api/applications/me/owner?userId=${CURRENT_USER_ID}`,      // 收到的申請

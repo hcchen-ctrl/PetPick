@@ -1,10 +1,8 @@
 // /finalProject/mission/missionDetail.js
-const CURRENT_USER_ID = 1; // TODO: 換成登入者
-const fallbackImg = '/images/default-avatar.png';
+const fallbackImg = '/images/dog1.jpg';
 
 $(async function () {
-  // 1) 開啟自己的 Presence 心跳
-  try { Presence.startPing(CURRENT_USER_ID); } catch (e) { console.warn('[presence] startPing fail', e); }
+  try { Realtime.Presence.startPing(CURRENT_USER_ID); } catch (e) { console.warn('[realtime] Presence.startPing fail', e); }
 
   // 2) 載入任務
   const params = new URLSearchParams(location.search);
@@ -19,13 +17,13 @@ $(async function () {
     // 3) 訂閱發文者在線狀態（用 presence.js）
     if (m?.poster?.posterId != null) {
       try {
-        const stop = await Presence.subscribe(m.poster.posterId, (isOnline) => {
+        const stop = await Realtime.Presence.subscribe(m.poster.posterId, (isOnline) => {
           $('#userStatus').text(isOnline ? '🟢 在線' : '⚪ 離線');
         });
         // 離頁取消訂閱（可選）
         $(window).on('unload', stop);
       } catch (e) {
-        console.warn('[presence] subscribe fail', e);
+        console.warn('[realtime] Presence.subscribe fail', e);
         $('#userStatus').text('⚪ 離線');
       }
     }
@@ -86,7 +84,7 @@ async function goChat(missionId, applicantId) {
   const r = await fetch(`/api/chat/conversations?missionId=${missionId}&applicantId=${applicantId}`, { method: 'POST' });
   if (!r.ok) { alert('建立對話失敗'); return; }
   const cid = await r.json();
-  location.href = `/finalProject/mission/chat.html?conversationId=${cid}`;
+  location.href = `/mission/chat.html?conversationId=${cid}`;
 }
 
 // ===== 渲染 / 發文者資訊 / 小工具 =====

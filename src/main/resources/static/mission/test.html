@@ -1,0 +1,50 @@
+<!DOCTYPE html><meta charset="utf-8">
+<h3>WS 測試</h3>
+<label>ConversationId: <input id="cid" value="1"></label>
+<label>SenderId: <input id="sid" value="101"></label>
+<button id="btnConnect">Connect</button>
+<button id="btnSub">Subscribe</button>
+<input id="msg" placeholder="訊息內容">
+<button id="btnSend">Send</button>
+<pre id="log" style="background:#f7f7f7;padding:8px;height:240px;overflow:auto"></pre>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+let stomp;
+const $ = (id) => document.getElementById(id);
+function log(...a){
+  const el = $('log');
+  if(!el) return;
+  el.textContent += a.join(' ') + '\n';
+  el.scrollTop = el.scrollHeight;
+};
+
+$('btnConnect').onclick = () => {
+  const sock = new SockJS('/ws');          // 你的 Spring SockJS 端點
+  stomp = Stomp.over(sock);
+  stomp.debug = null;                      // 靜音
+  stomp.connect({}, () => log('✅ connected'), err => log('❌ connect error', err));
+};
+
+$('btnSub').onclick = () => {
+  const cid = $('cid').value.trim();
+  if(!stomp || !cid) return;
+  stomp.subscribe(`/topic/conversations.${cid}`, (frame) => {
+    const body = JSON.parse(frame.body);
+    log('📩 recv:', JSON.stringify(body));
+  });
+  log('📡 subscribed', `/topic/conversations.${cid}`);
+};
+
+$('btnSend').onclick = () => {
+  const cid = $('cid').value.trim();
+  const sid = $('sid').value.trim();
+  const text = $('msg').value.trim();
+  if(!stomp || !cid || !sid || !text) return;
+  const payload = { conversationId: Number(cid), senderId: Number(sid), content: text };
+  stomp.send('/app/chat.send', {}, JSON.stringify(payload));
+  log('📤 sent:', JSON.stringify(payload));
+  $('msg').value = '';
+};
+</script> 

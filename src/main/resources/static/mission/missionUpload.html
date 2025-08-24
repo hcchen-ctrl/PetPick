@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PetPick 任務上傳</title>
+    <link rel="icon" href="./pet-icon.png" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="chatroom.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+        <div class="container-fluid">
+            <!-- LOGO -->
+            <a class="navbar-brand" href="index.html">
+                <img src="./pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+                PetPick
+            </a>
+
+            <!-- 手機切換按鈕 -->
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- 導覽列連結 -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+
+                    <!-- 左側按鈕 -->
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">尋找領養</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="missionMain.html">尋找任務</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">寵物商城</a></li>
+                    </ul>
+
+                    <!-- 右側按鈕 -->
+                    <div class=" position-fixed end-0 m-4 ">
+                        <a href="Chat.html" id="chatBubbleBtn" class="btn btn-material position-relative">
+                            <span id="chatBubbleBadge" class="material-icons">chat_bubble_outline</span>
+                            <span id="chatBubbleBadge-unread" class="material-icons d-none">mark_chat_unread</span>
+                        </a>
+                        <button class="btn btn-material">
+                            <span class="material-icons">shopping_cart</span>
+                        </button>
+                        <button class="btn btn-material">
+                            <span class="material-icons">account_circle</span>
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row justify-content-center align-items-start">
+            <!-- 任務上傳表單 -->
+            <div class="my-5 col-lg-6 col-12">
+                <h2 class="mb-4 ">上傳任務</h2>
+                <form id="taskForm">
+                    <!-- 訊息 -->
+                    <div class="card mb-4">
+                        <div class="card-header">訊息</div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">任務標題</label>
+                                <input type="text" class="form-control" id="title" placeholder="幫我遛狗" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="imageUrl" class="form-label">照片</label>
+                                <input type="file" class="form-control" id="imageUrl" multiple accept="image/*">
+                                <small class="text-muted">最多上傳 5 張圖片</small>
+                                <div id="previewImages" class="d-flex flex-wrap gap-2 mt-2"></div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="petname" class="form-label">🐾姓名</label>
+                                    <input type="text" class="form-control" id="petname" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="petage" class="form-label">🐾年紀</label>
+                                    <input type="text" class="form-control" id="petage">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="petgender" class="form-label">🐾性別</label>
+                                    <select class="form-select" id="petgender" required>
+                                        <option value="公">公</option>
+                                        <option value="母">母</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="phone" class="form-label">聯絡人電話</label>
+                                    <input type="text" class="form-control" id="phone" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="city" class="form-label">城市</label>
+                                    <select class="form-select" id="city" required>
+                                        <option value="" selected disabled>請選擇城市</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="district" class="form-label">地區</label>
+                                    <select class="form-select" id="district" required disabled>
+                                        <option value="" selected disabled>請先選擇城市</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="time" class="form-label">開始時間</label>
+                                    <input type="datetime-local" class="form-control" id="starttime" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="time" class="form-label">結束時間</label>
+                                    <input type="datetime-local" class="form-control" id="endtime" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="price" class="form-label">酬勞（元）</label>
+                                    <input type="number" class="form-control" id="price" min="0" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">任務標籤（可複選）</label>
+                                <div id="tag-buttons" class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="1">#長期照顧</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="2">#短期照顧</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="3">#遛狗</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="4">#餵食</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="5">#洗澡</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="6">#陪伴</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="7">#醫療</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="8">#清潔環境</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="9">#無經驗可</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="10">#接送服務</button>
+                                    <button type="button" class="btn btn-outline-secondary tag-btn"
+                                        data-value="11">#其他</button>
+                                </div>
+                            </div>
+                            <!-- 送出資料 -->
+                            <input type="hidden" name="tags" id="selectedTags">
+
+                            <div class="mb-3">
+                                <label for="description" class="form-label">任務說明</label>
+                                <textarea class="form-control" id="description" rows="3" required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <button type="submit" class="btn" style="background-color: burlywood;">提交任務</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 預覽區塊 -->
+            <div id="taskPreview" class="my-5 col-lg-6 col-12">
+                <h2 class="mb-4">任務預覽</h2>
+                <div class="card">
+                    <div class="row g-0">
+                        <div class="col-md-6">
+                            <div id="previewCarousel" class="carousel slide h-100" data-bs-ride="carousel">
+                                <div class="carousel-inner h-100" id="carouselImages"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card-body">
+                                <h5 id="previewTitle" class="card-title"></h5>
+                                <p class="mb-1"><strong>姓名：</strong><span id="previewPetName"></span></p>
+                                <p class="mb-1"><strong>年紀：</strong><span id="previewPetAge"></span></p>
+                                <p class="mb-1"><strong>性別：</strong><span id="previewPetGender"></span></p>
+                                <p class="mb-1"><strong>緊急聯絡人電話：</strong><span id="previewPhone"></span></p>
+                                <p class="mb-1"><strong>地點：</strong><span id="previewLocation"></span></p>
+                                <p class="mb-1"><strong>時間：</strong><span id="previewStartTime"></span> ~ </strong><span
+                                        id="previewEndTime"></span></p>
+                                <p class="mb-1"><strong>酬勞：</strong><span id="previewPrice"></span> 元</p>
+                                <p class="card-text"><strong>任務詳情：</strong><span id="previewDescription"></span></p>
+                                <p><span class="mission-tag" id="previewTag"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <footer class="footer text-center mt-5">
+        <div class="container">
+            <p>快速連結：領養 / 商城 / 醫療回報 / 寵物救助</p>
+            <p>email: ispan@gmail.com</p>
+            <p>地址：台中市南屯區公益路二段51號</p>
+            <p>本站所有資訊來自開放平台與會員自行刊登，若有侵權請聯繫移除。</p>
+        </div>
+    </footer>
+
+
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="/mission/realtime.js"></script>
+    <script>
+        const CURRENT_USER_ID = window.CURRENT_USER_ID || 1;
+        Realtime.init(CURRENT_USER_ID, {
+            unreadSelector: '#chatBubbleBadge-unread',
+            normalSelector: '#chatBubbleBadge',
+            chatButtonSelector: '#chatBubbleBtn'
+        });
+    </script>
+    <script src="/mission/missionUpload.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

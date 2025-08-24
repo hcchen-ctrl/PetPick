@@ -46,7 +46,7 @@ public class SecurityConfig {
         //暫時先關閉
         http.csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())  // 讓 JS 可讀 token
-                .ignoringRequestMatchers("/register","/api")
+                .ignoringRequestMatchers("/register","/api/missions/upload","/adopts/{postId}/apply")
         );
 
         // 表單提交
