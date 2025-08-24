@@ -13,6 +13,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.firewall.HttpFirewall;
+import org.springframework.security.web.firewall.StrictHttpFirewall;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
@@ -29,10 +32,21 @@ public class SecurityConfig {
     @Lazy
     private CustomOAuth2UserService customOAuth2UserService;
 
+
+    //暫時開放
+    @Bean
+    public HttpFirewall allowUrlEncodedDoubleSlashHttpFirewall() {
+        StrictHttpFirewall firewall = new StrictHttpFirewall();
+        firewall.setAllowUrlEncodedDoubleSlash(true); // 允許 URL 中有 //
+        return firewall;
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        //暫時先關閉
         http.csrf(csrf -> csrf
-                .ignoringRequestMatchers("/register")
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())  // 讓 JS 可讀 token
+                .ignoringRequestMatchers("/register","/api")
         );
 
         // 表單提交
@@ -74,7 +88,7 @@ public class SecurityConfig {
         );
 
 
-        // http.csrf(csrf -> csrf.disable()); // 關閉 csrf 防護
+//         http.csrf(csrf -> csrf.disable()); // 關閉 csrf 防護
 
         // 登出
         http.logout(logout -> logout

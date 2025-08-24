@@ -29,7 +29,7 @@ export async function requireLogin() {
 
 export async function requireAdmin() {
     const a = await requireLogin();
-    if (a.role !== 'ADMIN') {
+    if (a.role !== 'ROLE_ADMIN') {
         alert('此頁面僅限管理員');
         location.href = '/index.html';
         throw new Error('redirecting: not admin');

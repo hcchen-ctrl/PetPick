@@ -1,4 +1,4 @@
-import { requireAdmin } from '/js/auth.js';
+import { requireAdmin } from '/adopt/auth.js';
 await requireAdmin();
 
 // ---- DOM refs ----
@@ -90,11 +90,13 @@ const fmt = {
 async function load() {
     window.showLoading?.();
     try {
-        const r = await fetch(`/api/adopts?${buildParams()}`);
+        const r = await fetch(`/api/posts?${buildParams()}`);
         if (!r.ok) throw new Error('讀取失敗');
 
         const data = await r.json();
         const items = data.content ?? data ?? [];
+
+        console.log(data);
 
         empty.classList.toggle('d-none', items.length > 0);
         resultCount.textContent = (data.totalElements != null)
@@ -168,7 +170,7 @@ async function openDetail(id) {
     mBody.innerHTML = `<div class="text-center text-muted">載入中…</div>`;
     modal.show();
 
-    const r = await fetch(`/api/adopts/${id}`);
+    const r = await fetch(`/api/posts?${buildParams()}`);
     if (!r.ok) { mBody.innerHTML = `<div class="text-danger">讀取失敗</div>`; return; }
     const p = await r.json();
 

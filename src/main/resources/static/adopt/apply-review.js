@@ -1,4 +1,4 @@
-import { requireAdmin } from '/js/auth.js';
+import { requireAdmin } from '/adopt/auth.js';
 await requireAdmin();
 
 const list = document.getElementById('list');

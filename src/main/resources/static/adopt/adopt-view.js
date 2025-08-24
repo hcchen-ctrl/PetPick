@@ -176,24 +176,65 @@ document.getElementById('box').innerHTML = `
             `;
 
 // 互動：我要領養（官方來源）
+console.log(document.cookie)
+// 從 Cookie 中取得 CSRF token
+// 讀取指定 cookie 的函式
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+// 取得 CSRF token，cookie 名稱預設是 XSRF-TOKEN
+const csrfToken = getCookie('XSRF-TOKEN');
+
+// 以 fetch API 送出 POST 請求示例，帶上 CSRF token
+fetch('/api/adopts/17/apply', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': csrfToken  // Spring Security 預設會檢查這個 header
+    },
+    body: JSON.stringify({ /* 你的請求資料 */ })
+})
+    .then(response => response.json())
+    .then(data => console.log(data))
+    .catch(error => console.error('Error:', error));
+
+
+
+// 綁定按鈕事件
 document.getElementById('applyBtn')?.addEventListener('click', async () => {
     const message = document.getElementById('applyMsg')?.value?.trim() || null;
+    const csrfToken = getCookie('XSRF-TOKEN'); // CSRF token 名稱固定是這個
+
     try {
         const r = await fetch(`/api/adopts/${id}/apply`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-XSRF-TOKEN': csrfToken // ⬅️ 把 CSRF token 放進 header
+            },
+            credentials: 'include', // ⬅️ 確保 cookie 有帶上
             body: JSON.stringify({ message })
         });
-        if (r.status === 409) { alert('你已申請過了，請等待審核。'); return; }
+
+        if (r.status === 409) {
+            alert('你已申請過了，請等待審核。');
+            return;
+        }
+
         if (!r.ok) throw new Error(await r.text() || '申請失敗');
+
         alert('已送出申請！');
-        location.reload(); // 重新載入讓 badge/按鈕狀態更新
+        location.reload();
     } catch (e) {
         console.error(e);
         alert('申請失敗');
     }
 });
+
+
 
 document.getElementById('cancelAppBtn')?.addEventListener('click', async (e) => {
     e.preventDefault();
