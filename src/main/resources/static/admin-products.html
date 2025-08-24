@@ -35,12 +35,34 @@
       </nav>
 
       <!-- 主內容 -->
-      <main class="col-md-10 ms-sm-auto px-md-4 py-4">
-        <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+      <main class="col-12 col-md-10 ms-sm-auto px-md-4 py-4">
+        <!-- 標題 -->
+        <div class="mb-2">
           <h2 class="m-0">商品管理</h2>
-          <div class="ms-auto d-flex gap-2">
-            <input id="keyword" class="form-control" placeholder="搜尋名稱或描述…" />
+        </div>
+
+        <!-- 工具列：左(新增)／中(搜尋)／右(每頁筆數) -->
+        <div class="row align-items-center mb-3 g-2">
+          <!-- 左：新增商品（標題正下方） -->
+          <div class="col-12 col-md-3">
             <button id="btnNew" class="btn btn-primary">新增商品</button>
+          </div>
+
+          <!-- 中：搜尋（置中） -->
+          <div class="col-12 col-md-6 d-flex justify-content-center">
+            <input id="keyword"
+                   class="form-control"
+                   placeholder="搜尋編號、名稱或描述…"
+                   style="max-width: 520px; width: 100%;" />
+          </div>
+
+          <!-- 右：每頁筆數（最右側） -->
+          <div class="col-12 col-md-3 d-flex justify-content-md-end">
+            <select id="pageSize" class="form-select form-select-sm" style="width:auto;">
+              <option value="10" selected>每頁 10 筆</option>
+              <option value="20">每頁 20 筆</option>
+              <option value="50">每頁 50 筆</option>
+            </select>
           </div>
         </div>
 
@@ -62,6 +84,11 @@
               <tr><td colspan="8" class="text-center text-muted py-4">載入中…</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- 分頁列 -->
+        <div class="d-flex justify-content-end">
+          <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
         </div>
 
         <!-- Toast 容器 -->
@@ -126,7 +153,7 @@
             <img id="imagePreview" class="rounded border d-none" alt="預覽" style="max-width:100%;max-height:180px;">
           </div>
 
-          <!-- ★ 新增：上/下架切換 -->
+          <!-- 上/下架切換 -->
           <div class="form-check form-switch mt-3">
             <input class="form-check-input" type="checkbox" id="productActive" checked>
             <label class="form-check-label" for="productActive">上架中</label>

@@ -5,6 +5,11 @@
   // ★ 管理端請求一律帶上 ADMIN 標頭（對應後端 DemoAuthFilter）
   const ADMIN_HEADERS = { "X-Demo-Role": "ADMIN" };
 
+  // ★ 小建議：用旗標控制「建立託運單即視為已出貨」語意（預設開）
+  const FLAGS = {
+    SHIPPED_ON_CONSIGNMENT: true,
+  };
+
   const state = {
     page: 1,                   // 1-based
     size: 10,
@@ -147,14 +152,12 @@
         try {
           showLoading(true);
           const j = await queryTrackingFromEcpay(id);
-          // 優先用後端回傳補欄位（非空才寫）
           if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
-          if (j.trackingNo)  trackingNoInput.value  = j.trackingNo;
+          if (j.trackingNo) trackingNoInput.value = j.trackingNo;
 
-          // 再讀一次訂單確認 DB 已寫
           const o = await fetchOrderOne(id);
           if (o.logisticsId && !logisticsIdInput.value) logisticsIdInput.value = o.logisticsId;
-          if (o.trackingNo  && !trackingNoInput.value)  trackingNoInput.value  = o.trackingNo;
+          if (o.trackingNo && !trackingNoInput.value) trackingNoInput.value = o.trackingNo;
 
           if (trackingNoInput.value) {
             toast(`已取得追蹤碼：${escapeHtml(trackingNoInput.value)}`);
@@ -276,16 +279,21 @@
     $$(".btn-cancel").forEach(btn => btn.addEventListener("click", onOpenCancel));
 
     hydrateDelivery(); // 補齊配送欄顯示（必要時）
+    hydrateStatus();   // 補齊付款/配送徽章（確保建立託運單後會變「已出貨」）
   }
 
+  // === 做法 A：狀態欄改為「付款 / 配送」兩個徽章 ===
   function rowHtml(o) {
     const id = o.orderId ?? o.id;
     const mtn = (o.merchantTradeNo ?? "").trim();
     const member = o.receiverName || o.userName || (o.userId != null ? `#${o.userId}` : "—");
     const total = Number(o.totalPrice ?? o.total ?? 0);
-    const status = o.status ?? "";
+    const rawStatus = o.status ?? ""; // 仍保留給「修改狀態」對話框用
     const time = fmtDateTime(o.createdAt || o.date);
     const delivery = displayDelivery(o);
+
+    const payStatus = paymentStatusOf(o);
+    const shipStatus = deliveryStatusOf(o);
 
     const checked = state.selected.has(Number(id)) ? "checked" : "";
 
@@ -298,12 +306,15 @@
       </td>
       <td>${escapeHtml(member)}</td>
       <td>NT$${total.toLocaleString("zh-Hant-TW")}</td>
-      <td><span class="badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span></td>
+      <td class="td-status">
+        <span class="badge ${badgeCls(payStatus)} me-1">付款：${escapeHtml(payStatus)}</span><br>
+        <span class="badge ${badgeCls(shipStatus)}">配送：${escapeHtml(shipStatus)}</span>
+      </td>
       <td class="td-delivery">${escapeHtml(delivery)}</td>
       <td>${time}</td>
       <td class="d-flex flex-wrap gap-1 align-items-center">
         <button class="btn btn-sm btn-outline-primary btn-view" data-id="${escapeAttr(id)}">查看</button>
-        <button class="btn btn-sm btn-outline-secondary btn-status" data-id="${escapeAttr(id)}" data-status="${escapeAttr(status)}">狀態</button>
+        <button class="btn btn-sm btn-outline-secondary btn-status" data-id="${escapeAttr(id)}" data-status="${escapeAttr(rawStatus)}">狀態</button>
         <button class="btn btn-sm btn-success btn-paid" data-id="${escapeAttr(id)}" data-amount="${escapeAttr(total)}">付款</button>
         <button class="btn btn-sm btn-info btn-logistics" data-id="${escapeAttr(id)}">物流</button>
         <button class="btn btn-sm btn-outline-danger btn-cancel" data-id="${escapeAttr(id)}">取消</button>
@@ -428,7 +439,7 @@
 
       // 預填既有物流欄位（若有）
       if (o.logisticsId) logisticsIdInput.value = o.logisticsId;
-      if (o.trackingNo)  trackingNoInput.value  = o.trackingNo;
+      if (o.trackingNo) trackingNoInput.value = o.trackingNo;
 
       // 顯示配送資訊
       const t = String(o.shippingType || "").toLowerCase();
@@ -447,7 +458,7 @@
             showLoading(true);
             const j = await queryTrackingFromEcpay(id);
             if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
-            if (j.trackingNo)  trackingNoInput.value  = j.trackingNo;
+            if (j.trackingNo) trackingNoInput.value = j.trackingNo;
 
             const o2 = await fetchOrderOne(id);
             if (o2.trackingNo) {
@@ -718,7 +729,7 @@
       const mtn = idBox.querySelector("div:nth-child(2)")?.textContent.trim() || "";
       const member = tds[2]?.textContent.trim() || "";
       const amount = tds[3]?.textContent.replace(/\s+/g, " ").trim() || "";
-      const status = tds[4]?.innerText.trim() || "";
+      const status = tds[4]?.innerText.trim() || ""; // 會拿到「付款：.. 配送：..」
       const delivery = tds[5]?.textContent.trim() || "";
       const time = tds[6]?.textContent.trim() || "";
       return [id.replace(/^#/, ""), mtn, member, amount.replace(/^NT\$/, ""), status, delivery, time];
@@ -747,11 +758,13 @@
     el.addEventListener("hidden.bs.toast", () => el.remove());
   }
 
+  //（保留舊的；其它地方若仍使用不會壞）
   function statusBadgeClass(s) {
     const k = String(s || "").toLowerCase();
     if (["paid", "已付款"].includes(k)) return "bg-success";
     if (["pending", "待付款"].includes(k)) return "bg-warning text-dark";
     if (["shipped", "已出貨"].includes(k)) return "bg-info text-dark";
+    if (["delivered", "已配達"].includes(k)) return "bg-success";
     if (["cancelled", "取消"].includes(k)) return "bg-secondary";
     if (["failed", "付款失敗"].includes(k)) return "bg-danger";
     return "bg-light text-dark";
@@ -770,6 +783,10 @@
   }
 
   function displayDelivery(o) {
+    const statusKey = String(o.status || "").toLowerCase();
+    if (statusKey === "cancelled" || statusKey === "failed") {
+      return "—"; // 付款已取消或失敗：不顯示配送資訊
+    }
     const type = String(o.shippingType || "").toLowerCase();
     if (type === "cvs_cod" || o.storeId || o.storeName || o.storeAddress) {
       const brand = o.storeBrand || "";
@@ -792,6 +809,130 @@
   }
   function escapeAttr(s) { return String(s ?? "").replaceAll('"', '&quot;'); }
   async function safeText(r) { try { return await r.text(); } catch { return `HTTP ${r.status}`; } }
+
+  // === 做法 A 用到的小工具 ===
+  function paymentStatusOf(o) {
+    const s = String(o.status || "").toUpperCase();
+    const shipType = String(o.shippingType || "").toLowerCase();
+    const logi = getLogisticsStatus(o);
+    const paidAmount = Number(o.paidAmount ?? o.totalPaid ?? 0);
+    const hasGatewayAndTrade =
+      Boolean(o.paymentGateway || o.gateway) && Boolean(o.tradeNo || o.paymentTradeNo);
+
+    // 失敗/取消優先
+    if (s === "FAILED") return "付款失敗";
+    if (s === "CANCELLED") return "已取消";
+
+    // COD：取件或配達才算收款
+    if (shipType === "cvs_cod") {
+      if (logi === "PICKED_UP" || logi === "DELIVERED") return "已付款（COD）";
+      return "待付款";
+    }
+
+    // 非 COD（信用卡/轉帳等）：以下任一條件視為已付款
+    if (s === "PAID") return "已付款";
+    if (o.paidAt) return "已付款";
+    if (paidAmount > 0) return "已付款";
+    if (hasGatewayAndTrade && s !== "PENDING") return "已付款";
+    if (s === "SHIPPED" || s === "DELIVERED") return "已付款";
+
+    return "待付款";
+  }
+
+  // === utils: normalize logistics status (兼容不同欄位命名) ===
+  function getLogisticsStatus(o) {
+    let raw = o.logisticsStatus ?? o.logisticStatus ?? o.ecpayLogisticsStatus ?? o.shippingStatus ?? o.shipping_state ?? o.shipStatus ?? "";
+    if (!raw) return "";
+    let s = String(raw).trim().replace(/[\s-]+/g, "_").toUpperCase().replace(/[^A-Z_]/g, "");
+    const map = {
+      INTRANSIT: "IN_TRANSIT",
+      OUT_FOR_DELIVERY: "IN_TRANSIT",
+      DELIVERING: "IN_TRANSIT",
+      SHIPPING: "IN_TRANSIT",
+      SENT: "IN_TRANSIT",
+      DISPATCHED: "IN_TRANSIT",
+
+      LABEL_CREATED: "CREATED",
+      READY_TO_SHIP: "CREATED",
+      ACCEPTED: "CREATED",
+      PRINTED: "CREATED",
+
+      ARRIVED: "DELIVERED",
+      RECEIVED: "DELIVERED",
+      DELIVERY_DONE: "DELIVERED",
+      DONE: "DELIVERED"
+    };
+    return map[s] || s;
+  }
+
+  // ★ 是否已建立託運單（有 logisticsId / trackingNo / 任何物流狀態）
+  function consignmentCreated(o) {
+    const ls = getLogisticsStatus(o);
+    return Boolean(o.logisticsId || o.trackingNo || ls);
+  }
+
+  // 物流/配送狀態顯示（依「是否建立託運單」切換）
+  function deliveryStatusOf(o) {
+    const orderS = String(o.status || "").toUpperCase();
+    if (orderS === "FAILED" || orderS === "CANCELLED") return "—";
+
+    const shipType = String(o.shippingType || "").trim().toLowerCase();
+    const ls = getLogisticsStatus(o);
+
+    // 已配達（含超取完成）
+    if (ls === "DELIVERED" || ls === "PICKED_UP" || ls === "RECEIVED" || ls === "DONE") {
+      return "已配達";
+    }
+
+    // 宅配：未建立託運單 → 待出貨；建立後（含 CREATED/有單號）→ 已出貨
+    if (shipType === "address") {
+      if (FLAGS.SHIPPED_ON_CONSIGNMENT && consignmentCreated(o)) return "已出貨";
+      return "待出貨";
+    }
+
+    // 超商取貨（COD）：有任何物流狀態就視為已出貨，否則待出貨
+    if (shipType === "cvs_cod") {
+      return ls ? "已出貨" : "待出貨";
+    }
+
+    // 其他配送型別：若指定了型別 → 依是否建單決定；否則不顯示
+    if (shipType) {
+      return consignmentCreated(o) ? "已出貨" : "待出貨";
+    }
+
+    return "—";
+  }
+
+  function badgeCls(label) {
+    const k = (label || "").toLowerCase();
+    if (k.includes("已付款") || k === "已配達") return "bg-success";
+    if (k === "已出貨") return "bg-info text-dark";
+    if (k === "待付款" || k === "待出貨") return "bg-warning text-dark";
+    if (k === "運送中") return "bg-info text-dark";
+    if (k === "已取消") return "bg-secondary";
+    if (k === "付款失敗") return "bg-danger";
+    return "bg-light text-dark";
+  }
+
+  // ====== 補強：用單筆 API 回填付款/配送徽章 ======
+  async function hydrateStatus() {
+    const rows = Array.from(tbody.querySelectorAll("tr[data-row-id]"));
+    for (const tr of rows) {
+      const td = tr.querySelector(".td-status");
+      if (!td) continue;
+      const id = tr.getAttribute("data-row-id");
+      if (!id) continue;
+
+      try {
+        const o = await fetchOrderOne(id);
+        const pay = paymentStatusOf(o);
+        const ship = deliveryStatusOf(o);
+        td.innerHTML =
+          `<span class="badge ${badgeCls(pay)} me-1">付款：${escapeHtml(pay)}</span><br>` +
+          `<span class="badge ${badgeCls(ship)}">配送：${escapeHtml(ship)}</span>`;
+      } catch { /* ignore */ }
+    }
+  }
 
   // ====== 這三個函式移進 IIFE 內 ======
   async function hydrateDelivery() {
@@ -844,14 +985,12 @@
       const j = await r.json().catch(() => ({}));
       if (!r.ok || j.ok === false) throw new Error(j.error || "建立失敗");
 
-      // 寫回輸入框（只在有值時寫入）
       if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
-      if (j.trackingNo)  trackingNoInput.value  = j.trackingNo;
+      if (j.trackingNo) trackingNoInput.value = j.trackingNo;
 
-      // 立刻存到訂單（只帶有值欄位，避免覆蓋成空字串）
       const payload = {};
       if (j.logisticsId) payload.logisticsId = j.logisticsId;
-      if (j.trackingNo)  payload.trackingNo  = j.trackingNo;
+      if (j.trackingNo) payload.trackingNo = j.trackingNo;
       if (Object.keys(payload).length > 0) {
         await apiPost(`${API_BASE}/${orderId}/logistics`, payload);
       }
@@ -860,11 +999,12 @@
         toast(`宅配託運單建立完成，追蹤碼：${escapeHtml(j.trackingNo)}`);
       } else {
         toast("宅配託運單建立完成，追蹤碼尚未提供（將於回拋或查詢後自動更新）", "warning");
-        // 啟動輪詢：每 5 秒查一次，最多 6 次；每次先打 Query API，再讀訂單
         await pollTracking(orderId, 6, 5000);
       }
 
-      // 詢問是否標記出貨
+      // ★ 小建議：不論是否選擇標記 Shipped，都即時更新表格徽章（免等整頁重載）
+      try { await hydrateStatus(); } catch {}
+
       if (confirm("是否將訂單標記為 Shipped？")) {
         await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界宅配" });
         orderCache.delete(Number(orderId));
@@ -882,24 +1022,26 @@
     for (let i = 0; i < times; i++) {
       try {
         await wait(intervalMs);
-        // 先對綠界查詢（由後端封裝）
         await queryTrackingFromEcpay(orderId);
-        // 再讀一次訂單
         const o = await fetchOrderOne(orderId);
         if (o && o.trackingNo) {
           trackingNoInput.value = o.trackingNo;
           toast(`已取得追蹤碼：${escapeHtml(o.trackingNo)}`);
           return;
         }
-      } catch {
-        // 忽略單次失敗，繼續下一輪
-      }
+      } catch { /* ignore */ }
     }
     toast("仍未收到追蹤碼（可能綠界稍後回拋）", "secondary");
   }
 
   function wait(ms) {
     return new Promise(res => setTimeout(res, ms));
+  }
+
+  // === CSV cell escape ===
+  function csvCell(v) {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   }
 
   // ====== /moved inside IIFE ======

@@ -9,6 +9,10 @@ const btnNew = document.getElementById("btnNew");
 const toastContainer = document.getElementById("toastContainer");
 const loadingMask = document.getElementById("loadingMask");
 
+// 分頁相關（請在 HTML 放一個 <select id="pageSize"> 與一個 <ul id="pagination">）
+const pageSizeSel = document.getElementById("pageSize");
+const pagination = document.getElementById("pagination");
+
 // Modals / Forms
 const imgModal = new bootstrap.Modal(document.getElementById("imageModal"));
 const modalImgEl = document.getElementById("modal-image");
@@ -36,11 +40,20 @@ let allProducts = [];
 let filtered = [];
 let deletingId = null;
 
+// 分頁狀態
+const state = {
+  page: 1,
+  size: 10,
+  totalPages: 1,
+};
+
 // ====== Utils ======
 function showLoading(v) {
+  if (!loadingMask) return;
   loadingMask.style.display = v ? "flex" : "none";
 }
 function toast(msg, type = "success") {
+  if (!toastContainer) return alert(msg);
   const id = "t" + Math.random().toString(36).slice(2);
   const html = `
     <div id="${id}" class="toast align-items-center text-bg-${type} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
@@ -67,9 +80,8 @@ function pickId(p) { return p.productId ?? p.id; }
 function pickActive(p) {
   if (typeof p.active === "boolean") return p.active;
   if (typeof p.isActive === "boolean") return p.isActive;
-  // 若後端用字串 status，也嘗試判斷
   if (typeof p.status === "string") return !/下架|停售|inactive|off/i.test(p.status);
-  return true; // 預設視為上架
+  return true;
 }
 function badgeActive(active) {
   return active
@@ -88,23 +100,36 @@ async function loadProducts() {
   try {
     const res = await fetch(API_BASE);
     if (!res.ok) throw new Error(`讀取失敗（${res.status}）`);
-    allProducts = await res.json() || [];
+    allProducts = (await res.json()) || [];
+    state.page = 1; // 每次重新載入回到第 1 頁
     applyFilter();
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">載入失敗：${esc(err.message)}</td></tr>`;
+    if (pagination) pagination.innerHTML = "";
   } finally {
     showLoading(false);
   }
 }
 
 function applyFilter() {
-  const kw = (keyword.value || "").trim().toLowerCase();
+  const kw = (keyword?.value || "").trim().toLowerCase();
   filtered = (allProducts || []).filter(p => {
-    const name = pickName(p);
+    const name = pickName(p) || "";
     const desc = p.description ?? "";
-    return !kw || name.toLowerCase().includes(kw) || desc.toLowerCase().includes(kw);
+    const idStr = String(pickId(p) ?? "");
+    // 支援「商品編號」搜尋 + 名稱/描述
+    return !kw
+      || idStr.toLowerCase().includes(kw)
+      || name.toLowerCase().includes(kw)
+      || desc.toLowerCase().includes(kw);
   });
+
+  // 計算分頁
+  state.totalPages = Math.max(1, Math.ceil(filtered.length / state.size));
+  state.page = Math.min(Math.max(1, state.page), state.totalPages);
+
   renderTable();
+  renderPagination();
 }
 
 function renderTable() {
@@ -115,7 +140,10 @@ function renderTable() {
   // 以 id 由新到舊
   filtered.sort((a,b) => (pickId(b) ?? 0) - (pickId(a) ?? 0));
 
-  tbody.innerHTML = filtered.map(p => {
+  const start = (state.page - 1) * state.size;
+  const pageItems = filtered.slice(start, start + state.size);
+
+  tbody.innerHTML = pageItems.map(p => {
     const id = pickId(p);
     const name = pickName(p);
     const desc = p.description ?? "";
@@ -162,9 +190,60 @@ function renderTable() {
   });
 }
 
+function renderPagination() {
+  if (!pagination) return;
+  if (state.totalPages <= 1) { pagination.innerHTML = ""; return; }
+
+  const makeItem = (label, target, disabled = false, active = false) =>
+    `<li class="page-item ${disabled ? "disabled" : ""} ${active ? "active" : ""}">
+      <a class="page-link" href="#" data-page="${target}">${label}</a>
+     </li>`;
+
+  let html = "";
+  const p = state.page, tp = state.totalPages;
+  html += makeItem("«", 1, p === 1);
+  html += makeItem("‹", Math.max(1, p - 1), p === 1);
+
+  const win = 2;
+  const start = Math.max(1, p - win);
+  const end = Math.min(tp, p + win);
+  for (let i = start; i <= end; i++) {
+    html += makeItem(String(i), i, false, i === p);
+  }
+
+  html += makeItem("›", Math.min(tp, p + 1), p === tp);
+  html += makeItem("»", tp, p === tp);
+
+  pagination.innerHTML = html;
+  pagination.querySelectorAll("a.page-link").forEach(a => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      const target = Number(a.dataset.page);
+      if (!Number.isFinite(target)) return;
+      state.page = Math.min(Math.max(1, target), state.totalPages);
+      renderTable();
+      renderPagination();
+    });
+  });
+}
+
 // ====== CRUD Handlers ======
 btnNew.addEventListener("click", () => openCreateModal());
-keyword.addEventListener("input", () => applyFilter());
+keyword.addEventListener("input", () => { state.page = 1; applyFilter(); });
+
+// 每頁筆數選擇：10 / 20 / 50
+if (pageSizeSel) {
+  // 預設值
+  if (!["10","20","50"].includes(String(pageSizeSel.value))) {
+    pageSizeSel.value = String(state.size);
+  }
+  pageSizeSel.addEventListener("change", () => {
+    const n = Number(pageSizeSel.value);
+    state.size = [10,20,50].includes(n) ? n : 10;
+    state.page = 1;
+    applyFilter();
+  });
+}
 
 productImage.addEventListener("input", () => {
   const url = productImage.value.trim();
@@ -187,7 +266,6 @@ productForm.addEventListener("submit", async (e) => {
   const imageUrl = (productImage.value || "").trim();
   const active = !!productActive.checked;
 
-  // 套用 Bootstrap 驗證外觀
   productForm.classList.add("was-validated");
   if (!name || name.length > 50 || !desc || desc.length > 300 || !(price >= 0) || !(Number.isInteger(stock) && stock >= 0)) {
     return;
@@ -203,8 +281,8 @@ productForm.addEventListener("submit", async (e) => {
     price: Math.round(price),
     stock: Math.round(stock),
     imageUrl: imageUrl || DEFAULT_IMG,
-    active: active,           // ★ 帶上 active
-    isActive: active          // ★ 兼容另一種命名
+    active: active,
+    isActive: active
   };
 
   const url = id ? `${API_BASE}/${id}` : API_BASE;
@@ -288,6 +366,9 @@ btnDeleteDo.addEventListener("click", async () => {
     if (!res.ok) throw new Error(`刪除失敗（${res.status}）`);
     // 從快取移除並刷新渲染
     allProducts = allProducts.filter(p => pickId(p) !== deletingId);
+    // 若當頁被刪到沒有資料，自動往前一頁
+    const start = (state.page - 1) * state.size;
+    if (start >= Math.max(0, allProducts.length - 1)) state.page = Math.max(1, state.page - 1);
     applyFilter();
     toast("刪除成功", "success");
   } catch (err) {
@@ -324,7 +405,7 @@ async function onToggleActive(e) {
       const p = await res.json();
       p.active = nextActive;
       p.isActive = nextActive;
-      p.name = p.name ?? p.pname ?? ""; // 相容
+      p.name = p.name ?? p.pname ?? "";
       p.pname = p.name;
       const res2 = await fetch(`${API_BASE}/${id}`, {
         method: "PUT",
