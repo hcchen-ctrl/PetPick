@@ -1,7 +1,10 @@
+// src/main/java/com/petpick/petpick/controller/PaymentReturnController.java
 package com.petpick.petpick.controller;
 
 import java.util.Map;
+import java.util.TreeMap;
 
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -9,12 +12,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.petpick.petpick.config.EcpayProperties;
-import com.petpick.petpick.mac.EcpayCheckMac;
+import com.petpick.petpick.mac.EcpayPaymentCheckMac;
 import com.petpick.petpick.repository.OrderRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 
 @RestController
 @RequestMapping("/api/pay/ecpay")
@@ -25,42 +27,89 @@ public class PaymentReturnController {
     private final EcpayProperties prop;
     private final OrderRepository orderRepo;
 
-    @PostMapping("/return")
-    public ResponseEntity<String> handleReturn(@RequestParam Map<String, String> p) {
+    /**
+     * 綠界金流 ReturnURL（Server → Server）
+     * - content-type: application/x-www-form-urlencoded
+     * - 正式：驗簽成功 && RtnCode=1 才標記 Paid
+     * - 測試（prop.isStage()==true）：只要 RtnCode=1 就標記 Paid（放寬驗簽）
+     * - 回應必須是「1|OK」且 Content-Type: text/plain
+     *
+     * 註：不宣告 produces，避免 Accept 協商造成 406。
+     */
+    @PostMapping(
+        value = "/return",
+        consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE
+        // 不寫 produces，後面用 ResponseEntity 設定 contentType
+    )
+    public ResponseEntity<String> handleReturn(@RequestParam Map<String, String> payload) {
         try {
-            log.info("[ECPay-Return] payload={}", p);
+            // 攤平並轉大小寫不敏感 Map
+            Map<String, String> ci = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            payload.forEach(ci::put);
+
+            final boolean isStage = prop.isStage();
+            log.info("[ECPay-Return] env={} recv={}", isStage ? "STAGE" : "PROD", ci);
 
             String key = prop.getPayment().getHashKey();
             String iv  = prop.getPayment().getHashIv();
-            String recvMac  = p.getOrDefault("CheckMacValue", "");
-            String localMac = EcpayCheckMac.generate(p, key, iv);
-            boolean macOK = recvMac.equalsIgnoreCase(localMac);
 
-            String rtnCode = p.getOrDefault("RtnCode", "0");
-            String orderIdStr = p.getOrDefault("CustomField1", null);
-            String tradeNo = p.getOrDefault("TradeNo", "");
+            // 產生本地 MAC（SHA-256）
+            String recvMac  = ci.getOrDefault("CheckMacValue", "");
+            String localMac = EcpayPaymentCheckMac.generate(ci, key, iv);
+            boolean macOK   = recvMac.equalsIgnoreCase(localMac);
 
-            if (!macOK) {
-                log.warn("[ECPay-Return] CheckMacValue mismatch! recv={}, local={}", recvMac, localMac);
+            String rtnCode    = ci.getOrDefault("RtnCode", "0");
+            String rtnMsg     = ci.getOrDefault("RtnMsg", "");
+            String tradeNo    = ci.getOrDefault("TradeNo", "");
+            String mtn        = ci.getOrDefault("MerchantTradeNo", "");
+            String orderIdStr = ci.get("CustomField1"); // 送單時放的 orderId
+
+            boolean rtnSuccess = "1".equals(rtnCode);
+            // 放寬規則：stage 只看 RtnCode；prod 需 MAC + RtnCode
+            boolean pass = isStage ? rtnSuccess : (macOK && rtnSuccess);
+
+            if (!pass) {
+                log.warn("[ECPay-Return] NOT PASS (env={}, macOK={}, rtnCode={}, msg={}, MTN={}, TradeNo={})",
+                        isStage ? "STAGE" : "PROD", macOK, rtnCode, rtnMsg, mtn, tradeNo);
+                return ResponseEntity.ok()
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body("1|OK");
             }
 
-            // 測試/容錯：若 RtnCode=1 就寫 Paid（正式可改為 macOK && RtnCode=1 才寫入）
-            if ("1".equals(rtnCode) && orderIdStr != null) {
-                Integer orderId = Integer.valueOf(orderIdStr);
-                orderRepo.findById(orderId).ifPresent(ord -> {
-                    if (!"Paid".equalsIgnoreCase(ord.getStatus())) {
-                        ord.setStatus("Paid");
-                        // ord.setTransactionNo(tradeNo);
-                        orderRepo.save(ord);
-                        log.info("[ECPay-Return] order {} marked Paid, TradeNo={}", orderId, tradeNo);
-                    }
-                });
+            if (orderIdStr != null && !orderIdStr.isBlank()) {
+                try {
+                    Integer orderId = Integer.valueOf(orderIdStr.trim());
+                    orderRepo.findById(orderId).ifPresent(ord -> {
+                        String cur = ord.getStatus() == null ? "" : ord.getStatus();
+                        if (!"paid".equalsIgnoreCase(cur)) {
+                            ord.setStatus("Paid");
+                            // 需要時一併落帳更多資訊（欄位存在再開）
+                            // ord.setGateway("ECPAY");
+                            // ord.setMerchantTradeNo(mtn);
+                            // ord.setTradeNo(tradeNo);
+                            // ord.setPaidAt(LocalDateTime.now());
+                            orderRepo.save(ord);
+                            log.info("[ECPay-Return] order {} -> Paid (env={}, macOK={}, MTN={}, TradeNo={})",
+                                    orderId, isStage ? "STAGE" : "PROD", macOK, mtn, tradeNo);
+                        } else {
+                            log.info("[ECPay-Return] order {} already Paid (idempotent)", orderId);
+                        }
+                    });
+                } catch (NumberFormatException nfe) {
+                    log.warn("[ECPay-Return] CustomField1 is not a valid integer: {}", orderIdStr);
+                }
+            } else {
+                log.warn("[ECPay-Return] Missing CustomField1 (orderId). MTN={}, TradeNo={}", mtn, tradeNo);
             }
 
-            return ResponseEntity.ok("1|OK");
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("1|OK");
         } catch (Exception e) {
-            log.error("[ECPay-Return] error", e);
-            return ResponseEntity.ok("1|OK"); // 仍回 1|OK，避免重送
+            log.error("[ECPay-Return] exception", e);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("1|OK");
         }
     }
 }

@@ -2,7 +2,7 @@
 let total = 0;
 const userId = Number(sessionStorage.getItem("checkout_user_id")) || 1;
 
-// 方案 A：開發用 Demo 使用者（後端 OrderCommandController 會讀取這個 Header）
+// Demo 使用者（後端會讀這個 Header）
 const DEMO_UID = 1;
 const DEMO_HEADERS = { "X-Demo-UserId": String(DEMO_UID) };
 
@@ -14,8 +14,6 @@ const cartBadgeEl = document.getElementById("cart-badge");
 const totalPriceEl = document.getElementById("total-price");
 
 const deliveryMethod = document.getElementById("delivery-method");
-const nameInput = document.getElementById("name");
-const nameErrEl = document.getElementById("name-error"); // 若頁面有此提示元素會自動顯示
 const phoneInput = document.getElementById("phone");
 const phoneErrEl = document.getElementById("phone-error");
 
@@ -33,8 +31,13 @@ const storeInfoWrap = storeInfoEl ? storeInfoEl.parentElement : null;
 
 // ---- 小工具 ----
 const safeText = (x) => (x == null ? "" : String(x));
-function setBadge(n) { if (cartBadgeEl) cartBadgeEl.textContent = String(n ?? 0); }
-function setTotal(n) { if (totalPriceEl) totalPriceEl.textContent = `NT$${(n ?? 0).toLocaleString("zh-Hant-TW")}`; }
+
+function setBadge(n) {
+  if (cartBadgeEl) cartBadgeEl.textContent = String(n ?? 0);
+}
+function setTotal(n) {
+  if (totalPriceEl) totalPriceEl.textContent = `NT$${(n ?? 0).toLocaleString("zh-Hant-TW")}`;
+}
 function showToast(message, type = "primary") {
   const id = "t" + Math.random().toString(36).slice(2);
   const html = `
@@ -51,8 +54,7 @@ function showToast(message, type = "primary") {
   el.addEventListener("hidden.bs.toast", () => el.remove());
 }
 
-// ---- 姓名規則（與後端一致） ----
-// 中文 2~5 或 英文 4~10（不含空白與符號）
+// ★ 姓名格式驗證：中文 2~5 或 英文 4~10（不含空白與符號）
 function isValidReceiverName(name) {
   if (!name) return false;
   const clean = name.trim().replace(/\s+/g, "").replace(/[^A-Za-z\u4E00-\u9FFF]/g, "");
@@ -60,16 +62,68 @@ function isValidReceiverName(name) {
   if (hasCJK) return clean.length >= 2 && clean.length <= 5;
   return clean.length >= 4 && clean.length <= 10;
 }
-// 送綠界前，將姓名做相同清洗（避免被拒）
-function sanitizeNameForEcpay(name) {
-  return (name || "").trim().replace(/\s+/g, "").replace(/[^A-Za-z\u4E00-\u9FFF]/g, "");
+
+// ★ 統一顯示「訂單失敗」的 Modal（若頁面沒有，會動態建立）
+function showFailModal(message) {
+  let modalEl = document.getElementById("checkoutFailModal");
+  let msgEl;
+  if (!modalEl) {
+    const id = "checkoutFailModal";
+    const html = `
+      <div class="modal fade" id="${id}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+              <h5 class="modal-title">訂單失敗</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body"><div id="failMessage" class="text-danger fw-semibold"></div></div>
+            <div class="modal-footer">
+              <a href="cart.html" class="btn btn-outline-secondary">回購物車</a>
+              <button type="button" class="btn btn-danger" data-bs-dismiss="modal">關閉</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML("beforeend", html);
+    modalEl = document.getElementById(id);
+  }
+  msgEl = modalEl.querySelector("#failMessage");
+  if (msgEl) msgEl.textContent = message || "付款 / 建單流程發生錯誤，請稍後再試。";
+  new bootstrap.Modal(modalEl).show();
 }
-function setInvalid(el, show) {
-  if (!el) return;
-  el.classList[show ? "add" : "remove"]("is-invalid");
-  // 若頁面有對應的錯誤提示元素，順便切換顯示
-  if (el === nameInput && nameErrEl) nameErrEl.style.display = show ? "block" : "none";
-  if (el === phoneInput && phoneErrEl) phoneErrEl.style.display = show ? "block" : "none";
+
+// ★ 標記訂單為失敗（盡力而為）
+// 1) POST /api/orders/{id}/fail  (建議你後端提供這支)
+// 2) Fallback: PATCH /api/orders/{id}/status { status:"Failed", note:reason }
+async function markOrderFailed(orderId, reason) {
+  if (!orderId) return false;
+  const payload1 = { reason: reason || "" };
+  const payload2 = { status: "Failed", note: reason || "" };
+
+  // 先嘗試專用 fail 端點
+  try {
+    const r = await fetch(`/api/orders/${encodeURIComponent(orderId)}/fail`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...DEMO_HEADERS },
+      credentials: "include",
+      body: JSON.stringify(payload1),
+    });
+    if (r.ok) return true;
+  } catch (_) {}
+
+  // 回退：一般狀態更新
+  try {
+    const r = await fetch(`/api/orders/${encodeURIComponent(orderId)}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...DEMO_HEADERS },
+      credentials: "include",
+      body: JSON.stringify(payload2),
+    });
+    return r.ok;
+  } catch (_) {
+    return false;
+  }
 }
 
 // 解析第三方回傳 HTML → 自動提交
@@ -151,63 +205,33 @@ fetch(`/api/cart/withProduct/${encodeURIComponent(userId)}`, {
   })
   .catch(() => { setTotal(0); setBadge(0); });
 
-// ---- 表單送出：建單 → 分流 ----
+// ---- 表單送出：建單 → 分流（任何錯誤都會標記訂單失敗 + 顯示失敗 Modal）----
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (submitBtn) submitBtn.disabled = true;
 
-  const name = safeText(nameInput?.value).trim();
-  const phone = safeText(phoneInput?.value).trim();
-  const delivery = safeText(deliveryMethod?.value);  // address | cvs_cod
-  const payment = safeText(document.getElementById("payment")?.value); // credit | cod
-
-  const effectivePayment = delivery === "cvs_cod" ? "cod" : (payment || "").toLowerCase();
-  sessionStorage.setItem("last_payment", effectivePayment);
-
-  const addr = delivery === "address" ? safeText(addressInput?.value).trim() : "超商取貨付款";
-  const zip = delivery === "address" ? safeText(zipInput?.value).trim() : "";
-
-  // 基本驗證
-  if (!name) {
-    showToast("請填寫姓名", "danger");
-    setInvalid(nameInput, true);
-    if (submitBtn) submitBtn.disabled = false;
-    return;
-  }
-
-  // ★ 姓名即時規則驗證（與後端一致）
-  if (!isValidReceiverName(name)) {
-    showToast("姓名格式不符：中文 2~5、英文 4~10（不含空白與符號）", "danger");
-    setInvalid(nameInput, true);
-    if (submitBtn) submitBtn.disabled = false;
-    return;
-  } else {
-    setInvalid(nameInput, false);
-  }
-
-  if (!/^09\d{8}$/.test(phone)) {
-    showToast("請輸入正確手機號碼", "danger");
-    setInvalid(phoneInput, true);
-    if (submitBtn) submitBtn.disabled = false;
-    return;
-  } else {
-    setInvalid(phoneInput, false);
-  }
-
-  if (delivery === "address") {
-    if (!addr || addr.length < 3) {
-      showToast("請填寫正確收件地址", "danger");
-      if (submitBtn) submitBtn.disabled = false;
-      return;
-    }
-    if (zip && !/^\d{3,5}$/.test(zip)) {
-      showToast("郵遞區號格式不正確", "danger");
-      if (submitBtn) submitBtn.disabled = false;
-      return;
-    }
-  }
-
+  let createdOrderId = null; // ★ 用來在任何錯誤時標記失敗
   try {
+    const name = safeText(document.getElementById("name")?.value).trim();
+    const phone = safeText(phoneInput?.value).trim();
+    const delivery = safeText(deliveryMethod?.value);  // address | cvs_cod
+    const payment = safeText(document.getElementById("payment")?.value); // credit | cod
+
+    const effectivePayment = delivery === "cvs_cod" ? "cod" : (payment || "").toLowerCase();
+    sessionStorage.setItem("last_payment", effectivePayment);
+
+    const addr = delivery === "address" ? safeText(addressInput?.value).trim() : "超商取貨付款";
+    const zip = delivery === "address" ? safeText(zipInput?.value).trim() : "";
+
+    // 基本驗證
+    if (!name) throw new Error("請填寫姓名");
+    if (!isValidReceiverName(name)) throw new Error("姓名格式不符：中文 2~5、英文 4~10（不含空白與符號）");
+    if (!/^09\d{8}$/.test(phone)) throw new Error("請輸入正確手機號碼");
+    if (delivery === "address") {
+      if (!addr || addr.length < 3) throw new Error("請填寫正確收件地址");
+      if (zip && !/^\d{3,5}$/.test(zip)) throw new Error("郵遞區號格式不正確");
+    }
+
     // 1) 建立訂單（後端以 Header 判斷 userId）
     const order = await postJson("/api/orders/checkout", {
       addr,
@@ -218,6 +242,7 @@ form?.addEventListener("submit", async (e) => {
     });
     const orderId = order?.orderId;
     if (!orderId) throw new Error("訂單建立失敗（缺少 orderId）");
+    createdOrderId = orderId; // ★ 之後任一步錯誤都會標失敗
 
     // 2) 分流
     // 2-1) 超商取貨付款（固定全家 FAMIC2C 測試）
@@ -228,7 +253,7 @@ form?.addEventListener("submit", async (e) => {
         isCollection: "N"
       });
       submitEcpayFormFromHtml(html);
-      return;
+      return; // 進第三方流程
     }
 
     // 2-2) 宅配 + 信用卡 → 綠界金流
@@ -238,16 +263,15 @@ form?.addEventListener("submit", async (e) => {
         origin: window.location.origin
       });
       submitEcpayFormFromHtml(html);
-      return;
+      return; // 進第三方流程
     }
 
-    // 2-3) 宅配 + 貨到付款 → 建綠界宅配託運單（姓名改用清洗後版本）
+    // 2-3) 宅配 + 貨到付款 → 建綠界宅配託運單
     if (delivery === "address" && effectivePayment === "cod") {
       try {
-        const cleanName = sanitizeNameForEcpay(name);
         const j = await postJson("/api/logistics/home/ecpay/create", {
           orderId,
-          receiverName: cleanName,
+          receiverName: name,
           receiverPhone: phone,
           receiverZip: zip || null,
           receiverAddr: addr,
@@ -255,8 +279,10 @@ form?.addEventListener("submit", async (e) => {
         });
         showToast(`已建立宅配託運單：${j.trackingNo || j.logisticsId || "已送出"}`, "success");
       } catch (e) {
-        console.error(e);
-        showToast(`宅配建單失敗：${e.message}`, "danger");
+        // ★ 只要宅配建單失敗 → 標記訂單失敗 + 失敗 Modal
+        await markOrderFailed(createdOrderId, e.message);
+        showFailModal(`宅配建單失敗：${e.message}`);
+        return;
       }
 
       // 清空徽章（後端通常也清了，前端同步一下顯示）
@@ -272,12 +298,19 @@ form?.addEventListener("submit", async (e) => {
 
     // 其他（理論上不會進到）
     const link = document.querySelector("#checkoutModal .modal-footer a");
-    if (link && orderId) link.href = `order.html?orderId=${orderId}`;
+    if (link && createdOrderId) link.href = `order.html?orderId=${createdOrderId}`;
     new bootstrap.Modal(document.getElementById("checkoutModal")).show();
 
   } catch (err) {
     console.error(err);
-    showToast(`付款流程發生錯誤：${err?.message || "請稍後再試"}`, "danger");
+    // ★ 只要在建立完訂單之後發生任何錯誤，就標記為失敗
+    if (createdOrderId) {
+      await markOrderFailed(createdOrderId, err?.message || "Checkout Error");
+      showFailModal(err?.message || "付款 / 建單流程發生錯誤，請稍後再試。");
+    } else {
+      // 連訂單都沒建成功，就直接彈失敗 Modal
+      showFailModal(err?.message || "訂單建立失敗，請稍後再試。");
+    }
   } finally {
     if (submitBtn) submitBtn.disabled = false;
   }
@@ -347,12 +380,6 @@ phoneInput?.addEventListener("input", () => {
   if (!phoneErrEl) return;
   phoneErrEl.style.display =
     /^09\d{8}$/.test(phoneInput.value) || phoneInput.value === "" ? "none" : "block";
-});
-
-// 姓名即時驗證
-nameInput?.addEventListener("input", () => {
-  const ok = isValidReceiverName(nameInput.value);
-  setInvalid(nameInput, !ok && nameInput.value.trim() !== "");
 });
 
 // Back-to-top

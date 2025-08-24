@@ -32,6 +32,7 @@
   const toastContainer = $("#toastContainer");
   const logisticsMeta = $("#logisticsMeta");
   const btnHomeCreate = $("#btnHomeCreate");
+  const btnQueryTracking = $("#btnQueryTracking"); // === NEW ===
 
   // 篩選元件
   const qFilter = $("#qFilter");
@@ -131,12 +132,42 @@
     btnBulkCancel.addEventListener("click", () => openBulkCancel());
     btnExport.addEventListener("click", () => exportCSV());
     updateBulkButtons();
-    
+
     // Modals 行為
     btnStatusSave.addEventListener("click", onSaveStatus);
     btnMarkPaid.addEventListener("click", onMarkPaid);
     btnLogisticsSave.addEventListener("click", onSaveLogistics);
     btnCancelSave.addEventListener("click", onSaveCancel);
+
+    // === NEW === 查詢追蹤碼按鈕
+    if (btnQueryTracking) {
+      btnQueryTracking.addEventListener("click", async () => {
+        const id = Number(logisticsModal._currentId);
+        if (!id) return;
+        try {
+          showLoading(true);
+          const j = await queryTrackingFromEcpay(id);
+          // 優先用後端回傳補欄位（非空才寫）
+          if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+          if (j.trackingNo)  trackingNoInput.value  = j.trackingNo;
+
+          // 再讀一次訂單確認 DB 已寫
+          const o = await fetchOrderOne(id);
+          if (o.logisticsId && !logisticsIdInput.value) logisticsIdInput.value = o.logisticsId;
+          if (o.trackingNo  && !trackingNoInput.value)  trackingNoInput.value  = o.trackingNo;
+
+          if (trackingNoInput.value) {
+            toast(`已取得追蹤碼：${escapeHtml(trackingNoInput.value)}`);
+          } else {
+            toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
+          }
+        } catch (err) {
+          toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
+        } finally {
+          showLoading(false);
+        }
+      });
+    }
   }
 
   // ====== API ======
@@ -155,7 +186,6 @@
     if (!res.ok) throw new Error(`讀取失敗 (${res.status})`);
 
     const data = await res.json();
-    // 支援 Page 與 Array 兩種格式
     if (Array.isArray(data)) {
       state.totalElements = data.length;
       state.totalPages = 1;
@@ -187,6 +217,16 @@
     return true;
   }
 
+  // === NEW === 從綠界查詢（後端封裝）：GET /api/logistics/home/query/{orderId}
+  async function apiGet(url) {
+    const r = await fetch(url, { headers: { ...ADMIN_HEADERS } });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.ok === false) {
+      throw new Error(j.error || `HTTP ${r.status}`);
+    }
+    return j;
+  }
+
   // ====== Load / Render ======
   async function loadPage(pageNum = 1) {
     state.page = Math.max(1, pageNum);
@@ -214,7 +254,6 @@
       tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">暫無訂單</td></tr>`;
       return;
     }
-    // 新到舊
     list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
     tbody.innerHTML = list.map(o => rowHtml(o)).join("");
@@ -236,8 +275,7 @@
     $$(".btn-logistics").forEach(btn => btn.addEventListener("click", onOpenLogistics));
     $$(".btn-cancel").forEach(btn => btn.addEventListener("click", onOpenCancel));
 
-    // 補齊配送欄顯示（必要時）
-    hydrateDelivery();
+    hydrateDelivery(); // 補齊配送欄顯示（必要時）
   }
 
   function rowHtml(o) {
@@ -263,7 +301,7 @@
       <td><span class="badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span></td>
       <td class="td-delivery">${escapeHtml(delivery)}</td>
       <td>${time}</td>
-      <td class="d-flex flex-wrap gap-1">
+      <td class="d-flex flex-wrap gap-1 align-items-center">
         <button class="btn btn-sm btn-outline-primary btn-view" data-id="${escapeAttr(id)}">查看</button>
         <button class="btn btn-sm btn-outline-secondary btn-status" data-id="${escapeAttr(id)}" data-status="${escapeAttr(status)}">狀態</button>
         <button class="btn btn-sm btn-success btn-paid" data-id="${escapeAttr(id)}" data-amount="${escapeAttr(total)}">付款</button>
@@ -287,8 +325,7 @@
     html += item("«", 1, page === 1);
     html += item("‹", Math.max(1, page - 1), page === 1);
 
-    // 簡單視窗
-    const pageWindow = 2; // 避免與全域 window 混淆
+    const pageWindow = 2;
     const start = Math.max(1, page - pageWindow);
     const end = Math.min(totalPages, page + pageWindow);
     for (let i = start; i <= end; i++) {
@@ -381,7 +418,8 @@
     logisticsIdInput.value = "";
     trackingNoInput.value = "";
     logisticsMeta.textContent = "讀取中…";
-    btnHomeCreate.classList.add("d-none"); // 預設先隱藏
+    btnHomeCreate.classList.add("d-none");           // 預設先隱藏
+    btnQueryTracking.classList.add("d-none");        // === NEW === 預設隱藏
     logisticsModal._currentId = id;
 
     try {
@@ -390,7 +428,7 @@
 
       // 預填既有物流欄位（若有）
       if (o.logisticsId) logisticsIdInput.value = o.logisticsId;
-      if (o.trackingNo) trackingNoInput.value = o.trackingNo;
+      if (o.trackingNo)  trackingNoInput.value  = o.trackingNo;
 
       // 顯示配送資訊
       const t = String(o.shippingType || "").toLowerCase();
@@ -399,9 +437,31 @@
           <div><span class="badge bg-secondary">宅配</span> ${escapeHtml(o.addr || "")}</div>
           <div class="text-muted">收件人：${escapeHtml(o.receiverName || "—")}（${escapeHtml(o.receiverPhone || "—")}）</div>
         `;
-        // 宅配：顯示「建立宅配託運單」按鈕（綠界）
+        // 宅配：顯示兩顆按鈕（建立、查詢）
         btnHomeCreate.classList.remove("d-none");
         btnHomeCreate.onclick = () => createHomeFor(id);
+
+        btnQueryTracking.classList.remove("d-none"); // === NEW ===
+        btnQueryTracking.onclick = async () => {
+          try {
+            showLoading(true);
+            const j = await queryTrackingFromEcpay(id);
+            if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+            if (j.trackingNo)  trackingNoInput.value  = j.trackingNo;
+
+            const o2 = await fetchOrderOne(id);
+            if (o2.trackingNo) {
+              trackingNoInput.value = o2.trackingNo;
+              toast(`已取得追蹤碼：${escapeHtml(o2.trackingNo)}`);
+            } else {
+              toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
+            }
+          } catch (err) {
+            toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
+          } finally {
+            showLoading(false);
+          }
+        };
       } else if (t === "cvs_cod") {
         const brand = o.storeBrand || "";
         const brandText = brand ? `（${escapeHtml(brand)}）` : "";
@@ -411,10 +471,14 @@
         `;
         btnHomeCreate.classList.add("d-none");
         btnHomeCreate.onclick = null;
+        btnQueryTracking.classList.add("d-none"); // === NEW ===
+        btnQueryTracking.onclick = null;
       } else {
         logisticsMeta.innerHTML = `<div class="text-muted">配送：${escapeHtml(o.shippingType || "—")}</div>`;
         btnHomeCreate.classList.add("d-none");
         btnHomeCreate.onclick = null;
+        btnQueryTracking.classList.add("d-none"); // === NEW ===
+        btnQueryTracking.onclick = null;
       }
 
       logisticsModal.show();
@@ -430,13 +494,23 @@
     if (!id) return;
     try {
       showLoading(true);
-      await apiPost(`${API_BASE}/${id}/logistics`, {
-        logisticsId: logisticsIdInput.value || "",
-        trackingNo: trackingNoInput.value || ""
-      });
 
-      // ★ 若有追蹤碼或物流編號 → 順便標記為已出貨（可依你需求）
-      if ((trackingNoInput.value || logisticsIdInput.value)) {
+      // 只有在有值時才更新，避免把 DB 的 NULL 蓋成空字串
+      const payload = {};
+      const lid = (logisticsIdInput.value || "").trim();
+      const tno = (trackingNoInput.value || "").trim();
+      if (lid) payload.logisticsId = lid;
+      if (tno) payload.trackingNo = tno;
+
+      if (Object.keys(payload).length === 0) {
+        toast("沒有可更新的欄位", "warning");
+        return;
+      }
+
+      await apiPost(`${API_BASE}/${id}/logistics`, payload);
+
+      // 若有追蹤碼或物流編號 → 可順便標記為已出貨（依需求）
+      if (tno || lid) {
         await apiPatch(`${API_BASE}/${id}/status`, { status: "Shipped", note: "" });
       }
 
@@ -508,7 +582,6 @@
 
   function openBulkMarkPaid() {
     if (state.selected.size === 0) return;
-    // 先開單筆的已付款 Modal，但把 orderId 顯示為「多筆」
     markPaidOrderId.textContent = `${state.selected.size} 筆`;
     gatewayInput.value = "Manual";
     tradeNoInput.value = "";
@@ -544,7 +617,6 @@
     cancelModal._bulk = true;
   }
 
-  // 覆寫：若是批次模式，使用 bulk-status；否則單筆 cancel API
   const _origOnSaveCancel = onSaveCancel;
   btnCancelSave.removeEventListener?.("click", onSaveCancel);
   btnCancelSave.addEventListener("click", async () => {
@@ -570,7 +642,6 @@
     cancelModal._bulk = false;
   });
 
-  // 同理：批次已付款
   const _origOnMarkPaid = onMarkPaid;
   btnMarkPaid.removeEventListener?.("click", onMarkPaid);
   btnMarkPaid.addEventListener("click", async () => {
@@ -602,28 +673,25 @@
     try {
       showLoading(true);
       const rows = [];
-      // 為了穩，逐頁抓（每頁 size=100）
       const sizeBackup = state.size;
       const pageBackup = state.page;
       const tmpSize = 100;
 
       state.size = tmpSize;
-      await loadPage(1); // 先取第一頁拿到 totalPages
+      await loadPage(1);
       rows.push(...collectRowsFromTbody());
 
       for (let p = 2; p <= state.totalPages; p++) {
         state.page = p;
         const list = await fetchOrders();
-        renderTable(list); // 重用渲染取得一致格式
+        renderTable(list);
         rows.push(...collectRowsFromTbody());
       }
 
-      // 還原頁面
       state.size = sizeBackup;
       state.page = pageBackup;
       await loadPage(state.page);
 
-      // 下載
       const head = ["訂單編號", "綠界訂單編號", "會員", "金額", "狀態", "配送", "下單時間"];
       const csv = [head, ...rows].map(r => r.map(csvCell).join(",")).join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -642,11 +710,9 @@
   }
 
   function collectRowsFromTbody() {
-    // 從目前 tbody 解析（避免重寫轉換邏輯）
     return Array.from(tbody.querySelectorAll("tr")).map(tr => {
       const tds = tr.querySelectorAll("td");
       if (tds.length < 8) return [];
-      // 解析第一欄（ID、MTN）
       const idBox = tds[1];
       const id = idBox.querySelector("div:nth-child(1)")?.textContent.trim() || "";
       const mtn = idBox.querySelector("div:nth-child(2)")?.textContent.trim() || "";
@@ -706,7 +772,7 @@
   function displayDelivery(o) {
     const type = String(o.shippingType || "").toLowerCase();
     if (type === "cvs_cod" || o.storeId || o.storeName || o.storeAddress) {
-      const brand = o.storeBrand || ""; // 期待後端已塞中文：7-ELEVEN / 全家 / 萊爾富 / OK
+      const brand = o.storeBrand || "";
       const name = o.storeName || "";
       const addr = o.storeAddress || "";
       const parts = [brand, name].filter(Boolean).join(" ");
@@ -727,15 +793,14 @@
   function escapeAttr(s) { return String(s ?? "").replaceAll('"', '&quot;'); }
   async function safeText(r) { try { return await r.text(); } catch { return `HTTP ${r.status}`; } }
 
-  // ====== (修正) 這三個函式移進 IIFE 內，才抓得到 tbody / API_BASE 等 ======
+  // ====== 這三個函式移進 IIFE 內 ======
   async function hydrateDelivery() {
-    // 找出目前顯示為「—」的配送欄位，逐筆去拿詳情補上
     const rows = Array.from(tbody.querySelectorAll("tr[data-row-id]"));
     for (const tr of rows) {
       const td = tr.querySelector(".td-delivery");
       if (!td) continue;
       const current = (td.textContent || "").trim();
-      if (current && current !== "—") continue; // 已有資料就略過
+      if (current && current !== "—") continue;
 
       const id = tr.getAttribute("data-row-id");
       if (!id) continue;
@@ -745,9 +810,7 @@
         if (!r.ok) continue;
         const o = await r.json();
         td.textContent = displayDelivery(o);
-      } catch {
-        /* 忽略失敗，維持「—」 */
-      }
+      } catch { }
     }
   }
 
@@ -761,11 +824,18 @@
     return data;
   }
 
+  // === NEW === 後端封裝的「查詢宅配單」：呼叫 GET /api/logistics/home/query/{orderId}
+  async function queryTrackingFromEcpay(orderId) {
+    const j = await apiGet(`/api/logistics/home/query/${encodeURIComponent(orderId)}`);
+    // 這支 API 已在後端內部把 trackingNo / logisticsStatus 回寫 DB（若有變動）
+    return j;
+  }
+
+  // ★ 建立宅配託運單：若暫無追蹤碼，啟動輪詢並搭配「查詢宅配單」API
   async function createHomeFor(orderId) {
     if (!orderId) return;
     try {
       showLoading(true);
-      // 綠界宅配建單端點（新版）
       const r = await fetch("/api/logistics/home/ecpay/create", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...ADMIN_HEADERS },
@@ -774,29 +844,63 @@
       const j = await r.json().catch(() => ({}));
       if (!r.ok || j.ok === false) throw new Error(j.error || "建立失敗");
 
-      // 寫回輸入框
+      // 寫回輸入框（只在有值時寫入）
       if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
-      if (j.trackingNo) trackingNoInput.value = j.trackingNo;
+      if (j.trackingNo)  trackingNoInput.value  = j.trackingNo;
 
-      // 立刻存到訂單（冪等）
-      await apiPost(`${API_BASE}/${orderId}/logistics`, {
-        logisticsId: j.logisticsId || "",
-        trackingNo: j.trackingNo || ""
-      });
+      // 立刻存到訂單（只帶有值欄位，避免覆蓋成空字串）
+      const payload = {};
+      if (j.logisticsId) payload.logisticsId = j.logisticsId;
+      if (j.trackingNo)  payload.trackingNo  = j.trackingNo;
+      if (Object.keys(payload).length > 0) {
+        await apiPost(`${API_BASE}/${orderId}/logistics`, payload);
+      }
+
+      if (j.trackingNo) {
+        toast(`宅配託運單建立完成，追蹤碼：${escapeHtml(j.trackingNo)}`);
+      } else {
+        toast("宅配託運單建立完成，追蹤碼尚未提供（將於回拋或查詢後自動更新）", "warning");
+        // 啟動輪詢：每 5 秒查一次，最多 6 次；每次先打 Query API，再讀訂單
+        await pollTracking(orderId, 6, 5000);
+      }
 
       // 詢問是否標記出貨
-      if (confirm("已建立宅配託運單，是否將訂單標記為 Shipped？")) {
+      if (confirm("是否將訂單標記為 Shipped？")) {
         await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界宅配" });
         orderCache.delete(Number(orderId));
         await loadPage(state.page);
       }
-
-      toast("宅配託運單建立完成");
     } catch (err) {
       toast(`宅配建立失敗：${escapeHtml(err.message || "")}`, "danger");
     } finally {
       showLoading(false);
     }
   }
+
+  // ★ 輪詢追蹤碼（搭配 Query API）
+  async function pollTracking(orderId, times = 6, intervalMs = 5000) {
+    for (let i = 0; i < times; i++) {
+      try {
+        await wait(intervalMs);
+        // 先對綠界查詢（由後端封裝）
+        await queryTrackingFromEcpay(orderId);
+        // 再讀一次訂單
+        const o = await fetchOrderOne(orderId);
+        if (o && o.trackingNo) {
+          trackingNoInput.value = o.trackingNo;
+          toast(`已取得追蹤碼：${escapeHtml(o.trackingNo)}`);
+          return;
+        }
+      } catch {
+        // 忽略單次失敗，繼續下一輪
+      }
+    }
+    toast("仍未收到追蹤碼（可能綠界稍後回拋）", "secondary");
+  }
+
+  function wait(ms) {
+    return new Promise(res => setTimeout(res, ms));
+  }
+
   // ====== /moved inside IIFE ======
 })();

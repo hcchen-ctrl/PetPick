@@ -22,52 +22,62 @@ import com.petpick.petpick.service.ShoppingCartService;
 
 @RestController
 @RequestMapping("/api/cart")
-@CrossOrigin(origins="*")
+@CrossOrigin(origins = "*")
 public class ShoppingCartController {
 
     @Autowired
     private ShoppingCartService shoppingCartService;
 
-    /**
-     * 新增商品到購物車
-     */
+    /** 新增商品到購物車 */
     @PostMapping("/add")
-    public ShoppingCartItem addItemToCart(@RequestBody CartItemRequest request) {
-        return shoppingCartService.addItemToCart(request.getUserId(), request.getProductId(), request.getQuantity());
+    public ResponseEntity<ShoppingCartItem> addItemToCart(@RequestBody CartItemRequest request) {
+        if (request == null || request.getUserId() == null || request.getProductId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        int qty = (request.getQuantity() == null || request.getQuantity() <= 0) ? 1 : request.getQuantity();
+        ShoppingCartItem saved = shoppingCartService.addItemToCart(request.getUserId(), request.getProductId(), qty);
+        return ResponseEntity.ok(saved);
     }
 
-    /**
-     * 取得使用者的購物車內容
-     */
+    /** 取得使用者的購物車內容（包含商品資訊） */
     @GetMapping("/withProduct/{userId}")
-    public List<CartProductDTO> getCartWithProductByUserId(@PathVariable Integer userId) {
-        return shoppingCartService.getCartWithProductByUserId(userId);
+    public ResponseEntity<List<CartProductDTO>> getCartWithProductByUserId(@PathVariable Integer userId) {
+        return ResponseEntity.ok(shoppingCartService.getCartWithProductByUserId(userId));
     }
 
-    /**
-     * 刪除購物車中的某個商品
-     */
+    /** 刪除購物車中的某個項目（以 cartId） */
     @DeleteMapping("/item/{cartId}")
     public ResponseEntity<Void> removeItemFromCart(@PathVariable Integer cartId) {
         shoppingCartService.removeItemFromCart(cartId);
-        return ResponseEntity.noContent().build(); // 204
-    }
-
-   
-
-    @DeleteMapping("/clear/{userId}")
-    public ResponseEntity<Void> clearCart(@PathVariable Integer userId) {
-        shoppingCartService.clearCart(userId);
-        return ResponseEntity.noContent().build(); // 204
+        return ResponseEntity.noContent().build();
     }
 
     /**
-     * 更新購物車商品數量
+     * 清空指定使用者的購物車
+     * - 新路徑：/clear/{userId}
+     * - 舊路徑：/user/{userId}（為相容舊前端）
      */
+    @DeleteMapping(path = { "/clear/{userId}", "/user/{userId}" })
+    public ResponseEntity<Void> clearCart(@PathVariable Integer userId) {
+        shoppingCartService.clearCart(userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 更新購物車項目數量（以 cartId） */
     @PutMapping("/update")
-    public ShoppingCartItem updateQuantity(@RequestBody Map<String, Object> request) {
-        Integer cartId = (Integer) request.get("cartId");
-        Integer quantity = (Integer) request.get("quantity");
-        return shoppingCartService.updateQuantityByCartId(cartId, quantity);
+    public ResponseEntity<ShoppingCartItem> updateQuantity(@RequestBody Map<String, Object> request) {
+        if (request == null)
+            return ResponseEntity.badRequest().build();
+
+        Object cartIdObj = request.get("cartId");
+        Object quantityObj = request.get("quantity");
+        if (!(cartIdObj instanceof Number) || !(quantityObj instanceof Number)) {
+            return ResponseEntity.badRequest().build();
+        }
+        Integer cartId = ((Number) cartIdObj).intValue();
+        Integer quantity = Math.max(0, ((Number) quantityObj).intValue());
+
+        ShoppingCartItem updated = shoppingCartService.updateQuantityByCartId(cartId, quantity);
+        return ResponseEntity.ok(updated);
     }
 }

@@ -6,7 +6,7 @@ import java.security.MessageDigest;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class EcpayCheckMac {
+public class EcpayPaymentCheckMac {
 
     public static String generate(Map<String, String> params, String hashKey, String hashIv) {
         Map<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

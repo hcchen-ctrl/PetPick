@@ -54,7 +54,7 @@
             <!-- 主內容 -->
             <main class="col-md-10 ms-sm-auto px-md-4 mt-4">
                 <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
-                    <h2 class="m-0">📑 訂單管理</h2>
+                    <h2 class="m-0">訂單管理</h2>
                     <div class="text-muted small">
                         共 <span id="orderCount">0</span> 筆
                         <span class="ms-3">最後更新：<span id="lastRefreshed">—</span></span>
@@ -177,11 +177,11 @@
                     <div class="mb-3">
                         <label class="form-label">狀態</label>
                         <select id="statusSelect" class="form-select">
-                            <option value="Pending">Pending</option>
-                            <option value="Paid">Paid</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Cancelled">Cancelled</option>
-                            <option value="Failed">Failed</option>
+                            <option value="Pending">待付款</option>
+                            <option value="Paid">已付款</option>
+                            <option value="Shipped">已出貨</option>
+                            <option value="Cancelled">取消</option>
+                            <option value="Failed">訂單失敗</option>
                         </select>
                     </div>
                     <div>
@@ -254,10 +254,16 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <!-- 新增：只有宅配時才會顯示 -->
+                    <!-- 只有宅配時才會顯示 -->
                     <button class="btn btn-outline-primary d-none" id="btnHomeCreate" type="button">
                         建立黑貓宅配託運單
                     </button>
+
+                    <!-- === NEW === 向綠界查詢並回寫追蹤碼 -->
+                    <button class="btn btn-outline-secondary d-none" id="btnQueryTracking" type="button">
+                        查詢黑貓追蹤碼
+                    </button>
+
                     <button class="btn btn-info" id="btnLogisticsSave">儲存物流資訊</button>
                 </div>
             </div>

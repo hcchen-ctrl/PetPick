@@ -1,3 +1,4 @@
+// File: src/main/java/com/petpick/petpick/service/impl/OrderServiceImpl.java
 package com.petpick.petpick.service.impl;
 
 import java.time.LocalDateTime;
@@ -5,7 +6,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.lang.Nullable;
+import org.springframework.util.StringUtils;
 
 import com.petpick.petpick.dto.CartProductDTO;
 import com.petpick.petpick.dto.CheckoutRequest;
@@ -49,15 +50,11 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderDTO checkout(CheckoutRequest req) {
         Integer userId = req.getUserId();
-        if (userId == null) {
-            throw new IllegalArgumentException("userId is required");
-        }
+        if (userId == null) throw new IllegalArgumentException("userId is required");
 
         // 1) 撈購物車
         List<CartProductDTO> cartItems = cartService.getCartWithProductByUserId(userId);
-        if (cartItems == null || cartItems.isEmpty()) {
-            throw new IllegalStateException("購物車為空");
-        }
+        if (cartItems == null || cartItems.isEmpty()) throw new IllegalStateException("購物車為空");
 
         // 2) 計算總額（double → int）
         double total = 0.0d;
@@ -148,9 +145,7 @@ public class OrderServiceImpl implements OrderService {
         // 任意 -> Cancelled：未出貨才回補
         if (!"CANCELLED".equalsIgnoreCase(from) && "CANCELLED".equalsIgnoreCase(to)) {
             boolean shipped = "SHIPPED".equalsIgnoreCase(from) || "IN_TRANSIT".equalsIgnoreCase(nz(o.getLogisticsStatus()));
-            if (!shipped) {
-                restoreStockForOrder(orderId);
-            }
+            if (!shipped) restoreStockForOrder(orderId);
         }
 
         o.setStatus(to);
@@ -196,109 +191,140 @@ public class OrderServiceImpl implements OrderService {
         };
     }
 
-    @Override
     @Transactional
+    @Override
     public void setLogisticsInfo(Integer orderId, String logisticsId, String trackingNo) {
-        Order o = orderRepo.findById(orderId).orElseThrow();
-        o.setLogisticsId(logisticsId);
-        o.setTrackingNo(trackingNo);
-        orderRepo.save(o);
+        orderRepo.findById(orderId).ifPresent(o -> {
+            boolean changed = false;
 
-        shipmentRepo.findFirstByOrder_OrderIdOrderByCreatedAtAsc(orderId)
-                .ifPresent(s -> {
-                    s.setLogisticsId(logisticsId);
-                    s.setTrackingNo(trackingNo);
-                    shipmentRepo.save(s);
-                });
+            final String lid = trimOrNull(logisticsId);
+            final String tno = trimOrNull(trackingNo);
+
+            if (StringUtils.hasText(lid) && !lid.equals(nz(o.getLogisticsId()))) {
+                o.setLogisticsId(lid);
+                changed = true;
+            }
+            if (StringUtils.hasText(tno) && !tno.equals(nz(o.getTrackingNo()))) {
+                o.setTrackingNo(tno);
+                changed = true;
+            }
+            if (!StringUtils.hasText(o.getLogisticsStatus())) {
+                o.setLogisticsStatus("CREATED");
+                changed = true;
+            }
+            if (!StringUtils.hasText(o.getShippingType())) {
+                o.setShippingType("address");
+                changed = true;
+            }
+
+            // 同步到第一筆出貨紀錄（若存在）
+            shipmentRepo.findFirstByOrder_OrderIdOrderByCreatedAtAsc(orderId).ifPresent(s -> {
+                boolean sChanged = false;
+                if (StringUtils.hasText(lid) && !lid.equals(nz(s.getLogisticsId()))) {
+                    s.setLogisticsId(lid);
+                    sChanged = true;
+                }
+                if (StringUtils.hasText(tno) && !tno.equals(nz(s.getTrackingNo()))) {
+                    s.setTrackingNo(tno);
+                    sChanged = true;
+                }
+                if (!StringUtils.hasText(nz(s.getStatus()))) {
+                    s.setStatus("CREATED");
+                    sChanged = true;
+                }
+                if (sChanged) shipmentRepo.save(s);
+            });
+
+            if (changed) {
+                orderRepo.saveAndFlush(o);   // ★ 立刻 flush，避免以為沒寫入
+            }
+        });
     }
 
     // ---------------- Payment callbacks ----------------
-// ========== Payment callbacks ==========
+    @Override
+    @Transactional
+    public void onPaymentSucceeded(Integer orderId, String gateway, String tradeNo, int paidAmount) {
+        onPaymentSucceededInternal(orderId, gateway, tradeNo, paidAmount, null);
+    }
 
-@Override
-@Transactional
-public void onPaymentSucceeded(Integer orderId, String gateway, String tradeNo, int paidAmount) {
-    // 介面版本（無 payload），帶 null 進去
-    onPaymentSucceededInternal(orderId, gateway, tradeNo, paidAmount, null);
-}
+    // 多載：控制器若想帶完整原始 payload 可呼叫這個（非 @Override）
+    @Transactional
+    public void onPaymentSucceeded(Integer orderId, String gateway, String tradeNo, int paidAmount,
+                                   @org.springframework.lang.Nullable String payloadJson) {
+        onPaymentSucceededInternal(orderId, gateway, tradeNo, paidAmount, payloadJson);
+    }
 
-// 多載：控制器若想帶完整原始 payload 可呼叫這個（非 @Override）
-@Transactional
-public void onPaymentSucceeded(Integer orderId, String gateway, String tradeNo, int paidAmount,
-                               @org.springframework.lang.Nullable String payloadJson) {
-    onPaymentSucceededInternal(orderId, gateway, tradeNo, paidAmount, payloadJson);
-}
+    private void onPaymentSucceededInternal(Integer orderId, String gateway, String tradeNo, int paidAmount,
+                                            @org.springframework.lang.Nullable String payloadJson) {
+        Order o = orderRepo.findById(orderId).orElseThrow();
 
-private void onPaymentSucceededInternal(Integer orderId, String gateway, String tradeNo, int paidAmount,
-                                        @org.springframework.lang.Nullable String payloadJson) {
-    Order o = orderRepo.findById(orderId).orElseThrow();
+        String prev = nz(o.getStatus());
+        if (!"PAID".equalsIgnoreCase(prev)) {
+            o.setStatus("PAID");
+            o.setPaidAt(LocalDateTime.now());
+            o.setPaymentGateway(gateway);
+            o.setTradeNo(tradeNo);
+            orderRepo.save(o);
+            statusHistoryRepo.save(newHistory(o, prev, "PAID", "system", "payment ok"));
+        }
 
-    String prev = nz(o.getStatus());
-    if (!"PAID".equalsIgnoreCase(prev)) {
-        o.setStatus("PAID");
-        o.setPaidAt(LocalDateTime.now());
-        o.setPaymentGateway(gateway);
-        o.setTradeNo(tradeNo);
+        OrderPayment pay = new OrderPayment();
+        pay.setOrder(o);
+        pay.setGateway(gateway);
+        pay.setAmount(paidAmount > 0 ? paidAmount : o.getTotalPrice()); // ★ 以回拋金額為主
+        pay.setMerchantTradeNo(o.getMerchantTradeNo());
+        pay.setTradeNo(tradeNo);
+        pay.setStatus("SUCCESS");
+        pay.setPaidAt(LocalDateTime.now());
+        pay.setPayloadJson(payloadJson);
+        paymentRepo.save(pay);
+
+        boolean isCvs = "cvs_cod".equalsIgnoreCase(nz(o.getShippingType()));
+        if (!isCvs) { // 非 CVS：在此才扣庫存與清購物車
+            deductStockForOrder(orderId);
+            commitReservation(orderId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void onPaymentFailed(Integer orderId, String reason) {
+        onPaymentFailedInternal(orderId, reason, null);
+    }
+
+    // 多載：控制器若想帶 payload 可呼叫這個（非 @Override）
+    @Transactional
+    public void onPaymentFailed(Integer orderId, String reason,
+                                @org.springframework.lang.Nullable String payloadJson) {
+        onPaymentFailedInternal(orderId, reason, payloadJson);
+    }
+
+    private void onPaymentFailedInternal(Integer orderId, String reason,
+                                         @org.springframework.lang.Nullable String payloadJson) {
+        Order o = orderRepo.findById(orderId).orElseThrow();
+
+        String prev = nz(o.getStatus());
+        o.setStatus("FAILED");
+        o.setPaymentFailReason(reason);
         orderRepo.save(o);
-        statusHistoryRepo.save(newHistory(o, prev, "PAID", "system", "payment ok"));
+        statusHistoryRepo.save(newHistory(o, prev, "FAILED", "system", reason));
+
+        OrderPayment pay = new OrderPayment();
+        pay.setOrder(o);
+        pay.setGateway(nz(o.getPaymentGateway()));
+        pay.setAmount(o.getTotalPrice());
+        pay.setMerchantTradeNo(o.getMerchantTradeNo());
+        pay.setTradeNo(o.getTradeNo());
+        pay.setStatus("FAIL");
+        pay.setFailReason(reason);
+        pay.setPayloadJson(payloadJson);
+        paymentRepo.save(pay);
+
+        // 若有保留策略可在這裡釋放
+        releaseReservation(orderId);
     }
 
-    OrderPayment pay = new OrderPayment();
-    pay.setOrder(o);
-    pay.setGateway(gateway);
-    pay.setAmount(o.getTotalPrice());
-    pay.setMerchantTradeNo(o.getMerchantTradeNo());
-    pay.setTradeNo(tradeNo);
-    pay.setStatus("SUCCESS");
-    pay.setPaidAt(LocalDateTime.now());
-    pay.setPayloadJson(payloadJson);
-    paymentRepo.save(pay);
-
-    boolean isCvs = "cvs_cod".equalsIgnoreCase(nz(o.getShippingType()));
-    if (!isCvs) { // 非 CVS：在此才扣庫存與清購物車
-        deductStockForOrder(orderId);
-        commitReservation(orderId);
-    }
-}
-
-@Override
-@Transactional
-public void onPaymentFailed(Integer orderId, String reason) {
-    // 介面版本（無 payload），帶 null 進去
-    onPaymentFailedInternal(orderId, reason, null);
-}
-
-// 多載：控制器若想帶 payload 可呼叫這個（非 @Override）
-@Transactional
-public void onPaymentFailed(Integer orderId, String reason,
-                            @org.springframework.lang.Nullable String payloadJson) {
-    onPaymentFailedInternal(orderId, reason, payloadJson);
-}
-
-private void onPaymentFailedInternal(Integer orderId, String reason,
-                                     @org.springframework.lang.Nullable String payloadJson) {
-    Order o = orderRepo.findById(orderId).orElseThrow();
-
-    String prev = nz(o.getStatus());
-    o.setStatus("FAILED");
-    o.setPaymentFailReason(reason);
-    orderRepo.save(o);
-    statusHistoryRepo.save(newHistory(o, prev, "FAILED", "system", reason));
-
-    OrderPayment pay = new OrderPayment();
-    pay.setOrder(o);
-    pay.setGateway(nz(o.getPaymentGateway()));
-    pay.setAmount(o.getTotalPrice());
-    pay.setMerchantTradeNo(o.getMerchantTradeNo());
-    pay.setTradeNo(o.getTradeNo());
-    pay.setStatus("FAIL");
-    pay.setFailReason(reason);
-    pay.setPayloadJson(payloadJson);
-    paymentRepo.save(pay);
-
-    // 若有保留策略可在這裡釋放
-    releaseReservation(orderId);
-}
     // ---------------- Cancel ----------------
     @Override
     @Transactional
@@ -316,12 +342,9 @@ private void onPaymentFailedInternal(Integer orderId, String reason,
         boolean shipped = "SHIPPED".equalsIgnoreCase(prev)
                 || "IN_TRANSIT".equalsIgnoreCase(nz(o.getLogisticsStatus()))
                 || "DELIVERED".equalsIgnoreCase(nz(o.getLogisticsStatus()));
-        if (!shipped) {
-            restoreStockForOrder(orderId);
-        }
+        if (!shipped) restoreStockForOrder(orderId);
 
         o.setStatus("CANCELLED");
-        // 若有 failReason 欄位就存
         try { Order.class.getMethod("setFailReason", String.class).invoke(o, reason); } catch (Exception ignore) {}
         orderRepo.save(o);
 
@@ -386,6 +409,8 @@ private void onPaymentFailedInternal(Integer orderId, String reason,
         Order o = orderRepo.findById(orderId).orElseThrow();
         OrderShipment ship = shipmentRepo.findFirstByOrder_OrderIdOrderByCreatedAtAsc(orderId).orElseThrow();
 
+        String prev = nz(o.getStatus());
+
         ship.setStatus("IN_TRANSIT");
         ship.setLogisticsId(logisticsId);
         ship.setTrackingNo(trackingNo);
@@ -399,7 +424,7 @@ private void onPaymentFailedInternal(Integer orderId, String reason,
         o.setLogisticsStatus("IN_TRANSIT");
         orderRepo.save(o);
 
-        statusHistoryRepo.save(newHistory(o, "SHIPPED", "admin", "mark shipped"));
+        statusHistoryRepo.save(newHistory(o, prev, "SHIPPED", "admin", "mark shipped"));
     }
 
     @Transactional
@@ -407,16 +432,19 @@ private void onPaymentFailedInternal(Integer orderId, String reason,
         Order o = orderRepo.findById(orderId).orElseThrow();
         OrderShipment ship = shipmentRepo.findFirstByOrder_OrderIdOrderByCreatedAtAsc(orderId).orElseThrow();
 
+        String prev = nz(o.getStatus());
+
         ship.setStatus("PICKED_UP");
         ship.setReceivedAt(LocalDateTime.now());
         shipmentRepo.save(ship);
 
-        o.setStatus("SHIPPED"); // 或設 DELIVERED：看你的業務定義
+        // 超取可維持 SHIPPED 或改 DELIVERED，依你的業務定義
+        o.setStatus("SHIPPED");
         o.setReceivedAt(ship.getReceivedAt());
         o.setLogisticsStatus("PICKED_UP");
         orderRepo.save(o);
 
-        statusHistoryRepo.save(newHistory(o, "SHIPPED", "system", "cvs picked"));
+        statusHistoryRepo.save(newHistory(o, prev, "SHIPPED", "system", "cvs picked"));
     }
 
     @Transactional
@@ -424,16 +452,18 @@ private void onPaymentFailedInternal(Integer orderId, String reason,
         Order o = orderRepo.findById(orderId).orElseThrow();
         OrderShipment ship = shipmentRepo.findFirstByOrder_OrderIdOrderByCreatedAtAsc(orderId).orElseThrow();
 
+        String prev = nz(o.getStatus());
+
         ship.setStatus("DELIVERED");
         ship.setDeliveredAt(LocalDateTime.now());
         shipmentRepo.save(ship);
 
-        o.setStatus("SHIPPED"); // 或設 DELIVERED
+        o.setStatus("DELIVERED"); // ★ 送達就標 DELIVERED（若你系統只用 SHIPPED，可改回）
         o.setDeliveredAt(ship.getDeliveredAt());
         o.setLogisticsStatus("DELIVERED");
         orderRepo.save(o);
 
-        statusHistoryRepo.save(newHistory(o, "SHIPPED", "system", "home delivered"));
+        statusHistoryRepo.save(newHistory(o, prev, "DELIVERED", "system", "home delivered"));
     }
 
     // ---------------- History helper ----------------
@@ -461,4 +491,9 @@ private void onPaymentFailedInternal(Integer orderId, String reason,
 
     // ---------------- misc utils ----------------
     private static String nz(String s) { return s == null ? "" : s; }
+    private static String trimOrNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
 }

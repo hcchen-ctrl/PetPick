@@ -1,5 +1,7 @@
 package com.petpick.petpick.repository;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -27,4 +29,7 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
          WHERE p.productId = :pid
     """)
     int increaseStock(@Param("pid") Integer productId, @Param("qty") int qty);
+
+    List<Product> findAllByPublishedTrue();
+    List<Product> findAllByPublishedFalse();
 }

@@ -19,7 +19,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.petpick.petpick.config.EcpayProperties;
 import com.petpick.petpick.dto.CvsSelectRequest;
-import com.petpick.petpick.mac.EcpayCheckMac;
+import com.petpick.petpick.mac.EcpayPaymentCheckMac;
 import com.petpick.petpick.service.OrderService;
 
 import lombok.RequiredArgsConstructor;
@@ -87,7 +87,7 @@ public class LogisticsController {
         // 讓回拋知道是哪張訂單
         p.put("ExtraData", String.valueOf(req.getOrderId()));
 
-        String mac = EcpayCheckMac.generate(p, key, iv);
+        String mac = EcpayPaymentCheckMac.generate(p, key, iv);
         p.put("CheckMacValue", mac);
 
         log.info("[Logi-MAP] stage={}, action={}, MID={}, Key(4)={}, IV(4)={}, subType={}, isCollection={}, reply={}",

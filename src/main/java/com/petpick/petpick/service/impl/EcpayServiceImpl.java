@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.petpick.petpick.config.EcpayProperties;
 import com.petpick.petpick.dto.OrderDTO;
-import com.petpick.petpick.mac.EcpayCheckMac;
+import com.petpick.petpick.mac.EcpayPaymentCheckMac;
 import com.petpick.petpick.repository.OrderRepository;
 import com.petpick.petpick.service.EcpayService;
 import com.petpick.petpick.service.OrderQueryService;
@@ -101,7 +101,7 @@ public class EcpayServiceImpl implements EcpayService {
 
         // 5) 濾空 → 簽章
         p = compact(p);
-        String mac = EcpayCheckMac.generate(p, hashKey, hashIv);
+        String mac = EcpayPaymentCheckMac.generate(p, hashKey, hashIv);
         p.put("CheckMacValue", mac);
 
         // 6) 端點

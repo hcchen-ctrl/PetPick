@@ -1,9 +1,11 @@
+// File: src/main/java/com/petpick/petpick/service/LogisticsEcpayService.java
 package com.petpick.petpick.service;
 
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -40,13 +42,24 @@ public class LogisticsEcpayService {
     private static final DateTimeFormatter NO = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final DateTimeFormatter ECPAY_TS = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
+    // ====== DTOs ======
     public static class HomeCreateResult {
         public boolean ok;
-        public String error;     // 失敗訊息
+        public String error;       // 失敗訊息
         public String logisticsId; // AllPayLogisticsID
-        public String trackingNo;  // ShipmentNo（黑貓託運單號）
+        public String trackingNo;  // ShipmentNo（黑貓託運單號；可能為 null，等回拋/查詢補上）
     }
 
+    public static class QueryResult {
+        public boolean ok;
+        public String error;
+        public String logisticsId;
+        public String trackingNo;     // ShipmentNo
+        public String logisticsStatus;
+        public String raw;            // for debug
+    }
+
+    // ====== 建單（Home / TCAT） ======
     /** 綠界宅配建單（TCAT） */
     public HomeCreateResult createHomeShipment(HomeCreateRequest req) {
         HomeCreateResult r = new HomeCreateResult();
@@ -59,7 +72,6 @@ public class LogisticsEcpayService {
         Order o = orderRepo.findById(oid).orElse(null);
         if (o == null) return fail(r, "Order not found: " + oid);
 
-        // 端點（物流商用 MerchantID=2000933）
         String action = prop.isStage()
                 ? "https://logistics-stage.ecpay.com.tw/Express/Create"
                 : "https://logistics.ecpay.com.tw/Express/Create";
@@ -70,7 +82,6 @@ public class LogisticsEcpayService {
         String iv    = nz(logi.getHashIv());
         String srvCb = nz(logi.getHomeServerReplyUrl());
 
-        // 寄件者（公司）資料
         String senderName  = firstNonBlank(logi.getSenderName(),  "Petpick");
         String senderPhone = firstNonBlank(logi.getSenderPhone(), "0223456789");
         String senderZip   = firstNonBlank(logi.getSenderZip(),   "100");
@@ -80,7 +91,6 @@ public class LogisticsEcpayService {
             return fail(r, "Logistics config missing: MerchantID/HashKey/HashIV/HomeServerReplyUrl");
         }
 
-        // 收件者與金額
         String recvName  = firstNonBlank(req.getReceiverName(),  o.getReceiverName());
         String recvPhone = firstNonBlank(req.getReceiverPhone(), o.getReceiverPhone());
         String recvZip   = firstNonBlank(req.getReceiverZip(),   firstNonBlank(o.getReceiverZip(), "100"));
@@ -89,11 +99,9 @@ public class LogisticsEcpayService {
             return fail(r, "Receiver fields missing: name/phone/address are required");
         }
 
-        // 姓名格式（綠界：中文 2~5 / 英文 4~10）
         if (!isValidReceiverName(recvName)) {
             return fail(r, "ReceiverName invalid: 中文需2~5字，英文需4~10字（不含空白與符號）");
         }
-        // 送綠界的實值（移除空白與非中英文）
         String recvNameForEcpay = recvName.trim().replaceAll("\\s+", "")
                 .replaceAll("[^A-Za-z\\u4E00-\\u9FFF]", "");
 
@@ -101,10 +109,8 @@ public class LogisticsEcpayService {
         int goodsAmt   = Math.max(0, n(o.getTotalPrice()));
         int collectAmt = collect ? goodsAmt : 0;
 
-        // <= 20 字
-        String merchantTradeNo = buildNo("H", o.getOrderId());
+        String merchantTradeNo = buildNo("H", o.getOrderId()); // <= 20 字
 
-        // 參數
         Map<String, String> p = new LinkedHashMap<>();
         p.put("MerchantID", mid);
         p.put("MerchantTradeNo", merchantTradeNo);
@@ -134,13 +140,12 @@ public class LogisticsEcpayService {
         p.put("ServerReplyURL", srvCb);
         p.put("ExtraData", String.valueOf(o.getOrderId()));
 
-        // ★ 物流用 MD5 的 CheckMac（不是金流的 SHA256）
+        // ★ 物流用 MD5（非金流 SHA256）
         String mac = generateCheckMacForLogistics(p, key, iv);
         p.put("CheckMacValue", mac);
 
-        log.info("[HomeCreate] signBase={}  mac={}", signBaseForLog(p), mac);
+        log.info("[HomeCreate] signBase={} mac={}", signBaseForLog(p), mac);
 
-        // 呼叫綠界
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         p.forEach(form::add);
         HttpHeaders headers = new HttpHeaders();
@@ -162,37 +167,156 @@ public class LogisticsEcpayService {
         if (rawBody.isBlank())
             return fail(r, "Empty response from ECPay.");
 
-        // 先去掉 "1|" 或 "0|" 前綴再解析
+        // 去掉前綴「1| / 0|」
         String kvPart = normalizeEcpayBody(rawBody);
-        Map<String, String> m = parseKv(kvPart);
+        Map<String, String> kv = parseKv(kvPart);
 
-        // 1 = 成功；300 = 訂單處理中（已受理）
+        // 轉 Case-Insensitive Map
+        Map<String, String> m = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        kv.forEach(m::put);
+        log.info("[HomeCreate] parsed kv = {}", m);
+
+        // 1=成功；300=訂單處理中
         String rtn = m.getOrDefault("RtnCode", "");
         String msg = m.getOrDefault("RtnMsg", "");
         if (!"1".equals(rtn) && !"300".equals(rtn)) {
             return fail(r, "ECPay Create failed: " + (msg.isBlank() ? rawBody : msg));
         }
 
-        r.ok = true;
-        r.logisticsId = m.get("AllPayLogisticsID");
-        r.trackingNo  = m.get("ShipmentNo"); // 可能為 null，待回拋補上
+        r.ok         = true;
+        r.logisticsId= nz(m.get("AllPayLogisticsID")); // 建單回覆的物流ID
+        r.trackingNo = nz(m.get("ShipmentNo"));        // 宅配黑貓託運單號（可能尚未給）
 
-        // 寫回 DB
+        // ===== 僅在「非空」時才更新資料庫欄位 =====
         try {
             o.setShippingType("address");
-            o.setLogisticsId(r.logisticsId);
-            o.setTrackingNo(r.trackingNo);
-            o.setLogisticsStatus("CREATED"); // 或 "PENDING"
-            orderRepo.save(o);
+
+            if (notBlank(r.logisticsId)) o.setLogisticsId(r.logisticsId.trim());
+            if (notBlank(r.trackingNo))  o.setTrackingNo(r.trackingNo.trim());
+
+            o.setLogisticsStatus("CREATED"); // 等回拋/查詢補追蹤碼
+            orderRepo.saveAndFlush(o);
+
+            log.info("[HomeCreate] saved orderId={} logisticsId={} trackingNo={}",
+                    o.getOrderId(), o.getLogisticsId(), o.getTrackingNo());
         } catch (Exception ex) {
             log.warn("[HomeCreate] save order failed: {}", ex.getMessage());
         }
+
+        // 讓前端可判斷：空字串改成 null
+        if (!notBlank(r.trackingNo))  r.trackingNo  = null;
+        if (!notBlank(r.logisticsId)) r.logisticsId = null;
+
         return r;
     }
 
+    // ====== 查詢宅配單（補追蹤碼） ======
+    /**
+     * 查詢宅配單資訊（以訂單的 AllPayLogisticsID 為主），若取得 ShipmentNo / LogisticsStatus 會自動寫回 DB。
+     * 典型用法：建單後幾秒、或在後台點「刷新追蹤碼」時呼叫。
+     */
+    public QueryResult queryHomeTradeInfoByOrder(Integer orderId) {
+        QueryResult out = new QueryResult();
+        out.ok = false;
+
+        Order o = orderRepo.findById(orderId).orElse(null);
+        if (o == null) {
+            out.error = "Order not found: " + orderId;
+            return out;
+        }
+        String logisticsId = nz(o.getLogisticsId());
+        if (logisticsId.isBlank()) {
+            out.error = "LogisticsId missing on order " + orderId + " (create first)";
+            return out;
+        }
+
+        var logi = prop.getLogistics();
+        String mid = nz(logi.getMerchantId());
+        String key = nz(logi.getHashKey());
+        String iv  = nz(logi.getHashIv());
+        if (blank(mid) || blank(key) || blank(iv)) {
+            out.error = "Logistics config missing: MerchantID/HashKey/HashIV";
+            return out;
+        }
+
+        String action = prop.isStage()
+                ? "https://logistics-stage.ecpay.com.tw/Helper/QueryLogisticsTradeInfo"
+                : "https://logistics.ecpay.com.tw/Helper/QueryLogisticsTradeInfo";
+
+        // 官方文件：QueryLogisticsTradeInfo 參數（常見）
+        Map<String, String> p = new LinkedHashMap<>();
+        p.put("MerchantID", mid);
+        p.put("AllPayLogisticsID", logisticsId);
+        // 很多範例會帶 TimeStamp（秒），帶了不會錯
+        p.put("TimeStamp", String.valueOf(Instant.now().getEpochSecond()));
+
+        String mac = generateCheckMacForLogistics(p, key, iv);
+        p.put("CheckMacValue", mac);
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        p.forEach(form::add);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        ResponseEntity<String> resp;
+        try {
+            resp = rest.postForEntity(action, new HttpEntity<>(form, headers), String.class);
+        } catch (Exception ex) {
+            out.error = "HTTP call failed: " + ex.getMessage();
+            log.error("[QueryTradeInfo] HTTP call failed: {}", ex.getMessage());
+            return out;
+        }
+
+        String rawBody = nz(resp.getBody());
+        out.raw = rawBody;
+        log.info("[QueryTradeInfo] HTTP={} body={}", resp.getStatusCodeValue(), rawBody);
+
+        if (!resp.getStatusCode().is2xxSuccessful() || rawBody.isBlank()) {
+            out.error = "Bad HTTP or empty body";
+            return out;
+        }
+
+        String kvPart = normalizeEcpayBody(rawBody);
+        Map<String, String> kv = parseKv(kvPart);
+        Map<String, String> m  = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        kv.forEach(m::put);
+
+        String rtn = m.getOrDefault("RtnCode", "");
+        String msg = m.getOrDefault("RtnMsg", "");
+        if (!"1".equals(rtn) && !"300".equals(rtn)) {
+            out.error = "Query failed: " + (msg.isBlank() ? rawBody : msg);
+            return out;
+        }
+
+        out.ok             = true;
+        out.logisticsId    = m.getOrDefault("AllPayLogisticsID", logisticsId);
+        out.trackingNo     = nz(m.get("ShipmentNo"));       // 重點
+        out.logisticsStatus= nz(m.get("LogisticsStatus"));  // 若有就回
+
+        // 有新追蹤碼或狀態才寫 DB（避免把 null/空覆蓋）
+        boolean changed = false;
+        if (notBlank(out.trackingNo) && !out.trackingNo.equals(nz(o.getTrackingNo()))) {
+            o.setTrackingNo(out.trackingNo);
+            changed = true;
+        }
+        if (notBlank(out.logisticsStatus) && !out.logisticsStatus.equals(nz(o.getLogisticsStatus()))) {
+            o.setLogisticsStatus(out.logisticsStatus);
+            changed = true;
+        }
+        if (changed) {
+            orderRepo.saveAndFlush(o);
+            log.info("[QueryTradeInfo] updated orderId={} logisticsId={} trackingNo={} status={}",
+                    o.getOrderId(), o.getLogisticsId(), o.getTrackingNo(), o.getLogisticsStatus());
+        } else {
+            log.info("[QueryTradeInfo] no change for orderId={} (tracking/status unchanged)", o.getOrderId());
+        }
+
+        return out;
+    }
+
+    // ====== CheckMac（Logistics：MD5） ======
     /** 物流用 CheckMac：UrlEncode → toLower → 7 個置換 → MD5 → UpperCase */
     private static String generateCheckMacForLogistics(Map<String, String> params, String hashKey, String hashIv) {
-        // 只簽非空 & 排除 CheckMacValue，key 不分大小寫排序
         Map<String, String> signMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (var e : params.entrySet()) {
             String k = e.getKey(), v = e.getValue();
@@ -200,7 +324,6 @@ public class LogisticsEcpayService {
             if (v == null || v.isBlank()) continue;
             signMap.put(k, v);
         }
-        // 用「原始值」組 k=v&k=v（不要先 encode 每個值）
         StringBuilder kv = new StringBuilder();
         for (var it = signMap.entrySet().iterator(); it.hasNext();) {
             var e = it.next();
@@ -209,7 +332,6 @@ public class LogisticsEcpayService {
         }
         String raw = "HashKey=" + hashKey + "&" + kv + "&HashIV=" + hashIv;
 
-        // 與 .NET HttpUtility.UrlEncode 行為對齊
         String encodedLower = URLEncoder.encode(raw, StandardCharsets.UTF_8)
                 .toLowerCase(Locale.ROOT)
                 .replace("%2d", "-")
@@ -263,17 +385,22 @@ public class LogisticsEcpayService {
 
     private static String nz(String s) { return s == null ? "" : s; }
     private static boolean blank(String s) { return s == null || s.isBlank(); }
+    private static boolean notBlank(String s) { return s != null && !s.isBlank(); }
     private static int n(Integer i) { return i == null ? 0 : i; }
+
     private static String firstNonBlank(String... vals) {
         if (vals == null) return "";
         for (String v : vals) if (v != null && !v.isBlank()) return v;
         return "";
     }
+
     private static HomeCreateResult fail(HomeCreateResult r, String msg) { r.ok = false; r.error = msg; return r; }
+
     private static String buildNo(String prefix, Integer orderId) {
         String base = prefix + LocalDateTime.now().format(NO) + (orderId == null ? "" : orderId);
         return base.length() > 20 ? base.substring(0, 20) : base;
     }
+
     private static Map<String, String> parseKv(String s) {
         Map<String, String> m = new LinkedHashMap<>();
         if (s == null || s.isBlank()) return m;
@@ -287,7 +414,7 @@ public class LogisticsEcpayService {
         return m;
     }
 
-    // 去掉綠界回傳開頭的 "1|" 或 "0|" 前綴
+    /** 去掉綠界回傳開頭的 "1|" 或 "0|" 前綴 */
     private static String normalizeEcpayBody(String body) {
         if (body == null) return "";
         int bar = body.indexOf('|');

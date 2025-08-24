@@ -32,7 +32,8 @@ public class SecurityConfig {
                                                 new AntPathRequestMatcher("/api/orders/**"),
                                                 new AntPathRequestMatcher("/api/cart/**"),
                                                 new AntPathRequestMatcher("/api/order-details/**"),
-                                                new AntPathRequestMatcher("/api/admin/**") // ← 關鍵：忽略 admin API 的 CSRF
+                                                new AntPathRequestMatcher("/api/admin/**"),
+                                                new AntPathRequestMatcher("/api/products/**") // ← 關鍵：忽略 admin API 的 CSRF
                                 ))
                                 .headers(h -> h.frameOptions(f -> f.sameOrigin()))
                                 .authorizeHttpRequests(auth -> auth
@@ -58,7 +59,8 @@ public class SecurityConfig {
                                                                 "/api/cart/**",
                                                                 "/api/orders/**",
                                                                 "/api/order-details/**",
-                                                                "/api/admin/**")
+                                                                "/api/admin/**",
+                                                                "/api/products/**")
                                                 .permitAll()
 
                                                 // 其他全部放行（開發階段）

@@ -17,6 +17,7 @@ public class OrderDTO {
     private String addr;
     private String receiverName;     // 你之前在 Order entity 加過
     private String receiverPhone;
+    private String logisticsStatus;
 
 
     private String storeId;

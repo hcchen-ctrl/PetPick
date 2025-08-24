@@ -71,7 +71,7 @@ function renderTable(orders) {
         <td>NT$${total.toLocaleString("zh-Hant-TW")}</td>
         <td><span class="badge ${statusBadgeClass(status)}">${escapeHtml(status)}</span></td>
         <td>
-          <a class="btn btn-sm btn-outline-primary" href="orderdetail.html?orderId=${encodeURIComponent(id)}">查看</a>
+          <a class="btn btn-sm btn-custom" href="orderdetail.html?orderId=${encodeURIComponent(id)}">查看</a>
         </td>
       </tr>
     `;

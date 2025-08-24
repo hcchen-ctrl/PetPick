@@ -13,7 +13,7 @@
     return `${y}/${m}/${day} ${hh}:${mm}:${ss}`;
   };
 
-  // 保險：ok!=1 就導到 fail
+  // 非成功就導回失敗頁
   const ok = get("ok");
   if (ok && ok !== "1") { location.replace("/fail.html?" + q.toString()); return; }
 
@@ -64,7 +64,6 @@
             payTime = fmtDT(t);
             setText("payTime", payTime);
           }
-          // 若付款方式還是沒有，且 o.status=Paid，可補成「信用卡」；或依你系統欄位補
           if (!paymentType && (o.status || "").toLowerCase() === "paid") {
             setText("paymentType", "信用卡");
           }
@@ -75,19 +74,31 @@
 
   // ---- 清空購物車 + 徽章刷新（冪等）----
   const userId = Number(sessionStorage.getItem("checkout_user_id")) || 1;
+  const DEMO_HEADERS = { "X-Demo-UserId": String(userId) }; // 後端若有用 Demo header，就會讀到；沒有也無妨
   const setBadge = (n) => { const el = document.getElementById("cart-badge"); if (el) el.textContent = String(n ?? 0); };
-  async function tryDelete(url) { try { const r = await fetch(url, { method: "DELETE" }); return r.ok; } catch { return false; } }
+
+  async function tryDelete(url) {
+    try {
+      const r = await fetch(url, { method: "DELETE", headers: { ...DEMO_HEADERS } });
+      return r.ok;
+    } catch { return false; }
+  }
+
   async function clearCart(uid) {
-    if (await tryDelete(`/api/cart/user/${encodeURIComponent(uid)}`)) return true;
+    // 先試新版路徑（建議）
     if (await tryDelete(`/api/cart/clear/${encodeURIComponent(uid)}`)) return true;
+    // 再退回舊路徑（若後端仍保留）
+    if (await tryDelete(`/api/cart/user/${encodeURIComponent(uid)}`)) return true;
     return false;
   }
+
   async function refreshBadge(uid) {
     try {
-      const r = await fetch(`/api/cart/withProduct/${encodeURIComponent(uid)}`);
+      const r = await fetch(`/api/cart/withProduct/${encodeURIComponent(uid)}`, { headers: { ...DEMO_HEADERS } });
       const items = r.ok ? await r.json() : [];
       setBadge(Array.isArray(items) ? items.length : 0);
     } catch { setBadge(0); }
   }
+
   (async () => { await clearCart(userId); await refreshBadge(userId); })();
 })();

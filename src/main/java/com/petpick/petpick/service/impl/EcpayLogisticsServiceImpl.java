@@ -5,7 +5,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -13,7 +16,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petpick.petpick.config.EcpayProperties;
-import com.petpick.petpick.mac.EcpayCheckMac;
+import com.petpick.petpick.mac.EcpayPaymentCheckMac;
 import com.petpick.petpick.service.EcpayHomeService;
 
 import lombok.RequiredArgsConstructor;
@@ -68,7 +71,7 @@ public class EcpayLogisticsServiceImpl implements EcpayHomeService {
         p.putIfAbsent("ScheduledDeliveryTime", "4"); // 4:不限
 
         // 簽章
-        String mac = EcpayCheckMac.generate(p, key, iv);
+        String mac = EcpayPaymentCheckMac.generate(p, key, iv);
         p.put("CheckMacValue", mac);
 
         // 送出 x-www-form-urlencoded

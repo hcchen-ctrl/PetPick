@@ -11,6 +11,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Data;
 
@@ -46,17 +48,23 @@ public class Product {
     private LocalDateTime createdAt;
 
     @Column(name = "is_active")
-    private Boolean isActive;
+    private Boolean active;
 
     @Column(name = "type")
     private String type;
+
+    @Column(nullable = false)
+    private boolean published = true;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     // --- Constructors ---
     public Product() {
     }
 
     public Product(Integer productId, String pname, String description, Integer price, Integer stock,
-            Integer categoryId, String imageUrl, LocalDateTime createdAt, Boolean isActive, String type) {
+            Integer categoryId, String imageUrl, LocalDateTime createdAt, Boolean active, String type) {
         this.productId = productId;
         this.pname = pname;
         this.description = description;
@@ -65,8 +73,14 @@ public class Product {
         this.categoryId = categoryId;
         this.imageUrl = imageUrl;
         this.createdAt = createdAt;
-        this.isActive = isActive;
+        this.active = active;
         this.type = type;
+    }
+
+    @PrePersist
+    @PreUpdate
+    void touch() {
+        this.updatedAt = java.time.LocalDateTime.now();
     }
 
     // 一個商品可以有多個購物車項目

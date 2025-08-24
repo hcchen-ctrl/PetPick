@@ -89,3 +89,66 @@ body {
     padding: 0.25em 0.5em;
     border-radius: 999px;
 }
+
+.order-progress .op-steps {
+    display: flex;
+    align-items: center;
+    gap: 8px
+}
+
+.order-progress .op-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 90px;
+    text-align: center
+}
+
+.order-progress .op-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #d0d5dd;
+    box-shadow: 0 0 0 2px #fff inset
+}
+
+.order-progress .op-bar {
+    flex: 1;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 4px
+}
+
+.order-progress .op-step.active .op-dot {
+    background: #ff2d55
+}
+
+/* 目前步驟 */
+.order-progress .op-step.done .op-dot {
+    background: #22c55e
+}
+
+/* 已完成步驟 */
+.order-progress .op-step .op-label {
+    font-size: .9rem;
+    margin-top: 6px
+}
+
+.order-progress .op-step .op-time {
+    font-size: .75rem;
+    color: #6b7280
+}
+
+.order-progress .op-bar.done {
+    background: #22c55e
+}
+
+.order-progress .op-bar.active {
+    background: linear-gradient(90deg, #22c55e 50%, #e5e7eb 50%)
+}
+
+@media (max-width:420px) {
+    .order-progress .op-step {
+        min-width: auto
+    }
+}
