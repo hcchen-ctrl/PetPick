@@ -120,6 +120,12 @@
                     <button class="btn btn-outline-secondary btn-sm" id="btnExport">匯出 CSV</button>
 
                     <div class="ms-auto d-flex align-items-center gap-2">
+                        <!-- 分頁 -->
+                        <nav class="mt-2">
+                            <ul class="pagination pagination-sm mb-1 me-2" id="pagination">
+                                <!-- JS render -->
+                            </ul>
+                        </nav>
                         <label for="pageSize" class="form-label m-0 small">每頁</label>
                         <select id="pageSize" class="form-select form-select-sm" style="width: auto;">
                             <option>10</option>
@@ -152,13 +158,6 @@
                         </tbody>
                     </table>
                 </div>
-
-                <!-- 分頁 -->
-                <nav>
-                    <ul class="pagination" id="pagination">
-                        <!-- JS render -->
-                    </ul>
-                </nav>
             </main>
         </div>
     </div>

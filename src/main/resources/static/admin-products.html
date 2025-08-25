@@ -1,20 +1,34 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>商品管理 - 後台</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
-    .table td, .table th { vertical-align: middle; }
-    .cursor-pointer { cursor: pointer; }
+    .table td,
+    .table th {
+      vertical-align: middle;
+    }
+
+    .cursor-pointer {
+      cursor: pointer;
+    }
+
     /* 載入遮罩 */
     #loadingMask {
-      position: fixed; inset: 0; background: rgba(255,255,255,.6);
-      display: none; align-items: center; justify-content: center; z-index: 2000;
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, .6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
     }
   </style>
 </head>
+
 <body>
   <div id="loadingMask">
     <div class="spinner-border" role="status" aria-label="loading"></div>
@@ -50,14 +64,15 @@
 
           <!-- 中：搜尋（置中） -->
           <div class="col-12 col-md-6 d-flex justify-content-center">
-            <input id="keyword"
-                   class="form-control"
-                   placeholder="搜尋編號、名稱或描述…"
-                   style="max-width: 520px; width: 100%;" />
+            <input id="keyword" class="form-control" placeholder="搜尋編號、名稱或描述…" style="max-width: 520px; width: 100%;" />
           </div>
 
+
+
           <!-- 右：每頁筆數（最右側） -->
+          <!-- 分頁列 -->
           <div class="col-12 col-md-3 d-flex justify-content-md-end">
+            <ul id="pagination" class="pagination pagination-sm mb-0 me-2"></ul>
             <select id="pageSize" class="form-select form-select-sm" style="width:auto;">
               <option value="10" selected>每頁 10 筆</option>
               <option value="20">每頁 20 筆</option>
@@ -81,15 +96,14 @@
               </tr>
             </thead>
             <tbody id="product-table-body">
-              <tr><td colspan="8" class="text-center text-muted py-4">載入中…</td></tr>
+              <tr>
+                <td colspan="8" class="text-center text-muted py-4">載入中…</td>
+              </tr>
             </tbody>
           </table>
         </div>
 
-        <!-- 分頁列 -->
-        <div class="d-flex justify-content-end">
-          <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
-        </div>
+
 
         <!-- Toast 容器 -->
         <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
@@ -189,4 +203,5 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/adminProduct.js"></script>
 </body>
+
 </html>

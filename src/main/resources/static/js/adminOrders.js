@@ -5,9 +5,9 @@
   // ★ 管理端請求一律帶上 ADMIN 標頭（對應後端 DemoAuthFilter）
   const ADMIN_HEADERS = { "X-Demo-Role": "ADMIN" };
 
-  // ★ 小建議：用旗標控制「建立託運單即視為已出貨」語意（預設開）
+  // ★ 用旗標控制「建立託運單即視為已出貨」語意（預設關）
   const FLAGS = {
-    SHIPPED_ON_CONSIGNMENT: true,
+    SHIPPED_ON_CONSIGNMENT: false,
   };
 
   const state = {
@@ -144,13 +144,14 @@
     btnLogisticsSave.addEventListener("click", onSaveLogistics);
     btnCancelSave.addEventListener("click", onSaveCancel);
 
-    // === NEW === 查詢追蹤碼按鈕
+    // === 查詢追蹤/物流按鈕（會在不同分支更換 handler）
     if (btnQueryTracking) {
       btnQueryTracking.addEventListener("click", async () => {
         const id = Number(logisticsModal._currentId);
         if (!id) return;
         try {
           showLoading(true);
+          // 預設用宅配查詢；在 cvs_cod 分支會改綁至 queryCvsFromEcpay
           const j = await queryTrackingFromEcpay(id);
           if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
           if (j.trackingNo) trackingNoInput.value = j.trackingNo;
@@ -164,6 +165,7 @@
           } else {
             toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
           }
+          try { await hydrateStatus(); } catch {}
         } catch (err) {
           toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
         } finally {
@@ -220,7 +222,7 @@
     return true;
   }
 
-  // === NEW === 從綠界查詢（後端封裝）：GET /api/logistics/home/query/{orderId}
+  // GET
   async function apiGet(url) {
     const r = await fetch(url, { headers: { ...ADMIN_HEADERS } });
     const j = await r.json().catch(() => ({}));
@@ -278,8 +280,8 @@
     $$(".btn-logistics").forEach(btn => btn.addEventListener("click", onOpenLogistics));
     $$(".btn-cancel").forEach(btn => btn.addEventListener("click", onOpenCancel));
 
-    hydrateDelivery(); // 補齊配送欄顯示（必要時）
-    hydrateStatus();   // 補齊付款/配送徽章（確保建立託運單後會變「已出貨」）
+    hydrateDelivery();
+    hydrateStatus();
   }
 
   // === 做法 A：狀態欄改為「付款 / 配送」兩個徽章 ===
@@ -314,7 +316,7 @@
       <td>${time}</td>
       <td class="d-flex flex-wrap gap-1 align-items-center">
         <button class="btn btn-sm btn-outline-primary btn-view" data-id="${escapeAttr(id)}">查看</button>
-        <button class="btn btn-sm btn-outline-secondary btn-status" data-id="${escapeAttr(id)}" data-status="${escapeAttr(rawStatus)}">狀態</button>
+        <button class="btn btn-sm btn-outline-secondary btn-status" data-id="${escapeAttr(id)}" data-status="${escapeAttr(rawStatus)}">變更物流狀態</button>
         <button class="btn btn-sm btn-success btn-paid" data-id="${escapeAttr(id)}" data-amount="${escapeAttr(total)}">付款</button>
         <button class="btn btn-sm btn-info btn-logistics" data-id="${escapeAttr(id)}">物流</button>
         <button class="btn btn-sm btn-outline-danger btn-cancel" data-id="${escapeAttr(id)}">取消</button>
@@ -430,7 +432,7 @@
     trackingNoInput.value = "";
     logisticsMeta.textContent = "讀取中…";
     btnHomeCreate.classList.add("d-none");           // 預設先隱藏
-    btnQueryTracking.classList.add("d-none");        // === NEW === 預設隱藏
+    btnQueryTracking.classList.add("d-none");        // 預設隱藏
     logisticsModal._currentId = id;
 
     try {
@@ -450,9 +452,11 @@
         `;
         // 宅配：顯示兩顆按鈕（建立、查詢）
         btnHomeCreate.classList.remove("d-none");
+        btnHomeCreate.textContent = "建立宅配託運單";
         btnHomeCreate.onclick = () => createHomeFor(id);
 
-        btnQueryTracking.classList.remove("d-none"); // === NEW ===
+        btnQueryTracking.classList.remove("d-none");
+        btnQueryTracking.textContent = "查詢宅配狀態";
         btnQueryTracking.onclick = async () => {
           try {
             showLoading(true);
@@ -467,6 +471,7 @@
             } else {
               toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
             }
+            try { await hydrateStatus(); } catch {}
           } catch (err) {
             toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
           } finally {
@@ -474,21 +479,45 @@
           }
         };
       } else if (t === "cvs_cod") {
-        const brand = o.storeBrand || "";
+        const brand = o.storeBrand || "全家";
         const brandText = brand ? `（${escapeHtml(brand)}）` : "";
         logisticsMeta.innerHTML = `
           <div><span class="badge bg-info text-dark">超商取貨付款</span> ${brandText}</div>
           <div class="text-muted">${escapeHtml(o.storeName || "—")}　${o.storeAddress ? "｜" + escapeHtml(o.storeAddress) : ""}</div>
         `;
-        btnHomeCreate.classList.add("d-none");
-        btnHomeCreate.onclick = null;
-        btnQueryTracking.classList.add("d-none"); // === NEW ===
-        btnQueryTracking.onclick = null;
+        // ★ 走 B2C 全家：顯示建立 / 查詢
+        btnHomeCreate.classList.remove("d-none");
+        btnHomeCreate.textContent = "建立超商託運單（全家B2C）";
+        btnHomeCreate.onclick = () => createCvsForB2C(id);    // NEW
+
+        btnQueryTracking.classList.remove("d-none");
+        btnQueryTracking.textContent = "查詢超商狀態";
+        btnQueryTracking.onclick = async () => {
+          try {
+            showLoading(true);
+            const j = await queryCvsFromEcpay(id);           // NEW
+            if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+            if (j.trackingNo) trackingNoInput.value = j.trackingNo;
+
+            const o2 = await fetchOrderOne(id);
+            if (o2.trackingNo) {
+              trackingNoInput.value = o2.trackingNo;
+              toast(`已取得追蹤碼：${escapeHtml(o2.trackingNo)}`);
+            } else {
+              toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
+            }
+            try { await hydrateStatus(); } catch {}
+          } catch (err) {
+            toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
+          } finally {
+            showLoading(false);
+          }
+        };
       } else {
         logisticsMeta.innerHTML = `<div class="text-muted">配送：${escapeHtml(o.shippingType || "—")}</div>`;
         btnHomeCreate.classList.add("d-none");
         btnHomeCreate.onclick = null;
-        btnQueryTracking.classList.add("d-none"); // === NEW ===
+        btnQueryTracking.classList.add("d-none");
         btnQueryTracking.onclick = null;
       }
 
@@ -520,11 +549,7 @@
 
       await apiPost(`${API_BASE}/${id}/logistics`, payload);
 
-      // 若有追蹤碼或物流編號 → 可順便標記為已出貨（依需求）
-      if (tno || lid) {
-        await apiPatch(`${API_BASE}/${id}/status`, { status: "Shipped", note: "" });
-      }
-
+      // 若有追蹤碼或物流編號 → 不再自動標記為已出貨（交由「建立託運單」按鈕決定）
       logisticsModal.hide();
       toast("物流資訊已儲存");
       loadPage(state.page);
@@ -758,7 +783,6 @@
     el.addEventListener("hidden.bs.toast", () => el.remove());
   }
 
-  //（保留舊的；其它地方若仍使用不會壞）
   function statusBadgeClass(s) {
     const k = String(s || "").toLowerCase();
     if (["paid", "已付款"].includes(k)) return "bg-success";
@@ -810,7 +834,7 @@
   function escapeAttr(s) { return String(s ?? "").replaceAll('"', '&quot;'); }
   async function safeText(r) { try { return await r.text(); } catch { return `HTTP ${r.status}`; } }
 
-  // === 做法 A 用到的小工具 ===
+  // === 付款狀態（移除「Shipped/Delivered 就算已付款」的誤判）===
   function paymentStatusOf(o) {
     const s = String(o.status || "").toUpperCase();
     const shipType = String(o.shippingType || "").toLowerCase();
@@ -819,23 +843,22 @@
     const hasGatewayAndTrade =
       Boolean(o.paymentGateway || o.gateway) && Boolean(o.tradeNo || o.paymentTradeNo);
 
-    // 失敗/取消優先
     if (s === "FAILED") return "付款失敗";
     if (s === "CANCELLED") return "已取消";
 
-    // COD：取件或配達才算收款
+    // CVS 取貨付款：取件/配達才視為已付款
     if (shipType === "cvs_cod") {
       if (logi === "PICKED_UP" || logi === "DELIVERED") return "已付款（COD）";
       return "待付款";
     }
 
-    // 非 COD（信用卡/轉帳等）：以下任一條件視為已付款
+    // 一般（含宅配 COD）：以實際付款欄位為準
     if (s === "PAID") return "已付款";
     if (o.paidAt) return "已付款";
     if (paidAmount > 0) return "已付款";
     if (hasGatewayAndTrade && s !== "PENDING") return "已付款";
-    if (s === "SHIPPED" || s === "DELIVERED") return "已付款";
 
+    // 不再因 Shipped/Delivered 自動視為已付款
     return "待付款";
   }
 
@@ -871,7 +894,7 @@
     return Boolean(o.logisticsId || o.trackingNo || ls);
   }
 
-  // 物流/配送狀態顯示（依「是否建立託運單」切換）
+  // 物流/配送狀態顯示
   function deliveryStatusOf(o) {
     const orderS = String(o.status || "").toUpperCase();
     if (orderS === "FAILED" || orderS === "CANCELLED") return "—";
@@ -884,20 +907,24 @@
       return "已配達";
     }
 
-    // 宅配：未建立託運單 → 待出貨；建立後（含 CREATED/有單號）→ 已出貨
+    // 宅配：以實際狀態為準；只有按了「建立託運單」造成 SHIPPED 或收到 IN_TRANSIT 才顯示「已出貨」
     if (shipType === "address") {
-      if (FLAGS.SHIPPED_ON_CONSIGNMENT && consignmentCreated(o)) return "已出貨";
+      if (orderS === "SHIPPED" || ls === "IN_TRANSIT") return "已出貨";
       return "待出貨";
     }
 
-    // 超商取貨（COD）：有任何物流狀態就視為已出貨，否則待出貨
+    // 超商取貨（COD，B2C 全家）
     if (shipType === "cvs_cod") {
-      return ls ? "已出貨" : "待出貨";
+      if (FLAGS.SHIPPED_ON_CONSIGNMENT && consignmentCreated(o)) return "已出貨";
+      if (orderS === "SHIPPED" || ls === "IN_TRANSIT") return "已出貨";
+      return "待出貨";
     }
 
-    // 其他配送型別：若指定了型別 → 依是否建單決定；否則不顯示
+    // 其他配送型別
     if (shipType) {
-      return consignmentCreated(o) ? "已出貨" : "待出貨";
+      return (orderS === "SHIPPED" || ls === "IN_TRANSIT" || (FLAGS.SHIPPED_ON_CONSIGNMENT && consignmentCreated(o)))
+        ? "已出貨"
+        : "待出貨";
     }
 
     return "—";
@@ -965,14 +992,20 @@
     return data;
   }
 
-  // === NEW === 後端封裝的「查詢宅配單」：呼叫 GET /api/logistics/home/query/{orderId}
+  // === 後端封裝的「查詢宅配單」
   async function queryTrackingFromEcpay(orderId) {
     const j = await apiGet(`/api/logistics/home/query/${encodeURIComponent(orderId)}`);
     // 這支 API 已在後端內部把 trackingNo / logisticsStatus 回寫 DB（若有變動）
     return j;
   }
 
-  // ★ 建立宅配託運單：若暫無追蹤碼，啟動輪詢並搭配「查詢宅配單」API
+  // === NEW === 後端封裝的「查詢 CVS（B2C 全家）」：GET /api/logistics/cvs/query/{orderId}
+  async function queryCvsFromEcpay(orderId) {
+    const j = await apiGet(`/api/logistics/cvs/query/${encodeURIComponent(orderId)}`);
+    return j;
+  }
+
+  // ★ 建立宅配託運單：若暫無追蹤碼，啟動輪詢並搭配 Query API
   async function createHomeFor(orderId) {
     if (!orderId) return;
     try {
@@ -1002,14 +1035,12 @@
         await pollTracking(orderId, 6, 5000);
       }
 
-      // ★ 小建議：不論是否選擇標記 Shipped，都即時更新表格徽章（免等整頁重載）
       try { await hydrateStatus(); } catch {}
 
-      if (confirm("是否將訂單標記為 Shipped？")) {
-        await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界宅配" });
-        orderCache.delete(Number(orderId));
-        await loadPage(state.page);
-      }
+      // ★ 只有按下這顆建立託運單的行為，才把訂單標記為 Shipped
+      await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界宅配" });
+      orderCache.delete(Number(orderId));
+      await loadPage(state.page);
     } catch (err) {
       toast(`宅配建立失敗：${escapeHtml(err.message || "")}`, "danger");
     } finally {
@@ -1017,8 +1048,58 @@
     }
   }
 
+  // ★ NEW ★ 建立 CVS（B2C 全家）託運單
+  async function createCvsForB2C(orderId) {
+    if (!orderId) return;
+    try {
+      showLoading(true);
+      // 走 B2C 全家（FAMI）＋ 取貨付款
+      const r = await fetch("/api/logistics/cvs/ecpay/create-b2c", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...ADMIN_HEADERS },
+        body: JSON.stringify({ orderId, subType: "FAMI", isCollection: true })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok === false) throw new Error(j.error || "建立失敗");
+
+      // 立即顯示/回填
+      if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+      if (j.trackingNo)  trackingNoInput.value = j.trackingNo;
+
+      // 回寫 DB（門市特有欄位若有）
+      const payload = {};
+      if (j.logisticsId)     payload.logisticsId     = j.logisticsId;
+      if (j.trackingNo)      payload.trackingNo      = j.trackingNo;
+      if (j.cvsPaymentNo)    payload.cvsPaymentNo    = j.cvsPaymentNo;
+      if (j.cvsValidationNo) payload.cvsValidationNo = j.cvsValidationNo;
+      if (Object.keys(payload).length > 0) {
+        await apiPost(`${API_BASE}/${orderId}/logistics`, payload);
+      }
+
+      if (j.trackingNo) {
+        toast(`超商託運單建立完成，追蹤碼：${escapeHtml(j.trackingNo)}`);
+      } else if (j.logisticsId) {
+        toast(`超商託運單建立完成（LogisticsID：${escapeHtml(j.logisticsId)}）`);
+      } else {
+        toast("超商託運單建立完成（追蹤碼將於回拋或查詢後更新）", "warning");
+      }
+
+      // 建單後刷新徽章
+      try { await hydrateStatus(); } catch {}
+
+      // ★ 按了這顆建立超商託運單，就標記為 Shipped
+      await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界超商B2C（全家）" });
+      orderCache.delete(Number(orderId));
+      await loadPage(state.page);
+    } catch (err) {
+      toast(`超商託運單建立失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
   // ★ 輪詢追蹤碼（搭配 Query API）
-  async function pollTracking(orderId, times = 6, intervalMs = 5000) {
+  async function pollTracking(orderId, times = 3, intervalMs = 5000) {
     for (let i = 0; i < times; i++) {
       try {
         await wait(intervalMs);

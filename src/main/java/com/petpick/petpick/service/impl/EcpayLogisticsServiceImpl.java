@@ -62,7 +62,7 @@ public class EcpayLogisticsServiceImpl implements EcpayHomeService {
         require(p, "ReceiverAddress");
 
         // 常見預設
-        p.putIfAbsent("IsCollection", "N");      // 是否代收：N
+        p.putIfAbsent("IsCollection", "Y");      // 是否代收：N
         p.putIfAbsent("CollectionAmount", "0");
         p.putIfAbsent("Temperature", "0001");    // 0001:常溫
         p.putIfAbsent("Distance", "00");         // 00:同縣市/一般

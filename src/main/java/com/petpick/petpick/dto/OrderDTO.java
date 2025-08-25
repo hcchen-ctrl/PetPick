@@ -12,10 +12,12 @@ public class OrderDTO {
     private Integer totalPrice;
     private String  status;
     private LocalDateTime createdAt;
+    private LocalDateTime shippedAt;
+    private LocalDateTime deliveredAt;
 
     private String shippingType;
     private String addr;
-    private String receiverName;     // 你之前在 Order entity 加過
+    private String receiverName;     
     private String receiverPhone;
     private String logisticsStatus;
 

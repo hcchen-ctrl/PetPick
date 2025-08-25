@@ -1,4 +1,4 @@
-// === orderDetail.js（穩健版 + 三段進度條）===
+// === orderDetail.js（穩健版 + 三段進度條 + 輕量輪詢10秒＋分頁隱藏自動暫停）===
 
 // 讀 URL 參數 & 既有暫存
 const q = new URLSearchParams(location.search);
@@ -8,6 +8,10 @@ const tradeNoParam = q.get("tradeNo") || q.get("TradeNo");
 const lastOrderId = sessionStorage.getItem("last_order_id");
 const userId = Number(sessionStorage.getItem("checkout_user_id")) || 1;
 
+// ---------- 輕量輪詢（全域狀態） ----------
+let __currentOrderId = null;
+let __progressTimer = null;
+
 document.addEventListener("DOMContentLoaded", async () => {
   fixBs5NavbarToggler();
   try {
@@ -16,7 +20,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       showWarn("找不到訂單編號，請從 <a href='order.html'>訂單總覽</a> 進入。");
       return;
     }
+
     await loadOrder(id);
+
+    // ★ 記住目前訂單並啟動 10 秒輪詢（僅在前景）
+    __currentOrderId = String(id);
+    startProgressPolling(__currentOrderId, 10000);
+
+    // ★ 分頁隱藏就停；回前景立即刷新一次並恢復輪詢
+    document.addEventListener("visibilitychange", () => {
+      if (!__currentOrderId) return;
+      if (document.hidden) {
+        stopProgressPolling();
+      } else {
+        // 回到前景：立即刷新一次畫面，然後恢復輪詢
+        loadOrder(__currentOrderId).catch(() => {});
+        startProgressPolling(__currentOrderId, 10000);
+      }
+    });
+
     await updateCartBadge();
   } catch (err) {
     console.error(err);
@@ -84,7 +106,7 @@ async function loadOrder(id) {
       // 顯示並更新進度條（若你有 updateOrderProgress / applyOrderProgress）
       progressEl.classList.remove("d-none");
       if (typeof updateOrderProgress === "function") {
-        updateOrderProgress(o); // 依你的實作更新「建立訂單/出貨中/已配達」
+        updateOrderProgress(o); // 依你的實作更新「建立訂單/已出貨/已配達」
       }
     }
   }
@@ -197,12 +219,13 @@ function renderHeader(o) {
 
   const box = document.getElementById("order-info");
   if (box) box.innerHTML = lines.join("\n");
-}/** 三段式進度條：建立訂單 → 出貨中 → 已配達 */
+}
+
+/** 三段式進度條：建立訂單 → 已出貨 → 已配達 */
 function renderProgress(o) {
   // 0) 找/建容器
   let wrap = document.getElementById("order-progress");
   if (!wrap) {
-    // 沒容器就自動插到 order-info 後方
     const info = document.getElementById("order-info");
     wrap = document.createElement("section");
     wrap.id = "order-progress";
@@ -210,41 +233,66 @@ function renderProgress(o) {
     wrap.innerHTML = progressSkeleton();
     if (info && info.parentNode) info.parentNode.insertBefore(wrap, info.nextSibling);
   } else {
-    wrap.innerHTML = progressSkeleton(); // 重置
+    wrap.innerHTML = progressSkeleton();
   }
 
-  // 1) 判斷所在步驟
-  const stat = String(o.status || "").toUpperCase();
+  // 1) 正規化欄位
+  const stat  = String(o.status || "").toUpperCase();
   const lstat = String(o.logisticsStatus || "").toUpperCase();
-  const step = decideStep({ stat, lstat, shippedAt: o.shippedAt, deliveredAt: o.deliveredAt, trackingNo: o.trackingNo });
+  const shippedAtRaw   = o.shippedAt   ?? o.shipAt   ?? o.shipped_at   ?? o.ship_at   ?? null;
+  const deliveredAtRaw = o.deliveredAt ?? o.receivedAt ?? o.delivered_at ?? o.received_at ?? null;
 
-  // 2) 標記樣式
+  // 2) 里程碑：是否「已出貨事件」/「已送達事件」
+  const shippedReached   = !!shippedAtRaw || lstat === "IN_TRANSIT" || !!o.trackingNo;
+  const deliveredReached = lstat === "DELIVERED" || !!deliveredAtRaw;
+
+  // 3) 套用樣式（點與橫桿）
   const steps = wrap.querySelectorAll(".op-step");
-  const bars = wrap.querySelectorAll(".op-bar");
-  steps.forEach((el, idx) => {
-    const n = idx + 1;
-    el.classList.toggle("done", n < step);
-    el.classList.toggle("active", n === step);
-  });
-  bars.forEach((b, idx) => {
-    const leftStep = idx + 1;
-    b.classList.toggle("done", step > leftStep + 0);
-    b.classList.toggle("active", step === leftStep + 0);
-  });
+  const bars  = wrap.querySelectorAll(".op-bar");
 
-  // 3) 時間顯示（有什麼顯示什麼）
-  setTextEl(wrap, "#op-created", fmtDT(o.createdAt));
-  setTextEl(wrap, "#op-shipped", fmtDT(o.shippedAt) || (step >= 2 ? "處理中…" : "—"));
-  setTextEl(wrap, "#op-delivered", fmtDT(o.deliveredAt) || (step === 3 ? "已完成" : "—"));
+  const s1 = steps[0], s2 = steps[1], s3 = steps[2];
+  if (s1) {
+    s1.classList.toggle("done",   shippedReached || deliveredReached); // 只要越過出貨就算完成第1步
+    s1.classList.toggle("active", !shippedReached && !deliveredReached);
+  }
+  if (s2) {
+    s2.classList.toggle("done",   shippedReached);                     // ★ 已出貨就變綠
+    s2.classList.toggle("active", shippedReached && !deliveredReached);// 未配達前維持當前步
+  }
+  if (s3) {
+    s3.classList.toggle("done",   deliveredReached);
+    s3.classList.toggle("active", deliveredReached);
+  }
 
-  // 4) 可選：出貨中顯示簡單 ETA（若未送達）
-  if (step === 2 && !o.deliveredAt) {
-    const base = o.shippedAt || o.createdAt;
-    const guess = eta(base, 2); // 先抓 +2 天的粗估
+  const b1 = bars[0], b2 = bars[1];
+  if (b1) {
+    b1.classList.toggle("done",   shippedReached);
+    b1.classList.toggle("active", !shippedReached && !deliveredReached);
+  }
+  if (b2) {
+    b2.classList.toggle("done",   deliveredReached);
+    b2.classList.toggle("active", shippedReached && !deliveredReached);
+  }
+
+  // 4) 時間顯示
+  setTextEl(wrap, "#op-created",   fmtDT(o.createdAt));
+  setTextEl(wrap, "#op-shipped",   fmtDT(shippedAtRaw)   || (shippedReached   ? "出貨處理中…" : "—"));
+  setTextEl(wrap, "#op-delivered", fmtDT(deliveredAtRaw) || (deliveredReached ? "已完成"       : "—"));
+
+  // 5) 出貨中 ETA
+  if (shippedReached && !deliveredReached) {
+    const base = shippedAtRaw || o.createdAt;
+    const guess = eta(base, 2);
     if (guess) setTextEl(wrap, "#op-delivered", `預計 ${guess} 送達`);
   }
-}
 
+  // 6) 取消單隱藏
+  if (typeof isCancelledStatus === "function" && isCancelledStatus(o.status)) {
+    wrap.classList.add("d-none");
+  } else {
+    wrap.classList.remove("d-none");
+  }
+}
 function progressSkeleton() {
   return `
     <div class="op-steps">
@@ -256,7 +304,7 @@ function progressSkeleton() {
       <div class="op-bar"></div>
       <div class="op-step" data-step="2">
         <div class="op-dot"></div>
-        <div class="op-label">出貨中</div>
+        <div class="op-label">已出貨</div>
         <div class="op-time" id="op-shipped">—</div>
       </div>
       <div class="op-bar"></div>
@@ -298,26 +346,58 @@ function renderItems(items) {
   tbody.innerHTML = rows || `<tr><td colspan="4" class="text-muted text-center py-4">此訂單沒有明細資料</td></tr>`;
 }
 
+// ---------- 輕量輪詢（只更新進度條；前景才跑） ----------
+function startProgressPolling(orderId, intervalMs = 10000) {
+  stopProgressPolling();                 // 防重複
+  if (!orderId) return;
+  if (document.hidden) return;           // 在背景就不啟動
+
+  __progressTimer = setInterval(async () => {
+    // 若中途變背景，立即停掉
+    if (document.hidden) {
+      stopProgressPolling();
+      return;
+    }
+    try {
+      const r = await fetch(`/api/orders/${encodeURIComponent(orderId)}`);
+      if (!r.ok) return;
+      const o = await r.json();
+      renderProgress(o);
+
+      const delivered = String(o.logisticsStatus || "").toUpperCase() === "DELIVERED" || !!o.deliveredAt;
+      const cancelled = typeof isCancelledStatus === "function" && isCancelledStatus(o.status);
+      if (delivered || cancelled) stopProgressPolling();
+    } catch { /* ignore */ }
+  }, Math.max(3000, intervalMs));
+}
+
+function stopProgressPolling() {
+  if (__progressTimer) {
+    clearInterval(__progressTimer);
+    __progressTimer = null;
+  }
+}
+
+window.addEventListener("beforeunload", stopProgressPolling);
+
 // ---------- 工具區 ----------
 function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v || "—"; }
 function setTextEl(root, sel, v) { const el = root.querySelector(sel); if (el) el.textContent = v || "—"; }
 function num(...vals) { for (const v of vals) { const n = Number(v); if (Number.isFinite(n)) return n; } return 0; }
 function fmtCurrency(n) { return `NT$${num(n).toLocaleString("zh-Hant-TW")}`; }
 function fmtDateTime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d)) return escapeHtml(iso);
+  const d = toDateSafe(iso);
+  if (!d) return "";
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).toString().padStart(2, "0");
-  const mm = String(d.getMinutes()).toString().padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
   return `${y}-${m}-${day} ${hh}:${mm}`;
 }
 function fmtDT(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d)) return "";
+  const d = toDateSafe(iso);
+  if (!d) return "";
   const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
   const hh = String(d.getHours()).padStart(2, "0"), mm = String(d.getMinutes()).padStart(2, "0");
   return `${y}/${m}/${day} ${hh}:${mm}`;
@@ -328,6 +408,19 @@ function eta(iso, days = 2) {
   d.setDate(d.getDate() + days);
   const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
   return `${y}/${m}/${day}`;
+}
+function toDateSafe(input) {
+  if (!input) return null;
+  if (input instanceof Date) return isNaN(input) ? null : input;
+  if (typeof input === "number") { const d = new Date(input); return isNaN(d) ? null : d; }
+  let s = String(input).trim();
+  // 把 "yyyy-MM-dd HH:mm:ss" 轉為 ISO
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) s = s.replace(" ", "T");
+  // 將超過 3 碼的小數裁到 3 碼（Safari 對 .123456 可能會炸）
+  s = s.replace(/(\.\d{3})\d+/, "$1");
+  // 不強加時區，保留本地時間語意
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
 }
 function escapeHtml(s) {
   return String(s ?? "")
@@ -358,24 +451,9 @@ async function updateCartBadge() {
   } catch { /* ignore */ }
 }
 
-// === 新增：小工具 ===
+// === 小工具：判斷是否取消狀態 ===
 function isCancelledStatus(s) {
   const raw = String(s || "").trim();
   const k = raw.toLowerCase();
   return k === "cancelled" || k === "canceled" || raw === "取消";
-}
-
-// ... loadOrder(id) 內部，renderHeader(o) / renderItems(items) 之後，加上這段：
-const progressEl = document.querySelector(".order-progress");
-if (progressEl) {
-  if (isCancelledStatus(o.status)) {
-    // 隱藏進度條
-    progressEl.classList.add("d-none");
-  } else {
-    // 顯示並更新進度條（若你有 updateOrderProgress / applyOrderProgress）
-    progressEl.classList.remove("d-none");
-    if (typeof updateOrderProgress === "function") {
-      updateOrderProgress(o); // 依你的實作更新「建立訂單/出貨中/已配達」
-    }
-  }
 }

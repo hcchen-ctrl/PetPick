@@ -50,11 +50,13 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderDTO checkout(CheckoutRequest req) {
         Integer userId = req.getUserId();
-        if (userId == null) throw new IllegalArgumentException("userId is required");
+        if (userId == null)
+            throw new IllegalArgumentException("userId is required");
 
         // 1) 撈購物車
         List<CartProductDTO> cartItems = cartService.getCartWithProductByUserId(userId);
-        if (cartItems == null || cartItems.isEmpty()) throw new IllegalStateException("購物車為空");
+        if (cartItems == null || cartItems.isEmpty())
+            throw new IllegalStateException("購物車為空");
 
         // 2) 計算總額（double → int）
         double total = 0.0d;
@@ -94,15 +96,16 @@ public class OrderServiceImpl implements OrderService {
         // 5) 建立主出貨快照（若為超取，選店回拋再補齊門市資訊）
         OrderShipment ship = new OrderShipment();
         ship.setOrder(order);
-        ship.setShippingType(req.getShippingType());      // address / cvs_cod
-        ship.setLogisticsSubtype(null);                   // CVS: 之後 set；宅配：例如 TCAT
+        ship.setShippingType(req.getShippingType()); // address / cvs_cod
+        ship.setLogisticsSubtype(null); // CVS: 之後 set；宅配：例如 TCAT
         ship.setIsCollection("cvs_cod".equalsIgnoreCase(req.getShippingType()));
         ship.setReceiverName(order.getReceiverName());
         ship.setReceiverPhone(order.getReceiverPhone());
         try { // 若有新增 receiverZip 欄位則填
             Order.class.getMethod("getReceiverZip");
             ship.setReceiverZip(order.getReceiverZip());
-        } catch (Exception ignore) {}
+        } catch (Exception ignore) {
+        }
         ship.setReceiverAddr(order.getAddr());
         ship.setStatus("CREATED");
         shipmentRepo.save(ship);
@@ -111,7 +114,10 @@ public class OrderServiceImpl implements OrderService {
         if ("cvs_cod".equalsIgnoreCase(order.getShippingType())) {
             // CVS 取貨付款：下單即扣庫存 + 清空購物車
             deductStockForOrder(order.getOrderId());
-            try { shoppingRepo.deleteByUserId(userId); } catch (Exception ignore) {}
+            try {
+                shoppingRepo.deleteByUserId(userId);
+            } catch (Exception ignore) {
+            }
         }
         // 非 CVS：等付款成功才扣庫存與清購物車（見 onPaymentSucceeded/commitReservation）
 
@@ -130,44 +136,55 @@ public class OrderServiceImpl implements OrderService {
         Order o = orderRepo.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
 
-        String from = nz(o.getStatus());
-        String to = nz(req.getStatus());
+        // ★ 這裡加 trim，避免 "Shipped " 之類值 miss 條件
+        final String from = nz(o.getStatus()).trim();
+        final String to = nz(req.getStatus()).trim();
 
-        // 從 Pending -> Paid：若非 CVS，這裡等同「人工標記收款」，需扣庫存
         if (!"PAID".equalsIgnoreCase(from) && "PAID".equalsIgnoreCase(to)) {
             boolean isCvs = "cvs_cod".equalsIgnoreCase(nz(o.getShippingType()));
             if (!isCvs) {
                 deductStockForOrder(orderId);
-                commitReservation(orderId); // 清購物車
+                commitReservation(orderId);
             }
-        }
-
-        // 任意 -> Cancelled：未出貨才回補
-        if (!"CANCELLED".equalsIgnoreCase(from) && "CANCELLED".equalsIgnoreCase(to)) {
-            boolean shipped = "SHIPPED".equalsIgnoreCase(from) || "IN_TRANSIT".equalsIgnoreCase(nz(o.getLogisticsStatus()));
-            if (!shipped) restoreStockForOrder(orderId);
+        } else if (!"CANCELLED".equalsIgnoreCase(from) && "CANCELLED".equalsIgnoreCase(to)) {
+            boolean shipped = "SHIPPED".equalsIgnoreCase(from)
+                    || "IN_TRANSIT".equalsIgnoreCase(nz(o.getLogisticsStatus()))
+                    || "DELIVERED".equalsIgnoreCase(nz(o.getLogisticsStatus()));
+            if (!shipped)
+                restoreStockForOrder(orderId);
+            releaseReservation(orderId);
+        } else if ("SHIPPED".equalsIgnoreCase(to)) {
+            o.setLogisticsStatus("IN_TRANSIT");
+            if (o.getShippedAt() == null) { // 避免反覆覆寫
+                o.setShippedAt(LocalDateTime.now());
+            }
+            shipmentRepo.findFirstByOrder_OrderIdOrderByCreatedAtAsc(orderId).ifPresent(s -> {
+                s.setStatus("IN_TRANSIT");
+                if (s.getShippedAt() == null)
+                    s.setShippedAt(o.getShippedAt());
+                shipmentRepo.save(s);
+            });
         }
 
         o.setStatus(to);
         orderRepo.save(o);
-
-        // 紀錄歷程
         statusHistoryRepo.save(newHistory(o, from, to, "admin", nz(req.getNote())));
     }
 
     @Transactional
     @Override
-    public void setStoreInfo(Integer orderId, String brandCodeOrLabel, String storeId, String storeName, String storeAddress) {
+    public void setStoreInfo(Integer orderId, String brandCodeOrLabel, String storeId, String storeName,
+            String storeAddress) {
         Order o = orderRepo.findById(orderId).orElseThrow();
-        o.setShippingType("cvs_cod");                 // 超商取貨付款
+        o.setShippingType("cvs_cod"); // 超商取貨付款
         o.setStoreId(storeId);
         o.setStoreName(storeName);
         o.setStoreAddress(storeAddress);
-        o.setStoreBrand(normalizeCvsBrand(brandCodeOrLabel));  // 儲存「7-ELEVEN/全家/萊爾富/OK」
+        o.setStoreBrand(normalizeCvsBrand(brandCodeOrLabel)); // 儲存「7-ELEVEN/全家/萊爾富/OK」
         orderRepo.save(o);
 
         OrderShipment ship = shipmentRepo.findFirstByOrder_OrderIdOrderByCreatedAtAsc(orderId)
-            .orElseThrow();
+                .orElseThrow();
         ship.setShippingType("cvs_cod");
         ship.setLogisticsSubtype(brandCodeOrLabel);
         ship.setStoreId(storeId);
@@ -180,7 +197,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private String normalizeCvsBrand(String codeOrLabel) {
-        if (codeOrLabel == null) return null;
+        if (codeOrLabel == null)
+            return null;
         String s = codeOrLabel.trim().toUpperCase();
         return switch (s) {
             case "UNIMARTC2C", "UNIMART", "7-11", "7ELEVEN", "7-ELEVEN" -> "7-ELEVEN";
@@ -232,11 +250,12 @@ public class OrderServiceImpl implements OrderService {
                     s.setStatus("CREATED");
                     sChanged = true;
                 }
-                if (sChanged) shipmentRepo.save(s);
+                if (sChanged)
+                    shipmentRepo.save(s);
             });
 
             if (changed) {
-                orderRepo.saveAndFlush(o);   // ★ 立刻 flush，避免以為沒寫入
+                orderRepo.saveAndFlush(o); // ★ 立刻 flush，避免以為沒寫入
             }
         });
     }
@@ -251,12 +270,12 @@ public class OrderServiceImpl implements OrderService {
     // 多載：控制器若想帶完整原始 payload 可呼叫這個（非 @Override）
     @Transactional
     public void onPaymentSucceeded(Integer orderId, String gateway, String tradeNo, int paidAmount,
-                                   @org.springframework.lang.Nullable String payloadJson) {
+            @org.springframework.lang.Nullable String payloadJson) {
         onPaymentSucceededInternal(orderId, gateway, tradeNo, paidAmount, payloadJson);
     }
 
     private void onPaymentSucceededInternal(Integer orderId, String gateway, String tradeNo, int paidAmount,
-                                            @org.springframework.lang.Nullable String payloadJson) {
+            @org.springframework.lang.Nullable String payloadJson) {
         Order o = orderRepo.findById(orderId).orElseThrow();
 
         String prev = nz(o.getStatus());
@@ -296,12 +315,12 @@ public class OrderServiceImpl implements OrderService {
     // 多載：控制器若想帶 payload 可呼叫這個（非 @Override）
     @Transactional
     public void onPaymentFailed(Integer orderId, String reason,
-                                @org.springframework.lang.Nullable String payloadJson) {
+            @org.springframework.lang.Nullable String payloadJson) {
         onPaymentFailedInternal(orderId, reason, payloadJson);
     }
 
     private void onPaymentFailedInternal(Integer orderId, String reason,
-                                         @org.springframework.lang.Nullable String payloadJson) {
+            @org.springframework.lang.Nullable String payloadJson) {
         Order o = orderRepo.findById(orderId).orElseThrow();
 
         String prev = nz(o.getStatus());
@@ -328,7 +347,9 @@ public class OrderServiceImpl implements OrderService {
     // ---------------- Cancel ----------------
     @Override
     @Transactional
-    public void cancel(Integer orderId) { cancel(orderId, null); }
+    public void cancel(Integer orderId) {
+        cancel(orderId, null);
+    }
 
     @Override
     @Transactional
@@ -342,10 +363,14 @@ public class OrderServiceImpl implements OrderService {
         boolean shipped = "SHIPPED".equalsIgnoreCase(prev)
                 || "IN_TRANSIT".equalsIgnoreCase(nz(o.getLogisticsStatus()))
                 || "DELIVERED".equalsIgnoreCase(nz(o.getLogisticsStatus()));
-        if (!shipped) restoreStockForOrder(orderId);
+        if (!shipped)
+            restoreStockForOrder(orderId);
 
         o.setStatus("CANCELLED");
-        try { Order.class.getMethod("setFailReason", String.class).invoke(o, reason); } catch (Exception ignore) {}
+        try {
+            Order.class.getMethod("setFailReason", String.class).invoke(o, reason);
+        } catch (Exception ignore) {
+        }
         orderRepo.save(o);
 
         statusHistoryRepo.save(newHistory(o, prev, "CANCELLED", "admin", nz(reason)));
@@ -366,7 +391,10 @@ public class OrderServiceImpl implements OrderService {
         Order o = orderRepo.findById(orderId).orElseThrow();
         Integer userId = o.getUserId();
         if (userId != null) {
-            try { cartService.clearCart(userId); } catch (Exception ignore) {}
+            try {
+                cartService.clearCart(userId);
+            } catch (Exception ignore) {
+            }
         }
         // TODO: 若有庫存保留，這裡做正式扣減
     }
@@ -384,7 +412,8 @@ public class OrderServiceImpl implements OrderService {
         for (OrderDetail d : details) {
             Integer pid = d.getProduct().getProductId();
             int qty = d.getQuantity() == null ? 0 : d.getQuantity();
-            if (qty <= 0) continue;
+            if (qty <= 0)
+                continue;
             int updated = productRepo.decreaseStock(pid, qty);
             if (updated != 1) {
                 throw new IllegalStateException("商品庫存不足或已變更，無法扣庫存：productId=" + pid);
@@ -398,7 +427,8 @@ public class OrderServiceImpl implements OrderService {
         for (OrderDetail d : details) {
             Integer pid = d.getProduct().getProductId();
             int qty = d.getQuantity() == null ? 0 : d.getQuantity();
-            if (qty <= 0) continue;
+            if (qty <= 0)
+                continue;
             productRepo.increaseStock(pid, qty);
         }
     }
@@ -490,9 +520,13 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // ---------------- misc utils ----------------
-    private static String nz(String s) { return s == null ? "" : s; }
+    private static String nz(String s) {
+        return s == null ? "" : s;
+    }
+
     private static String trimOrNull(String s) {
-        if (s == null) return null;
+        if (s == null)
+            return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
     }

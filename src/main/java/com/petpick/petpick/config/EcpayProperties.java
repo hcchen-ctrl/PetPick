@@ -60,11 +60,11 @@ public class EcpayProperties {
         private String homeServerReplyUrl;
 
         // ====== 寄件人（綠界宅配必填）======
-        private String senderName;          // 寄件人姓名
-        private String senderPhone;         // 市話（可空）
-        private String senderCellPhone;     // 手機（與上擇一）
-        private String senderZip;           // 郵遞區號
-        private String senderAddress;       // 寄件地址
+        private String senderName; // 寄件人姓名
+        private String senderPhone; // 市話（可空）
+        private String senderCellPhone; // 手機（與上擇一）
+        private String senderZip; // 郵遞區號
+        private String senderAddress; // 寄件地址
 
         private String returnContactName;
         private String returnContactPhone;
@@ -73,6 +73,8 @@ public class EcpayProperties {
 
         /** 超商選店：ServerReplyURL（地圖選完回你這裡） */
         private String cvsMapReturnUrl;
+        /** 超商「建單」S2S 回拋（ECpay Express/Create；server→server） */
+        private String cvsCreateReturnUrl;
 
         // 如需託運單建立/宅配，可再補其它回拋或通知網址
         // private String homeCreateReturnUrl;

@@ -1,3 +1,4 @@
+// File: src/main/java/com/petpick/petpick/service/OrderQueryService.java
 package com.petpick.petpick.service;
 
 import java.util.List;
@@ -44,6 +45,12 @@ public class OrderQueryService {
         dto.setTotalPrice(o.getTotalPrice());
         dto.setStatus(o.getStatus());
         dto.setCreatedAt(o.getCreatedAt());
+
+        // ★ 關鍵：把出貨/送達與物流狀態帶出去
+        dto.setShippedAt(o.getShippedAt());
+        // 如果是超取取件完成，entity 可能只寫在 receivedAt；這裡做後備映射，前端不用改就能顯示
+        dto.setDeliveredAt(o.getDeliveredAt() != null ? o.getDeliveredAt() : o.getReceivedAt());
+        dto.setLogisticsStatus(o.getLogisticsStatus());
 
         dto.setShippingType(o.getShippingType());
         dto.setAddr(o.getAddr());

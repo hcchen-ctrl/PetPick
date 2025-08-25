@@ -110,7 +110,7 @@ async function markOrderFailed(orderId, reason) {
       body: JSON.stringify(payload1),
     });
     if (r.ok) return true;
-  } catch (_) {}
+  } catch (_) { }
 
   // 回退：一般狀態更新
   try {
@@ -402,7 +402,7 @@ async function clearCartOnLocalPayment(userId) {
       credentials: "include",
       headers: { ...DEMO_HEADERS }
     });
-  } catch {}
+  } catch { }
 }
 async function refreshCartBadge(userId) {
   const setBadgeSafe = (n) => { const el = document.getElementById("cart-badge"); if (el) el.textContent = String(n ?? 0); };
@@ -415,3 +415,56 @@ async function refreshCartBadge(userId) {
     setBadgeSafe(Array.isArray(items) ? items.length : 0);
   } catch { setBadgeSafe(0); }
 }
+
+(function () {
+  const agree = document.getElementById('tnc-agree');
+  const submitBtn = document.getElementById('submit-btn');
+  const tncMsg = document.getElementById('tnc-msg');
+  const form = document.getElementById('checkout-form');
+  const modalEl = document.getElementById('tncModal');
+
+  let tncOpened = false; // 是否看過購買須知
+
+  // 使用者有打開過購買須知
+  modalEl.addEventListener('shown.bs.modal', () => {
+    tncOpened = true;
+  });
+
+  // 關閉後才允許勾選
+  modalEl.addEventListener('hidden.bs.modal', () => {
+    if (tncOpened) {
+      agree.disabled = false;
+      tncMsg.classList.remove('text-danger');
+      tncMsg.classList.add('text-muted');
+      tncMsg.textContent = '請勾選同意以繼續結帳。';
+      agree.focus();
+    }
+  });
+
+  // 勾選後才開啟送出鈕
+  agree.addEventListener('change', () => {
+    submitBtn.disabled = !agree.checked;
+  });
+
+  // 表單送出前最後把關
+  form.addEventListener('submit', (e) => {
+    if (!tncOpened) {
+      e.preventDefault();
+      e.stopPropagation();
+      // 若使用者直接送出，先提示並打開條款
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+      return;
+    }
+    if (!agree.checked) {
+      e.preventDefault();
+      e.stopPropagation();
+      tncMsg.classList.remove('text-muted');
+      tncMsg.classList.add('text-danger');
+      tncMsg.textContent = '請先勾選同意《購買須知》。';
+      agree.focus();
+    }
+  });
+})();
+
+

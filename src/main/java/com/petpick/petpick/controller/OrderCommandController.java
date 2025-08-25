@@ -45,14 +45,29 @@ public class OrderCommandController {
             // 比 IllegalArgumentException 更貼近語意
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Please sign in");
         }
-        req.setUserId(uid);                 // ★ 由後端統一決定 userId
+        req.setUserId(uid); // ★ 由後端統一決定 userId
         return orderService.checkout(req);
+    }
+
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<?> userCancel(@PathVariable Integer orderId,
+            @RequestBody(required = false) AdminOrdersController.CancelReq req,
+            @RequestHeader(value = "X-Demo-UserId", required = false) Integer demoUid) {
+        var o = orderRepo.findById(orderId).orElseThrow();
+        // 驗證：這筆訂單屬於該使用者
+        if (demoUid != null && !demoUid.equals(o.getUserId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        // （可選）再檢查狀態是否可取消
+        orderService.cancel(orderId, req != null ? req.getReason() : null);
+        return ResponseEntity.noContent().build();
     }
 
     /** 嘗試從 req、SecurityContext、Session、Header 依序取得 userId */
     private Integer resolveUserId(CheckoutRequest req, HttpServletRequest http) {
         // 1) 舊前端相容
-        if (req.getUserId() != null) return req.getUserId();
+        if (req.getUserId() != null)
+            return req.getUserId();
 
         // 2) SecurityContext（依你的 UserDetails 實作調整）
         try {
@@ -61,37 +76,45 @@ public class OrderCommandController {
                 Object principal = auth.getPrincipal();
                 if (principal instanceof UserDetails ud) {
                     String name = ud.getUsername();
-                    if (name != null && name.matches("\\d+")) return Integer.valueOf(name);
+                    if (name != null && name.matches("\\d+"))
+                        return Integer.valueOf(name);
                     // 若你的 UserDetails 有 getId()
                     try {
                         var m = principal.getClass().getMethod("getId");
                         Object id = m.invoke(principal);
-                        if (id instanceof Integer i) return i;
-                        if (id instanceof String s && s.matches("\\d+")) return Integer.valueOf(s);
-                    } catch (Exception ignore) {}
+                        if (id instanceof Integer i)
+                            return i;
+                        if (id instanceof String s && s.matches("\\d+"))
+                            return Integer.valueOf(s);
+                    } catch (Exception ignore) {
+                    }
                 }
             }
-        } catch (Exception ignore) {}
+        } catch (Exception ignore) {
+        }
 
         // 3) Session（若你登入時有 setAttribute("userId", ...)）
         var session = http.getSession(false);
         if (session != null) {
             Object s = session.getAttribute("userId");
-            if (s instanceof Integer i) return i;
-            if (s instanceof String str && str.matches("\\d+")) return Integer.valueOf(str);
+            if (s instanceof Integer i)
+                return i;
+            if (s instanceof String str && str.matches("\\d+"))
+                return Integer.valueOf(str);
         }
 
         // 4) 開發用 Header
         String demo = http.getHeader("X-Demo-UserId");
-        if (demo != null && demo.matches("\\d+")) return Integer.valueOf(demo);
+        if (demo != null && demo.matches("\\d+"))
+            return Integer.valueOf(demo);
 
         return null;
     }
 
-@PatchMapping("/{orderId}/fail")
+    @PatchMapping("/{orderId}/fail")
     public ResponseEntity<?> markFail(@PathVariable Integer orderId,
-                                      @RequestBody(required = false) OrderFailRequest req,
-                                      @RequestHeader(value = "X-Demo-UserId", required = false) Integer demoUid) {
+            @RequestBody(required = false) OrderFailRequest req,
+            @RequestHeader(value = "X-Demo-UserId", required = false) Integer demoUid) {
         Order o = orderRepo.findById(orderId).orElse(null);
         if (o == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -115,4 +138,5 @@ public class OrderCommandController {
                 req != null ? req.getDetail() : "");
 
         return ResponseEntity.ok(Map.of("ok", true, "status", o.getStatus()));
-    }}
+    }
+}

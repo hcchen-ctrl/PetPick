@@ -53,12 +53,8 @@
                             </button>
                         </a>
                         <div class="dropdown d-inline-block">
-                            <button class="btn btn-material"
-                                type="button"
-                                id="accountMenuBtn"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false"
-                                aria-label="帳號選單">
+                            <button class="btn btn-material" type="button" id="accountMenuBtn" data-bs-toggle="dropdown"
+                                aria-expanded="false" aria-label="帳號選單">
                                 <span class="material-icons">account_circle</span>
                             </button>
 
@@ -85,6 +81,7 @@
                         <th>總金額</th>
                         <th>狀態</th>
                         <th>訂單明細</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody id="order-table-body">
@@ -105,6 +102,33 @@
     </footer>
 
     <button id="backToTop" class="btn btn-material shadow">↑</button>
+
+    <div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">取消訂單</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <p>確定要取消訂單 <span id="cm-order-no" class="fw-bold"></span> 嗎？</p>
+                    <div class="mb-3">
+                        <label for="cm-reason" class="form-label">原因（選填）</label>
+                        <textarea id="cm-reason" class="form-control" rows="3" placeholder="例：重複下單 / 修改收件資訊"></textarea>
+                    </div>
+                    <div id="cm-alert" class="alert alert-danger d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">關閉</button>
+                    <button type="button" id="cm-confirm" class="btn btn-danger">
+                        <span class="spinner-border spinner-border-sm d-none" id="cm-spin" role="status"
+                            aria-hidden="true"></span>
+                        確認取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="js/order.js"></script>
     <script src="https://kit.fontawesome.com/a076d05399.js"></script>
