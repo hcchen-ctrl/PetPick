@@ -176,47 +176,70 @@ document.getElementById('box').innerHTML = `
             `;
 
 // 互動：我要領養（官方來源）
-console.log(document.cookie)
-// 從 Cookie 中取得 CSRF token
-// 讀取指定 cookie 的函式
+
+// 以 fetch API 送出 POST 請求示例，帶上 CSRF token
+// 刪除原有的測試代碼（這段會立即執行，造成問題）
+// /*
+// fetch('/api/adopts/*/apply', {
+// method: 'POST',
+//     headers: {
+//     'Content-Type': 'application/json',
+//         'X-XSRF-TOKEN': csrfToken
+// },
+// body: JSON.stringify({ })
+// })
+// */
+
+// 讀取 Cookie 的函數（保持不變）
 function getCookie(name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(';').shift();
 }
 
-// 取得 CSRF token，cookie 名稱預設是 XSRF-TOKEN
-const csrfToken = getCookie('XSRF-TOKEN');
+// 獲取 CSRF token 的函數
+async function getValidCsrfToken() {
+    // 先嘗試從 cookie 取得
+    let token = getCookie('XSRF-TOKEN');
 
-// 以 fetch API 送出 POST 請求示例，帶上 CSRF token
-fetch('/api/adopts/17/apply', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'X-XSRF-TOKEN': csrfToken  // Spring Security 預設會檢查這個 header
-    },
-    body: JSON.stringify({ /* 你的請求資料 */ })
-})
-    .then(response => response.json())
-    .then(data => console.log(data))
-    .catch(error => console.error('Error:', error));
+    // 如果沒有，呼叫 API 取得
+    if (!token) {
+        try {
+            const response = await fetch('/api/csrf-token', {
+                method: 'GET',
+                credentials: 'include'
+            });
+            const data = await response.json();
+            token = data.token;
+        } catch (error) {
+            console.error('Failed to get CSRF token:', error);
+        }
+    }
 
+    return token;
+}
 
-
-// 綁定按鈕事件
+// 修正申請按鈕事件
 document.getElementById('applyBtn')?.addEventListener('click', async () => {
     const message = document.getElementById('applyMsg')?.value?.trim() || null;
-    const csrfToken = getCookie('XSRF-TOKEN'); // CSRF token 名稱固定是這個
 
     try {
+        // 獲取有效的 CSRF token
+        const csrfToken = await getValidCsrfToken();
+
+        if (!csrfToken) {
+            alert('無法獲取安全令牌，請重新整理頁面');
+            return;
+        }
+
         const r = await fetch(`/api/adopts/${id}/apply`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-XSRF-TOKEN': csrfToken // ⬅️ 把 CSRF token 放進 header
+                'X-Csrf-Token': csrfToken  // 使用你後端設定的 header 名稱
             },
-            credentials: 'include', // ⬅️ 確保 cookie 有帶上
-            body: JSON.stringify({ message })
+            credentials: 'include',
+            body: JSON.stringify({ message: message })  // 修正請求體
         });
 
         if (r.status === 409) {
@@ -224,24 +247,31 @@ document.getElementById('applyBtn')?.addEventListener('click', async () => {
             return;
         }
 
-        if (!r.ok) throw new Error(await r.text() || '申請失敗');
+        if (!r.ok) {
+            const errorText = await r.text();
+            throw new Error(errorText || '申請失敗');
+        }
 
         alert('已送出申請！');
         location.reload();
     } catch (e) {
-        console.error(e);
-        alert('申請失敗');
+        console.error('申請錯誤:', e);
+        alert('申請失敗: ' + e.message);
     }
 });
 
 
-
-document.getElementById('cancelAppBtn')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    if (!confirm('確定要取消這筆申請？')) return;
-    const ok = await fetch(`/api/applications/${post.myPendingApplicationId}/cancel`, { method: 'PATCH' }).then(r => r.ok);
+// 同樣修改其他 PATCH 請求
+document.getElementById('btnCancel')?.addEventListener('click', async () => {
+    if (!confirm('確定取消這筆刊登？')) return;
+    const csrfToken = await getValidCsrfToken();
+    const ok = await fetch(`/api/posts/${post.id}/cancel`, {
+        method: 'PATCH',
+        headers: { 'X-Csrf-Token': csrfToken },
+        credentials: 'include'
+    }).then(r => r.ok);
     alert(ok ? '已取消' : '取消失敗');
-    if (ok) location.reload();
+    if (ok) refresh();
 });
 
 // 互動：擁有者/管理員控制（hit /api/posts/...）

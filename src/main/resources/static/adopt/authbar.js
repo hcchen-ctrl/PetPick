@@ -1,4 +1,4 @@
-import { getAuth, logout } from '/auth.js';
+import { getAuth, logout } from '/adopt/auth.js';
 
 function attachMenuToButton(btn, auth) {
     if (!btn) return;

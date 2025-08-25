@@ -43,10 +43,14 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        //暫時先關閉
+        // 創建自定義的 CSRF token repository
+        CookieCsrfTokenRepository tokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        tokenRepository.setHeaderName("X-Csrf-Token");
+        tokenRepository.setCookieName("XSRF-TOKEN"); // 確保 cookie 名稱
+
         http.csrf(csrf -> csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())  // 讓 JS 可讀 token
-                .ignoringRequestMatchers("/register","/api/missions/upload","/adopts/{postId}/apply")
+                .ignoringRequestMatchers("/register", "/api/missions/upload")
+                .csrfTokenRepository(tokenRepository)
         );
 
         // 表單提交

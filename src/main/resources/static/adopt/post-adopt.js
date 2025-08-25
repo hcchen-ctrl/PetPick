@@ -100,6 +100,14 @@ async function loadAreas() {
     }
 })();
 
+// 取得 cookie 的函式
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+}
+
 // ---------- 表單驗證 & 送出 ----------
 agree.addEventListener('change', () => {
     agree.classList.toggle('is-invalid', !agree.checked);
@@ -123,50 +131,115 @@ form.addEventListener('submit', async (e) => {
 
     if (!formOk) return;
 
-    // 收集資料
-    const raw = Object.fromEntries(new FormData(form).entries());
-
-    // 轉 boolean 避免後端型別不合
-    const asBool = (v) => v === true || v === 'true';
-    const data = {
-        ...raw,
-        requireHomeVisit: asBool(raw.requireHomeVisit),
-        requireContract: asBool(raw.requireContract),
-        requireFollowup: asBool(raw.requireFollowup),
-    };
-
-    try {
-        window.showLoading?.();
-        const res = await fetch('/api/posts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include', // <<< 加這行，才能帶 cookie
-            body: JSON.stringify(data)
-        });
-
-        if (res.ok) {
-            alert('已送出！');
-            const dest = (auth && auth.role === 'ADMIN')
-                ? '/adopt/post-review.html?status=pending'
-                : '/adopt/my-adopt-progress.html?status=pending';  // 多加 /adopt/ 路徑前綴
-            location.href = dest;
-
-            location.href = dest;
-            return;
-        }
-
-        if (res.status === 401) {
-            sessionStorage.setItem('redirect', '/post-adopt.html');
-            location.href = '/loginpage';
-            return;
-        }
-
-        const msg = await res.text();
-        alert('送出失敗：' + msg);
-    } catch (err) {
-        console.error(err);
-        alert('送出失敗，請稍後再試');
-    } finally {
-        window.hideLoading?.();
+    // 取得 cookie 的函式（統一版本）
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
     }
+
+// 獲取 CSRF token 的函數
+    async function getValidCsrfToken() {
+        // 先嘗試從 cookie 取得
+        let token = getCookie('XSRF-TOKEN');
+
+        // 如果沒有，呼叫 API 取得
+        if (!token) {
+            try {
+                const response = await fetch('/api/csrf-token', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                token = data.token;
+            } catch (error) {
+                console.error('Failed to get CSRF token:', error);
+            }
+        }
+
+        return token;
+    }
+
+// ---------- 表單驗證 & 送出 ----------
+    agree.addEventListener('change', () => {
+        agree.classList.toggle('is-invalid', !agree.checked);
+    });
+
+// 只保留一個 submit 事件監聽器
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // 先跑 Bootstrap 的驗證
+        const formOk = form.checkValidity();
+        form.classList.add('was-validated');
+
+        // 條款 checkbox 額外驗證
+        if (!agree.checked) {
+            agree.classList.add('is-invalid');
+            agree.focus();
+            return;
+        } else {
+            agree.classList.remove('is-invalid');
+        }
+
+        if (!formOk) return;
+
+        // 收集表單資料
+        const formData = new FormData(form);
+        const postData = {};
+
+        // 將 FormData 轉換為普通物件
+        for (const [key, value] of formData.entries()) {
+            postData[key] = value;
+        }
+
+        try {
+            window.showLoading?.();
+
+            // 獲取有效的 CSRF token
+            const csrfToken = await getValidCsrfToken();
+
+            if (!csrfToken) {
+                alert('無法獲取安全令牌，請重新整理頁面');
+                return;
+            }
+
+            const res = await fetch('/api/posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Csrf-Token': csrfToken   // 使用正確的 header 名稱
+                },
+                credentials: 'include',
+                body: JSON.stringify(postData)  // 發送完整的表單資料
+            });
+
+            if (res.ok) {
+                alert('已送出！');
+                const dest = (auth && auth.role === 'ADMIN')
+                    ? '/adopt/post-review.html?status=pending'
+                    : '/adopt/my-adopt-progress.html?status=pending';
+                location.href = dest;
+                return;
+            }
+
+            if (res.status === 401) {
+                sessionStorage.setItem('redirect', '/post-adopt.html');
+                location.href = '/loginpage';
+                return;
+            }
+
+            const msg = await res.text();
+            alert('送出失敗：' + msg);
+        } catch (err) {
+            console.error('送出錯誤:', err);
+            alert('送出失敗，請稍後再試: ' + err.message);
+        } finally {
+            window.hideLoading?.();
+        }
+    });
+
+
 });
+

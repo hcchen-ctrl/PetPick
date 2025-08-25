@@ -6,7 +6,9 @@ import com.petpick.petpick.entity.AdoptPost;
 import com.petpick.petpick.model.enums.PostStatus;
 import com.petpick.petpick.model.enums.SourceType;
 import com.petpick.petpick.repository.AdoptPostRepository;
+import com.petpick.petpick.service.MyUserDetails;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,11 +37,12 @@ public class AdoptPostController {
      *  - 會員  ：民眾送養 + 等待審核 (pending)
      */
     @PostMapping
-    public AdoptPost create(@RequestBody AdoptPost in, HttpSession session) {
-        // ✅ 這裡加上 log
+    public AdoptPost create(@RequestBody AdoptPost in, Authentication authentication) {
         System.out.println("Create called: " + in.getTitle());
-        long uid = getUid(session);
-        String role = String.valueOf(session.getAttribute("role"));
+
+        MyUserDetails userDetails = (MyUserDetails) authentication.getPrincipal();
+        long uid = userDetails.getId();
+        String role = userDetails.getRole();
 
         if ("ADMIN".equals(role)) {
             in.setSourceType(SourceType.platform);
@@ -56,13 +59,15 @@ public class AdoptPostController {
     /** 讀自己的刊登（會員用；ADMIN 不允許） */
     @GetMapping("/my")
     public List<AdoptPost> myPosts(@RequestParam(required = false) PostStatus status,
-                                   HttpSession session) {
-        Object uidObj = session.getAttribute("uid");
-        if (uidObj == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        String role = (String) session.getAttribute("role");
-        if ("ADMIN".equals(role)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "管理員請使用審核中心");
+                                   Authentication authentication) {
+        MyUserDetails userDetails = (MyUserDetails) authentication.getPrincipal();
+        long uid = userDetails.getId();
+        String role = userDetails.getRole();
 
-        long uid = ((Number) uidObj).longValue();
+        if ("ADMIN".equals(role)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "管理員請使用審核中心");
+        }
+
         return (status == null)
                 ? postRepo.findByPostedByUserIdOrderByCreatedAtDesc(uid)
                 : postRepo.findByPostedByUserIdAndStatusOrderByCreatedAtDesc(uid, status);
@@ -70,15 +75,20 @@ public class AdoptPostController {
 
     /** 取消刊登（擁有者或管理員）→ cancelled */
     @PatchMapping("/{id}/cancel")
-    public AdoptPost cancel(@PathVariable Long id, HttpSession session) {
-        long uid = getUid(session);
-        String role = String.valueOf(session.getAttribute("role"));
+    public AdoptPost cancel(@PathVariable Long id, Authentication authentication) {
+        MyUserDetails userDetails = (MyUserDetails) authentication.getPrincipal();
+        long uid = userDetails.getId();
+        String role = userDetails.getRole();
+
         AdoptPost p = postRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
-        if (!isOwnerOrAdmin(p, uid, role)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限");
-        if (p.getStatus()==PostStatus.closed || p.getStatus()==PostStatus.rejected || p.getStatus()==PostStatus.cancelled)
+        if (!isOwnerOrAdmin(p, uid, role)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限");
+        }
+        if (p.getStatus()==PostStatus.closed || p.getStatus()==PostStatus.rejected || p.getStatus()==PostStatus.cancelled) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "此狀態不可取消");
+        }
 
         p.setStatus(PostStatus.cancelled);
         return postRepo.save(p);
@@ -86,15 +96,20 @@ public class AdoptPostController {
 
     /** 下架（已送養完成）→ closed */
     @PatchMapping("/{id}/close")
-    public AdoptPost close(@PathVariable Long id, HttpSession session) {
-        long uid = getUid(session);
-        String role = String.valueOf(session.getAttribute("role"));
+    public AdoptPost close(@PathVariable Long id, Authentication authentication) {
+        MyUserDetails userDetails = (MyUserDetails) authentication.getPrincipal();
+        long uid = userDetails.getId();
+        String role = userDetails.getRole();
+
         AdoptPost p = postRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
-        if (!isOwnerOrAdmin(p, uid, role)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限");
-        if (p.getStatus()!=PostStatus.approved && p.getStatus()!=PostStatus.on_hold)
+        if (!isOwnerOrAdmin(p, uid, role)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限");
+        }
+        if (p.getStatus()!=PostStatus.approved && p.getStatus()!=PostStatus.on_hold) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "只有已上架/暫停中可下架");
+        }
 
         p.setStatus(PostStatus.closed);
         return postRepo.save(p);
@@ -104,38 +119,35 @@ public class AdoptPostController {
     @PatchMapping("/{id}/hold")
     public AdoptPost hold(@PathVariable Long id,
                           @RequestParam(defaultValue = "true") boolean hold,
-                          HttpSession session) {
-        long uid = getUid(session);
-        String role = String.valueOf(session.getAttribute("role"));
+                          Authentication authentication) {
+        MyUserDetails userDetails = (MyUserDetails) authentication.getPrincipal();
+        long uid = userDetails.getId();
+        String role = userDetails.getRole();
+
         AdoptPost p = postRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
-        if (!isOwnerOrAdmin(p, uid, role)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限");
+        if (!isOwnerOrAdmin(p, uid, role)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "無權限");
+        }
 
         if (hold) {
-            if (p.getStatus()!=PostStatus.approved)
+            if (p.getStatus()!=PostStatus.approved) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "只有已上架可暫停");
+            }
             p.setStatus(PostStatus.on_hold);
         } else {
-            if (p.getStatus()!=PostStatus.on_hold)
+            if (p.getStatus()!=PostStatus.on_hold) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "只有暫停中可恢復");
+            }
             p.setStatus(PostStatus.approved);
         }
         return postRepo.save(p);
     }
 
     // ========= helpers =========
-    private long getUid(HttpSession s) {
-        Object uid = s.getAttribute("uid");
-        if (uid == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "請先登入");
-        return ((Number) uid).longValue();
-    }
-    private void requireAdmin(HttpSession s) {
-        if (!"ADMIN".equals(String.valueOf(s.getAttribute("role"))))
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "僅管理員可操作");
-    }
     private boolean isOwnerOrAdmin(AdoptPost p, long uid, String role) {
         return "ADMIN".equals(role) ||
-               (p.getPostedByUserId() != null && p.getPostedByUserId().equals(uid));
+                (p.getPostedByUserId() != null && p.getPostedByUserId().equals(uid));
     }
 }

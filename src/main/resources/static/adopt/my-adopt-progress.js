@@ -1,3 +1,42 @@
+// ========= CSRF Token 處理函數 =========
+function getCsrfToken() {
+    // 從 cookie 取得 CSRF token
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'XSRF-TOKEN') {
+            return decodeURIComponent(value);
+        }
+    }
+    return null;
+}
+
+// 通用的 API 請求函數
+function apiRequest(url, method = 'GET', data = null) {
+    const csrfToken = getCsrfToken();
+
+    const config = {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include'  // 確保發送 cookies
+    };
+
+    // 如果有 CSRF Token，添加到 header
+    if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        config.headers['X-Csrf-Token'] = csrfToken;
+    }
+
+    if (data && ['POST', 'PUT', 'PATCH'].includes(method)) {
+        config.body = JSON.stringify(data);
+    }
+
+    return fetch(url, config);
+}
+
+// ========= 原有邏輯（修改 API 調用） =========
+
 // 讀取查詢參數：status = pending / approved（預設 pending）
 const url = new URL(location.href);
 const status = url.searchParams.get('status') || 'pending';
@@ -10,7 +49,7 @@ if (status === 'approved') on('step3');   // 只亮 3
 else on('step2');   // 只亮 2
 
 // 取得登入狀態，未登入就導去 login
-const auth = await fetch('/api/auth/status', { credentials: 'include' }).then(r => r.json());
+const auth = await apiRequest('/api/auth/status').then(r => r.json());
 if (!auth.loggedIn) {
     sessionStorage.setItem('redirect', location.pathname + location.search);
     location.replace('/loginpage.html');
@@ -24,26 +63,23 @@ if (auth.role === 'ADMIN') {
 }
 
 // 依 status 打 API：/api/posts/my?status=...
-const api = `/api/posts/my?status=${encodeURIComponent(status)}`;
-
 let data = [];
 try {
     if (status === 'approved') {
         const [r1, r2] = await Promise.all([
-            fetch('/api/posts/my?status=approved', { credentials: 'include' }),
-            fetch('/api/posts/my?status=on_hold', { credentials: 'include' })
+            apiRequest('/api/posts/my?status=approved'),
+            apiRequest('/api/posts/my?status=on_hold')
         ]);
         const a = r1.ok ? await r1.json() : [];
         const b = r2.ok ? await r2.json() : [];
         data = [...a, ...b].sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt));
     } else {
-        const res = await fetch(`/api/posts/my?status=${encodeURIComponent(status)}`, { credentials: 'include' });
+        const res = await apiRequest(`/api/posts/my?status=${encodeURIComponent(status)}`);
         data = res.ok ? await res.json() : [];
     }
 } catch (err) {
     console.error(err);
 }
-
 
 // 產卡
 const list = document.getElementById('list');
@@ -93,7 +129,6 @@ list.innerHTML = data.map(p => `
         </div>
         `).join('');
 
-
 if (!data.length) empty.classList.remove('d-none');
 
 // tabs 切換（右上角「審核中 / 刊登完成」）
@@ -109,24 +144,83 @@ if (tabs) {
     });
 }
 
+// ========= 操作函數（使用 apiRequest） =========
 window.cancelPost = async (id) => {
     if (!confirm('確定要取消這筆刊登嗎？')) return;
-    const ok = await fetch(`/api/posts/${id}/cancel`, { method: 'PATCH', credentials: 'include' }).then(r => r.ok);
-    alert(ok ? '已取消' : '取消失敗');
-    if (ok) location.reload();
+
+    try {
+        const response = await apiRequest(`/api/posts/${id}/cancel`, 'PATCH');
+        const ok = response.ok;
+
+        if (!ok) {
+            // 如果是 401 或 403，顯示詳細錯誤信息
+            if (response.status === 401) {
+                alert('請先登入');
+                location.href = '/loginpage.html';
+                return;
+            } else if (response.status === 403) {
+                alert('權限不足或 CSRF Token 錯誤');
+                return;
+            }
+        }
+
+        alert(ok ? '已取消' : '取消失敗');
+        if (ok) location.reload();
+    } catch (error) {
+        console.error('取消刊登錯誤:', error);
+        alert('取消失敗，請重試');
+    }
 };
 
 window.holdPost = async (id, hold = true) => {
     const msg = hold ? '暫停上架？' : '恢復上架？';
     if (!confirm(msg)) return;
-    const ok = await fetch(`/api/posts/${id}/hold?hold=${hold}`, { method: 'PATCH', credentials: 'include' }).then(r => r.ok);
-    alert(ok ? '已更新' : '更新失敗');
-    if (ok) location.reload();
+
+    try {
+        const response = await apiRequest(`/api/posts/${id}/hold?hold=${hold}`, 'PATCH');
+        const ok = response.ok;
+
+        if (!ok) {
+            if (response.status === 401) {
+                alert('請先登入');
+                location.href = '/loginpage.html';
+                return;
+            } else if (response.status === 403) {
+                alert('權限不足或 CSRF Token 錯誤');
+                return;
+            }
+        }
+
+        alert(ok ? '已更新' : '更新失敗');
+        if (ok) location.reload();
+    } catch (error) {
+        console.error('更新狀態錯誤:', error);
+        alert('更新失敗，請重試');
+    }
 };
 
 window.closePost = async (id) => {
     if (!confirm('確定要關閉（代表已送養完成）？')) return;
-    const ok = await fetch(`/api/posts/${id}/close`, { method: 'PATCH', credentials: 'include' }).then(r => r.ok);
-    alert(ok ? '已關閉' : '關閉失敗');
-    if (ok) location.reload();
+
+    try {
+        const response = await apiRequest(`/api/posts/${id}/close`, 'PATCH');
+        const ok = response.ok;
+
+        if (!ok) {
+            if (response.status === 401) {
+                alert('請先登入');
+                location.href = '/loginpage.html';
+                return;
+            } else if (response.status === 403) {
+                alert('權限不足或 CSRF Token 錯誤');
+                return;
+            }
+        }
+
+        alert(ok ? '已關閉' : '關閉失敗');
+        if (ok) location.reload();
+    } catch (error) {
+        console.error('關閉刊登錯誤:', error);
+        alert('關閉失敗，請重試');
+    }
 };
