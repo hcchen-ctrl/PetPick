@@ -25,6 +25,8 @@
     selected: new Set(),       // 勾選的 orderId 集合
   };
 
+  const lastPaid = new Set();
+
   // ====== DOM ======
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -165,7 +167,7 @@
           } else {
             toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
           }
-          try { await hydrateStatus(); } catch {}
+          try { await hydrateStatus(); } catch { }
         } catch (err) {
           toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
         } finally {
@@ -294,8 +296,14 @@
     const time = fmtDateTime(o.createdAt || o.date);
     const delivery = displayDelivery(o);
 
-    const payStatus = paymentStatusOf(o);
+    let payStatus = paymentStatusOf(o);
     const shipStatus = deliveryStatusOf(o);
+
+    // 非超取 COD：若本輪判成「待付款」，但上一輪已記錄為「已付款」，先以已付款顯示，待 hydrate 覆蓋
+    const shipType = String(o.shippingType || "").toLowerCase();
+    if (payStatus === "待付款" && shipType !== "cvs_cod" && lastPaid.has(Number(id))) {
+      payStatus = "已付款";
+    }
 
     const checked = state.selected.has(Number(id)) ? "checked" : "";
 
@@ -471,7 +479,7 @@
             } else {
               toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
             }
-            try { await hydrateStatus(); } catch {}
+            try { await hydrateStatus(); } catch { }
           } catch (err) {
             toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
           } finally {
@@ -506,7 +514,7 @@
             } else {
               toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
             }
-            try { await hydrateStatus(); } catch {}
+            try { await hydrateStatus(); } catch { }
           } catch (err) {
             toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
           } finally {
@@ -834,34 +842,6 @@
   function escapeAttr(s) { return String(s ?? "").replaceAll('"', '&quot;'); }
   async function safeText(r) { try { return await r.text(); } catch { return `HTTP ${r.status}`; } }
 
-  // === 付款狀態（移除「Shipped/Delivered 就算已付款」的誤判）===
-  function paymentStatusOf(o) {
-    const s = String(o.status || "").toUpperCase();
-    const shipType = String(o.shippingType || "").toLowerCase();
-    const logi = getLogisticsStatus(o);
-    const paidAmount = Number(o.paidAmount ?? o.totalPaid ?? 0);
-    const hasGatewayAndTrade =
-      Boolean(o.paymentGateway || o.gateway) && Boolean(o.tradeNo || o.paymentTradeNo);
-
-    if (s === "FAILED") return "付款失敗";
-    if (s === "CANCELLED") return "已取消";
-
-    // CVS 取貨付款：取件/配達才視為已付款
-    if (shipType === "cvs_cod") {
-      if (logi === "PICKED_UP" || logi === "DELIVERED") return "已付款（COD）";
-      return "待付款";
-    }
-
-    // 一般（含宅配 COD）：以實際付款欄位為準
-    if (s === "PAID") return "已付款";
-    if (o.paidAt) return "已付款";
-    if (paidAmount > 0) return "已付款";
-    if (hasGatewayAndTrade && s !== "PENDING") return "已付款";
-
-    // 不再因 Shipped/Delivered 自動視為已付款
-    return "待付款";
-  }
-
   // === utils: normalize logistics status (兼容不同欄位命名) ===
   function getLogisticsStatus(o) {
     let raw = o.logisticsStatus ?? o.logisticStatus ?? o.ecpayLogisticsStatus ?? o.shippingStatus ?? o.shipping_state ?? o.shipStatus ?? "";
@@ -941,19 +921,89 @@
     return "bg-light text-dark";
   }
 
+  // ====== 付款方式解析（只分 CREDIT / COD）======
+  function resolvePayMethod(o) {
+    // 1) 先看常見欄位字樣
+    const candidates = [
+      o.paymentMethod, o.payment_method, o.payment, o.payMethod,
+      o.pay_type, o.paymentType, o.payment_type,
+      o.gateway, o.paymentGateway, o.method
+    ];
+    const s = candidates.map(v => String(v ?? "").trim().toLowerCase()).filter(Boolean).join("|");
+
+    if (/credit|card|信用卡/.test(s)) return "CREDIT";
+    if (/cod|貨到|cvs_cod|collection/.test(s)) return "COD";
+
+    // 2) 看布林旗標（建立託運單常見）
+    if (o.isCollection === true || o.collection === true) return "COD";
+    if (Number(o.collectionAmount || 0) > 0) return "COD";
+
+    // 3) 配送型別：超商取貨付款一定是 COD
+    const shipType = String(o.shippingType || "").trim().toLowerCase();
+    if (shipType === "cvs_cod") return "COD";
+
+    // 只有兩種付款方式時，其餘視為 CREDIT（保守預設）
+    return "CREDIT";
+  }
+
+  // === 付款狀態（修正版：信用卡看真實付款線索；COD 等到完成才算付）===
+  function paymentStatusOf(o) {
+    const s = String(o.status || "").trim().toUpperCase();
+    const shipType = String(o.shippingType || "").trim().toLowerCase();
+    const logi = getLogisticsStatus(o);
+
+    // 明確失敗 / 取消
+    if (s === "FAILED") return "付款失敗";
+    if (s === "CANCELLED") return "已取消";
+
+    const method = resolvePayMethod(o);
+
+    if (method === "COD") {
+      // 超商 COD：取件/配達才算已付
+      if (shipType === "cvs_cod") {
+        if (logi === "DELIVERED") return "已付款（COD）";
+        return "待付款";
+      }
+      // 宅配 COD：配達完成才算已付
+      if (shipType === "address") {
+        if (logi === "DELIVERED") return "已付款（COD）";
+        return "待付款";
+      }
+      // 其他型別（極少見）：保守處理
+      return "待付款";
+    }
+
+    // 非 COD（如信用卡）：僅看真實付款線索
+    const paidAmount = Number(o.paidAmount ?? o.totalPaid ?? 0);
+    if (s === "PAID") return "已付款";
+    if (o.paidAt) return "已付款";
+    if (paidAmount > 0) return "已付款";
+    if ((Boolean)(o.merchantTradeNo)) return "已付款";
+
+    // ※ 不再用 tradeNo / gateway 當作已付依據，避免誤判
+    return "待付款";
+  }
+
   // ====== 補強：用單筆 API 回填付款/配送徽章 ======
   async function hydrateStatus() {
     const rows = Array.from(tbody.querySelectorAll("tr[data-row-id]"));
     for (const tr of rows) {
       const td = tr.querySelector(".td-status");
       if (!td) continue;
-      const id = tr.getAttribute("data-row-id");
-      if (!id) continue;
+      const idAttr = tr.getAttribute("data-row-id");
+      if (!idAttr) continue;
+      const id = Number(idAttr);
 
       try {
         const o = await fetchOrderOne(id);
         const pay = paymentStatusOf(o);
         const ship = deliveryStatusOf(o);
+
+        // 記錄「已付款」（含已付款（COD）），供下一輪避免 UI 回退
+        if (pay === "已付款" || pay.startsWith("已付款")) {
+          lastPaid.add(id);
+        }
+
         td.innerHTML =
           `<span class="badge ${badgeCls(pay)} me-1">付款：${escapeHtml(pay)}</span><br>` +
           `<span class="badge ${badgeCls(ship)}">配送：${escapeHtml(ship)}</span>`;
@@ -1005,15 +1055,20 @@
     return j;
   }
 
-  // ★ 建立宅配託運單：若暫無追蹤碼，啟動輪詢並搭配 Query API
+  // ★ 建立宅配託運單：依付款方式決定是否代收（isCollection）
   async function createHomeFor(orderId) {
     if (!orderId) return;
     try {
       showLoading(true);
+
+      // 依訂單實際付款方式判斷是否代收貨款
+      const base = await fetchOrderOne(orderId);
+      const isCod = resolvePayMethod(base) === "COD";
+
       const r = await fetch("/api/logistics/home/ecpay/create", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...ADMIN_HEADERS },
-        body: JSON.stringify({ orderId, isCollection: false })
+        body: JSON.stringify({ orderId, isCollection: isCod })
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || j.ok === false) throw new Error(j.error || "建立失敗");
@@ -1035,9 +1090,9 @@
         await pollTracking(orderId, 6, 5000);
       }
 
-      try { await hydrateStatus(); } catch {}
+      try { await hydrateStatus(); } catch { }
 
-      // ★ 只有按下這顆建立託運單的行為，才把訂單標記為 Shipped
+      // 建單後標記出貨（維持原行為）
       await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界宅配" });
       orderCache.delete(Number(orderId));
       await loadPage(state.page);
@@ -1064,13 +1119,13 @@
 
       // 立即顯示/回填
       if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
-      if (j.trackingNo)  trackingNoInput.value = j.trackingNo;
+      if (j.trackingNo) trackingNoInput.value = j.trackingNo;
 
       // 回寫 DB（門市特有欄位若有）
       const payload = {};
-      if (j.logisticsId)     payload.logisticsId     = j.logisticsId;
-      if (j.trackingNo)      payload.trackingNo      = j.trackingNo;
-      if (j.cvsPaymentNo)    payload.cvsPaymentNo    = j.cvsPaymentNo;
+      if (j.logisticsId) payload.logisticsId = j.logisticsId;
+      if (j.trackingNo) payload.trackingNo = j.trackingNo;
+      if (j.cvsPaymentNo) payload.cvsPaymentNo = j.cvsPaymentNo;
       if (j.cvsValidationNo) payload.cvsValidationNo = j.cvsValidationNo;
       if (Object.keys(payload).length > 0) {
         await apiPost(`${API_BASE}/${orderId}/logistics`, payload);
@@ -1085,7 +1140,7 @@
       }
 
       // 建單後刷新徽章
-      try { await hydrateStatus(); } catch {}
+      try { await hydrateStatus(); } catch { }
 
       // ★ 按了這顆建立超商託運單，就標記為 Shipped
       await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界超商B2C（全家）" });

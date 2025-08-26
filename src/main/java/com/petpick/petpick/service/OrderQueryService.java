@@ -45,10 +45,11 @@ public class OrderQueryService {
         dto.setTotalPrice(o.getTotalPrice());
         dto.setStatus(o.getStatus());
         dto.setCreatedAt(o.getCreatedAt());
+        dto.setPaidAt(o.getPaidAt());
+        dto.setPaymentGateway(o.getPaymentGateway());
 
-        // ★ 關鍵：把出貨/送達與物流狀態帶出去
+        // ★ 帶出出貨/送達與物流狀態（含備援對應）
         dto.setShippedAt(o.getShippedAt());
-        // 如果是超取取件完成，entity 可能只寫在 receivedAt；這裡做後備映射，前端不用改就能顯示
         dto.setDeliveredAt(o.getDeliveredAt() != null ? o.getDeliveredAt() : o.getReceivedAt());
         dto.setLogisticsStatus(o.getLogisticsStatus());
 
@@ -85,7 +86,17 @@ public class OrderQueryService {
         dto.setCreatedAt(o.getCreatedAt());
         dto.setTotalPrice(o.getTotalPrice());
         dto.setStatus(o.getStatus());
-        dto.setMerchantTradeNo(o.getMerchantTradeNo()); // 別漏 MTN
+        dto.setMerchantTradeNo(o.getMerchantTradeNo());
+
+        // ★ 列表頁也需要的欄位（供前端判斷可否取消、顯示配送摘要）
+        dto.setShippingType(o.getShippingType());
+        dto.setAddr(o.getAddr());
+        dto.setStoreId(o.getStoreId());
+        dto.setStoreName(o.getStoreName());
+        dto.setStoreAddress(o.getStoreAddress());
+        dto.setStoreBrand(o.getStoreBrand());
+        dto.setLogisticsStatus(o.getLogisticsStatus());
+
         return dto;
     }
 }

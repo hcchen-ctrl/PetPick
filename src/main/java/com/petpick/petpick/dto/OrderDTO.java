@@ -32,4 +32,6 @@ public class OrderDTO {
     private String storeBrand;
 
     private List<OrderDetailDTO> items;
+    private String paymentGateway;
+    private LocalDateTime paidAt;
 }

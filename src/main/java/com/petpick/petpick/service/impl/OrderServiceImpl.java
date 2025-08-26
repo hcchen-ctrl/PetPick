@@ -46,6 +46,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderStatusHistoryRepository statusHistoryRepo;
 
     // ---------------- Commands ----------------
+
+    
     @Override
     @Transactional
     public OrderDTO checkout(CheckoutRequest req) {
@@ -518,6 +520,8 @@ public class OrderServiceImpl implements OrderService {
         h.setNote(nz(note));
         return h;
     }
+
+    
 
     // ---------------- misc utils ----------------
     private static String nz(String s) {

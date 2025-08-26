@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.petpick.petpick.config.EcpayProperties;
 import com.petpick.petpick.mac.EcpayPaymentCheckMac;
 import com.petpick.petpick.repository.OrderRepository;
+import com.petpick.petpick.service.OrderService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class PaymentReturnController {
 
     private final EcpayProperties prop;
     private final OrderRepository orderRepo;
+    private final OrderService orderService;
 
     /**
      * 綠界金流 ReturnURL（Server → Server）
@@ -36,10 +38,8 @@ public class PaymentReturnController {
      *
      * 註：不宣告 produces，避免 Accept 協商造成 406。
      */
-    @PostMapping(
-        value = "/return",
-        consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE
-        // 不寫 produces，後面用 ResponseEntity 設定 contentType
+    @PostMapping(value = "/return", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE
+    // 不寫 produces，後面用 ResponseEntity 設定 contentType
     )
     public ResponseEntity<String> handleReturn(@RequestParam Map<String, String> payload) {
         try {
@@ -51,17 +51,17 @@ public class PaymentReturnController {
             log.info("[ECPay-Return] env={} recv={}", isStage ? "STAGE" : "PROD", ci);
 
             String key = prop.getPayment().getHashKey();
-            String iv  = prop.getPayment().getHashIv();
+            String iv = prop.getPayment().getHashIv();
 
             // 產生本地 MAC（SHA-256）
-            String recvMac  = ci.getOrDefault("CheckMacValue", "");
+            String recvMac = ci.getOrDefault("CheckMacValue", "");
             String localMac = EcpayPaymentCheckMac.generate(ci, key, iv);
-            boolean macOK   = recvMac.equalsIgnoreCase(localMac);
+            boolean macOK = recvMac.equalsIgnoreCase(localMac);
 
-            String rtnCode    = ci.getOrDefault("RtnCode", "0");
-            String rtnMsg     = ci.getOrDefault("RtnMsg", "");
-            String tradeNo    = ci.getOrDefault("TradeNo", "");
-            String mtn        = ci.getOrDefault("MerchantTradeNo", "");
+            String rtnCode = ci.getOrDefault("RtnCode", "0");
+            String rtnMsg = ci.getOrDefault("RtnMsg", "");
+            String tradeNo = ci.getOrDefault("TradeNo", "");
+            String mtn = ci.getOrDefault("MerchantTradeNo", "");
             String orderIdStr = ci.get("CustomField1"); // 送單時放的 orderId
 
             boolean rtnSuccess = "1".equals(rtnCode);
@@ -110,6 +110,23 @@ public class PaymentReturnController {
             return ResponseEntity.ok()
                     .contentType(MediaType.TEXT_PLAIN)
                     .body("1|OK");
+        }
+    }
+
+    @PostMapping("/callback")
+    public String ecpayCallback(@RequestParam Map<String, String> params) {
+        // 依你實際欄位取值
+        Integer orderId = Integer.valueOf(params.get("CustomField1")); // 例：你把 orderId 放在自訂欄位
+        String tradeNo = params.get("TradeNo");
+        int amount = Integer.parseInt(params.getOrDefault("TradeAmt", "0"));
+        String rtnCode = params.get("RtnCode"); // "1" 表成功
+
+        if ("1".equals(rtnCode)) {
+            orderService.onPaymentSucceeded(orderId, "ECPAY", tradeNo, amount);
+            return "1|OK";
+        } else {
+            orderService.onPaymentFailed(orderId, params.getOrDefault("RtnMsg", "FAILED"));
+            return "0|FAILED";
         }
     }
 }
