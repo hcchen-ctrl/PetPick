@@ -88,6 +88,7 @@
 
                             <li>  <a class="dropdown-item" sec:authorize="hasAuthority('ROLE_MANAGER')" th:href="@{/managersIndex}">管理按鈕</a></li>
                             <li>  <a class="dropdown-item" sec:authorize="hasAuthority('ROLE_ADMIN')" href="/adopt/apply-review.html">管理領養</a></li>
+                            <li>  <a class="dropdown-item" sec:authorize="hasAuthority('ROLE_ADMIN')" href="/adopt/post-review.html">管理領養</a></li>
                             <li>   <a class="dropdown-item" sec:authorize="hasAnyAuthority('ROLE_MANAGER', 'ROLE_USER')" onclick="location.href='/logout';" >離開按鈕</a></li>
                         </ul>
                     </div>

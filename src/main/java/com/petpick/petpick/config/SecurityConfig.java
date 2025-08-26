@@ -81,8 +81,11 @@ public class SecurityConfig {
                 .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css","/adopt/**","/shop/**","/memFunction.js", "/favicon.ico").permitAll()
                 .requestMatchers("/index","/api/**","/gov-list-page","/adopt-list","/shop/commodity","/loginpage", "/register").permitAll() // ⬅ 加上 /register
                 .requestMatchers("/rename").authenticated()//登入後才可以進入修改頁面
-                .requestMatchers("/api/applications/**").hasRole("ADMIN") // 新增這行
-                .requestMatchers("/api/**").permitAll() // 其他 API
+                .requestMatchers("/api/applications/**").hasRole("ADMIN")
+                .requestMatchers("/api/admin/posts/**").hasRole("ADMIN")
+                .requestMatchers("/api/posts/**").hasRole("ADMIN") // 這裡也建議加
+                .requestMatchers("/api/**").permitAll() // ⬅ 放在最後
+
                 .requestMatchers("/managersIndex").authenticated()//登入後才可以進入修改頁面
                 .requestMatchers("/adminpage").hasRole("ADMIN")
                 .requestMatchers("/managerpage").hasRole("MANAGER")

@@ -96,8 +96,6 @@ async function load() {
         const data = await r.json();
         const items = data.content ?? data ?? [];
 
-        console.log(data);
-
         empty.classList.toggle('d-none', items.length > 0);
         resultCount.textContent = (data.totalElements != null)
             ? `共 ${data.totalElements} 筆，第 ${data.number + 1}/${data.totalPages} 頁`
@@ -170,7 +168,8 @@ async function openDetail(id) {
     mBody.innerHTML = `<div class="text-center text-muted">載入中…</div>`;
     modal.show();
 
-    const r = await fetch(`/api/posts?${buildParams()}`);
+    // 修正 API 路徑：從 /api/adopts 改為 /api/posts
+    const r = await fetch(`/api/posts/${id}`);
     if (!r.ok) { mBody.innerHTML = `<div class="text-danger">讀取失敗</div>`; return; }
     const p = await r.json();
 
@@ -227,20 +226,72 @@ async function openDetail(id) {
 }
 
 // ---- Admin actions ----
+// ---- 新增 CSRF token 處理函數 ----
+function getCsrfToken() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'XSRF-TOKEN') {
+            return decodeURIComponent(value);
+        }
+    }
+    return null;
+}
+
+// ---- 修改後的 Admin actions ----
 async function updateStatus(id, act, closeModal = false) {
     let reason = '';
     if (act === 'rejected') reason = prompt('退件原因（可留空）') || '';
-    const ok = await fetch(`/api/posts/${id}/status?status=${act}&reason=${encodeURIComponent(reason)}`, { method: 'PATCH' }).then(r => r.ok);
+
+    const csrfToken = getCsrfToken();
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (csrfToken) {
+        headers['X-Csrf-Token'] = csrfToken;
+    }
+
+    const ok = await fetch(`/api/posts/${id}/status?status=${act}&reason=${encodeURIComponent(reason)}`, {
+        method: 'PATCH',
+        headers: headers
+    }).then(r => r.ok);
+
     alert(ok ? '已更新' : '更新失敗');
     if (ok) { if (closeModal) modal.hide(); load(); }
 }
+
 async function adminHold(id, hold) {
-    const ok = await fetch(`/api/posts/${id}/hold?hold=${hold}`, { method: 'PATCH' }).then(r => r.ok);
+    const csrfToken = getCsrfToken();
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (csrfToken) {
+        headers['X-Csrf-Token'] = csrfToken;
+    }
+
+    const ok = await fetch(`/api/posts/${id}/hold?hold=${hold}`, {
+        method: 'PATCH',
+        headers: headers
+    }).then(r => r.ok);
+
     alert(ok ? '已更新' : '更新失敗');
     if (ok) load();
 }
+
 async function adminClose(id) {
-    const ok = await fetch(`/api/posts/${id}/close`, { method: 'PATCH' }).then(r => r.ok);
+    const csrfToken = getCsrfToken();
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (csrfToken) {
+        headers['X-Csrf-Token'] = csrfToken;
+    }
+
+    const ok = await fetch(`/api/posts/${id}/close`, {
+        method: 'PATCH',
+        headers: headers
+    }).then(r => r.ok);
+
     alert(ok ? '已關閉' : '關閉失敗');
     if (ok) load();
 }
