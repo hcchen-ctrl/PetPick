@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -49,7 +50,7 @@ public class SecurityConfig {
         tokenRepository.setCookieName("XSRF-TOKEN"); // 確保 cookie 名稱
 
         http.csrf(csrf -> csrf
-                .ignoringRequestMatchers("/register", "/api/missions/upload")
+                .ignoringRequestMatchers("/register", "/api/missions/upload","/api/applications/**")
                 .csrfTokenRepository(tokenRepository)
         );
 
@@ -79,9 +80,9 @@ public class SecurityConfig {
         http.authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css","/adopt/**","/shop/**","/memFunction.js", "/favicon.ico").permitAll()
                 .requestMatchers("/index","/api/**","/gov-list-page","/adopt-list","/shop/commodity","/loginpage", "/register").permitAll() // ⬅ 加上 /register
-
-
                 .requestMatchers("/rename").authenticated()//登入後才可以進入修改頁面
+                .requestMatchers("/api/applications/**").hasRole("ADMIN") // 新增這行
+                .requestMatchers("/api/**").permitAll() // 其他 API
                 .requestMatchers("/managersIndex").authenticated()//登入後才可以進入修改頁面
                 .requestMatchers("/adminpage").hasRole("ADMIN")
                 .requestMatchers("/managerpage").hasRole("MANAGER")

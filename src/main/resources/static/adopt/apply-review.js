@@ -1,3 +1,11 @@
+//token用
+function getCsrfToken() {
+    const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+
+
 import { requireAdmin } from '/adopt/auth.js';
 await requireAdmin();
 
@@ -174,14 +182,31 @@ async function openDetail(id) {
 
 // --- Admin actions for Applications ---
 async function approveApp(id, close = false) {
-    const ok = await fetch(`/api/applications/${id}/approve`, { method: 'PATCH' }).then(r => r.ok);
-    alert(ok ? '已通過' : '操作失敗'); if (ok) { if (close) m.hide(); load(); }
+    const ok = await fetch(`/api/applications/${id}/approve`, {
+        method: 'PATCH',
+        headers: {
+            'X-Csrf-Token': getCsrfToken()
+        },
+        credentials: 'include'  // ← 加上這行
+    }).then(r => r.ok);
+    alert(ok ? '已通過' : '操作失敗');
+    if (ok) { if (close) m.hide(); load(); }
 }
+
 async function rejectApp(id, close = false) {
     const reason = prompt('退件原因（可留空）') || '';
-    const ok = await fetch(`/api/applications/${id}/reject?reason=${encodeURIComponent(reason)}`, { method: 'PATCH' }).then(r => r.ok);
-    alert(ok ? '已退回' : '操作失敗'); if (ok) { if (close) m.hide(); load(); }
+    const ok = await fetch(`/api/applications/${id}/reject?reason=${encodeURIComponent(reason)}`, {
+        method: 'PATCH',
+        headers: {
+            'X-Csrf-Token': getCsrfToken()
+
+        },
+        credentials: 'include'  // ← 加上這行
+    }).then(r => r.ok);
+    alert(ok ? '已退回' : '操作失敗');
+    if (ok) { if (close) m.hide(); load(); }
 }
+
 
 filters.addEventListener('submit', e => {
     e.preventDefault();

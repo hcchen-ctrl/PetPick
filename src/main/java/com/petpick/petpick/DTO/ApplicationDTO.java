@@ -6,12 +6,12 @@ import com.petpick.petpick.entity.AdoptApplication;
 import com.petpick.petpick.entity.AdoptPost;
 import lombok.Data;
 
-
 @Data
 public class ApplicationDTO {
     private Long id;
     private Long postId;
     private Long applicantUserId;
+    private String applicantName; // 👈 新增欄位
     private String message;
     private String status;
     private Long reviewedByEmployeeId;
@@ -28,8 +28,9 @@ public class ApplicationDTO {
         d.id = a.getId();
         d.postId = a.getPostId();
         d.applicantUserId = a.getApplicantUserId();
-        d.message = a.getMessage();
-        d.status = a.getStatus().name(); // enum 轉字串
+        d.applicantName = (a.getApplicant() != null) ? a.getApplicant().getUsername() : "undefined"; // 👈 安全取值
+        d.message = (a.getMessage() != null) ? a.getMessage() : ""; // 👈 避免 null 顯示在前端
+        d.status = a.getStatus().name();
         d.reviewedByEmployeeId = a.getReviewedByEmployeeId();
         d.createdAt = a.getCreatedAt();
         d.updatedAt = a.getUpdatedAt();

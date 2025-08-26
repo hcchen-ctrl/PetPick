@@ -27,6 +27,11 @@ public class AdoptApplication {
     @Column(columnDefinition = "TEXT")
     private String message;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "applicant_user_id", insertable = false, updatable = false)
+    private UserEntity applicant;
+
+
 //    // 對應 DB: status enum('pending','approved','rejected','cancelled')
 //    @Enumerated(EnumType.STRING)
 //    @Column(name = "status", nullable = false, length = 20)

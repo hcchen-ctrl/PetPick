@@ -1,6 +1,6 @@
 // ========= CSRF Token 處理函數 =========
 function getCsrfToken() {
-    // 從 cookie 取得 CSRF token
+    // 方法1: 從 cookie 取得 CSRF token
     const cookies = document.cookie.split(';');
     for (let cookie of cookies) {
         const [name, value] = cookie.trim().split('=');
@@ -8,13 +8,18 @@ function getCsrfToken() {
             return decodeURIComponent(value);
         }
     }
+
+    // 方法2: 從 meta tag 取得 (如果 HTML 中有設定)
+    const metaToken = document.querySelector('meta[name="_csrf"]');
+    if (metaToken) {
+        return metaToken.getAttribute('content');
+    }
+
     return null;
 }
 
 // 通用的 API 請求函數
-function apiRequest(url, method = 'GET', data = null) {
-    const csrfToken = getCsrfToken();
-
+async function apiRequest(url, method = 'GET', data = null) {
     const config = {
         method: method,
         headers: {
@@ -23,16 +28,63 @@ function apiRequest(url, method = 'GET', data = null) {
         credentials: 'include'  // 確保發送 cookies
     };
 
-    // 如果有 CSRF Token，添加到 header
-    if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-        config.headers['X-Csrf-Token'] = csrfToken;
+    // 對於需要 CSRF 保護的請求，添加 token
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        const csrfToken = getCsrfToken();
+
+        if (!csrfToken) {
+            // 如果沒有 token，先嘗試獲取一個新的
+            try {
+                const tokenResponse = await fetch('/api/csrf-token', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                if (tokenResponse.ok) {
+                    const tokenData = await tokenResponse.json();
+                    if (tokenData.token) {
+                        config.headers['X-Csrf-Token'] = tokenData.token;
+                    }
+                }
+            } catch (e) {
+                console.warn('無法獲取 CSRF token:', e);
+            }
+        } else {
+            config.headers['X-Csrf-Token'] = csrfToken;
+        }
     }
 
     if (data && ['POST', 'PUT', 'PATCH'].includes(method)) {
         config.body = JSON.stringify(data);
     }
 
-    return fetch(url, config);
+    const response = await fetch(url, config);
+
+    // 如果是 403 錯誤且是 CSRF 相關，嘗試重新獲取 token 並重試一次
+    if (response.status === 403 && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        console.log('403 錯誤，嘗試重新獲取 CSRF token...');
+
+        try {
+            // 重新獲取 CSRF token
+            const tokenResponse = await fetch('/api/csrf-token', {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (tokenResponse.ok) {
+                const tokenData = await tokenResponse.json();
+                if (tokenData.token) {
+                    // 用新的 token 重試請求
+                    config.headers['X-Csrf-Token'] = tokenData.token;
+                    console.log('使用新的 CSRF token 重試請求');
+                    return await fetch(url, config);
+                }
+            }
+        } catch (e) {
+            console.error('重新獲取 CSRF token 失敗:', e);
+        }
+    }
+
+    return response;
 }
 
 // ========= 原有邏輯（修改 API 調用） =========
@@ -150,22 +202,24 @@ window.cancelPost = async (id) => {
 
     try {
         const response = await apiRequest(`/api/posts/${id}/cancel`, 'PATCH');
-        const ok = response.ok;
 
-        if (!ok) {
-            // 如果是 401 或 403，顯示詳細錯誤信息
+        if (!response.ok) {
             if (response.status === 401) {
                 alert('請先登入');
                 location.href = '/loginpage.html';
                 return;
             } else if (response.status === 403) {
-                alert('權限不足或 CSRF Token 錯誤');
+                alert('權限不足，請重新整理頁面後再試');
+                return;
+            } else {
+                const errorText = await response.text();
+                alert('取消失敗：' + errorText);
                 return;
             }
         }
 
-        alert(ok ? '已取消' : '取消失敗');
-        if (ok) location.reload();
+        alert('已取消');
+        location.reload();
     } catch (error) {
         console.error('取消刊登錯誤:', error);
         alert('取消失敗，請重試');
@@ -178,21 +232,24 @@ window.holdPost = async (id, hold = true) => {
 
     try {
         const response = await apiRequest(`/api/posts/${id}/hold?hold=${hold}`, 'PATCH');
-        const ok = response.ok;
 
-        if (!ok) {
+        if (!response.ok) {
             if (response.status === 401) {
                 alert('請先登入');
                 location.href = '/loginpage.html';
                 return;
             } else if (response.status === 403) {
-                alert('權限不足或 CSRF Token 錯誤');
+                alert('權限不足，請重新整理頁面後再試');
+                return;
+            } else {
+                const errorText = await response.text();
+                alert('更新失敗：' + errorText);
                 return;
             }
         }
 
-        alert(ok ? '已更新' : '更新失敗');
-        if (ok) location.reload();
+        alert('已更新');
+        location.reload();
     } catch (error) {
         console.error('更新狀態錯誤:', error);
         alert('更新失敗，請重試');
@@ -204,21 +261,24 @@ window.closePost = async (id) => {
 
     try {
         const response = await apiRequest(`/api/posts/${id}/close`, 'PATCH');
-        const ok = response.ok;
 
-        if (!ok) {
+        if (!response.ok) {
             if (response.status === 401) {
                 alert('請先登入');
                 location.href = '/loginpage.html';
                 return;
             } else if (response.status === 403) {
-                alert('權限不足或 CSRF Token 錯誤');
+                alert('權限不足，請重新整理頁面後再試');
+                return;
+            } else {
+                const errorText = await response.text();
+                alert('關閉失敗：' + errorText);
                 return;
             }
         }
 
-        alert(ok ? '已關閉' : '關閉失敗');
-        if (ok) location.reload();
+        alert('已關閉');
+        location.reload();
     } catch (error) {
         console.error('關閉刊登錯誤:', error);
         alert('關閉失敗，請重試');

@@ -6,11 +6,13 @@ import java.util.Objects;
 import com.petpick.petpick.DTO.ApplicationDTO;
 import com.petpick.petpick.entity.AdoptApplication;
 import com.petpick.petpick.entity.AdoptPost;
+import com.petpick.petpick.entity.UserEntity; // 修正為 UserEntity
 import com.petpick.petpick.model.enums.ApplicationStatus;
 import com.petpick.petpick.model.enums.PostStatus;
 import com.petpick.petpick.model.enums.SourceType;
 import com.petpick.petpick.repository.AdoptApplicationRepository;
 import com.petpick.petpick.repository.AdoptPostRepository;
+import com.petpick.petpick.repository.UserRepository; // 修正為 UserRepository
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -31,7 +33,7 @@ public class AdoptApplicationService {
     // 送出申請（官方貼文才開放）
     public ApplicationDTO apply(Long postId, Long uid, String message){
         AdoptPost post = postRepo.findById(postId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "貼文不存在"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "貼文不存在"));
 
         if (post.getSourceType() != SourceType.platform)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "這是民眾貼文，直接聯絡即可");
@@ -90,7 +92,7 @@ public class AdoptApplicationService {
     // 取消（只有 pending 才能取消）
     public void cancel(Long appId, Long uid){
         AdoptApplication a = appRepo.findById(appId)
-          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (!Objects.equals(a.getApplicantUserId(), uid))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         if (a.getStatus() != ApplicationStatus.pending)
@@ -116,7 +118,7 @@ public class AdoptApplicationService {
 
     public ApplicationDTO get(Long id){
         AdoptApplication a = appRepo.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         AdoptPost p = postRepo.findById(a.getPostId()).orElse(null);
         return ApplicationDTO.from(a, p);
     }
@@ -124,7 +126,7 @@ public class AdoptApplicationService {
     @Transactional
     public void approve(Long id, Long reviewerId){
         AdoptApplication a = appRepo.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         if (a.getStatus() != ApplicationStatus.pending)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "只能核准審核中申請");
@@ -164,7 +166,7 @@ public class AdoptApplicationService {
 
     public void reject(Long id, Long reviewerId, String reason){
         AdoptApplication a = appRepo.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (a.getStatus() != ApplicationStatus.pending)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         a.setStatus(ApplicationStatus.rejected);

@@ -1,8 +1,8 @@
 import { requireLogin, getAuth } from '/adopt/auth.js';
 
 // ---------- 登入檢查 ----------
-await requireLogin();                 // 若未登入會自動導去 /login.html
-const auth = await getAuth();         // 拿登入狀態（送出成功後要用來判斷導頁）
+await requireLogin();
+const auth = await getAuth();
 
 // ---------- DOM 快取 ----------
 const form = document.getElementById('postForm');
@@ -28,7 +28,7 @@ window.pickAndUpload = async function (slot) {
             window.showLoading?.();
             const res = await fetch('/api/upload', { method: 'POST', body: fd });
             if (!res.ok) throw new Error(await res.text());
-            const { urls } = await res.json();   // { urls: ["/uploads/xxx.jpg", ...] }
+            const { urls } = await res.json();
 
             const input = document.querySelector(`input[name="image${slot}"]`);
             if (input && urls && urls.length) input.value = urls[0];
@@ -47,7 +47,6 @@ window.pickAndUpload = async function (slot) {
 // ---------- 行政區載入 ----------
 const AREA_SOURCES = [
     '/adopt/tw-areas.json',
-    // 'https://cdn.jsdelivr.net/gh/donma/TaiwanAddressCityAreaRoadChinese@master/CityCountyData.json'
 ];
 const normalizeCity = (s) => (s || '').replace('臺', '台');
 
@@ -73,14 +72,13 @@ async function loadAreas() {
 (async () => {
     try {
         const areas = await loadAreas();
-        // 填縣市
         areas.forEach(c => {
             const opt = document.createElement('option');
             opt.value = normalizeCity(c.name);
             opt.textContent = normalizeCity(c.name);
             citySel.appendChild(opt);
         });
-        // 縣市改變 → 重填地區
+
         citySel.addEventListener('change', () => {
             const selCity = citySel.value;
             distSel.innerHTML = '<option value="" selected disabled>請選擇地區</option>';
@@ -100,12 +98,44 @@ async function loadAreas() {
     }
 })();
 
-// 取得 cookie 的函式
+// ---------- CSRF Token 處理 ----------
 function getCookie(name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(';').shift();
-    return '';
+    return null;
+}
+
+async function getValidCsrfToken() {
+    // 先嘗試從 cookie 取得
+    let token = getCookie('XSRF-TOKEN');
+
+    // 如果沒有，嘗試從 meta tag 取得
+    if (!token) {
+        const metaToken = document.querySelector('meta[name="_csrf"]');
+        const metaHeader = document.querySelector('meta[name="_csrf_header"]');
+        if (metaToken) {
+            token = metaToken.getAttribute('content');
+        }
+    }
+
+    // 最後嘗試呼叫 API 取得
+    if (!token) {
+        try {
+            const response = await fetch('/api/csrf-token', {
+                method: 'GET',
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                token = data.token;
+            }
+        } catch (error) {
+            console.error('Failed to get CSRF token:', error);
+        }
+    }
+
+    return token;
 }
 
 // ---------- 表單驗證 & 送出 ----------
@@ -116,11 +146,11 @@ agree.addEventListener('change', () => {
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // 先跑 Bootstrap 的驗證
+    // Bootstrap 驗證
     const formOk = form.checkValidity();
     form.classList.add('was-validated');
 
-    // 條款 checkbox 額外驗證
+    // 條款 checkbox 驗證
     if (!agree.checked) {
         agree.classList.add('is-invalid');
         agree.focus();
@@ -131,115 +161,71 @@ form.addEventListener('submit', async (e) => {
 
     if (!formOk) return;
 
-    // 取得 cookie 的函式（統一版本）
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-        return null;
+    // 收集表單資料
+    const formData = new FormData(form);
+    const postData = {};
+
+    for (const [key, value] of formData.entries()) {
+        postData[key] = value;
     }
 
-// 獲取 CSRF token 的函數
-    async function getValidCsrfToken() {
-        // 先嘗試從 cookie 取得
-        let token = getCookie('XSRF-TOKEN');
+    try {
+        window.showLoading?.();
 
-        // 如果沒有，呼叫 API 取得
-        if (!token) {
-            try {
-                const response = await fetch('/api/csrf-token', {
-                    method: 'GET',
-                    credentials: 'include'
-                });
-                const data = await response.json();
-                token = data.token;
-            } catch (error) {
-                console.error('Failed to get CSRF token:', error);
-            }
-        }
+        // 獲取 CSRF token
+        const csrfToken = await getValidCsrfToken();
 
-        return token;
-    }
-
-// ---------- 表單驗證 & 送出 ----------
-    agree.addEventListener('change', () => {
-        agree.classList.toggle('is-invalid', !agree.checked);
-    });
-
-// 只保留一個 submit 事件監聽器
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        // 先跑 Bootstrap 的驗證
-        const formOk = form.checkValidity();
-        form.classList.add('was-validated');
-
-        // 條款 checkbox 額外驗證
-        if (!agree.checked) {
-            agree.classList.add('is-invalid');
-            agree.focus();
+        if (!csrfToken) {
+            alert('無法獲取安全令牌，請重新整理頁面');
             return;
-        } else {
-            agree.classList.remove('is-invalid');
         }
 
-        if (!formOk) return;
+        console.log('Using CSRF token:', csrfToken); // 除錯用
 
-        // 收集表單資料
-        const formData = new FormData(form);
-        const postData = {};
+        // 根據您的 Security 設定，使用 X-Csrf-Token header
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Csrf-Token': csrfToken  // 配合您的 Security 設定
+        };
 
-        // 將 FormData 轉換為普通物件
-        for (const [key, value] of formData.entries()) {
-            postData[key] = value;
+        console.log('Request headers:', headers); // 除錯用
+
+        const res = await fetch('/api/posts', {
+            method: 'POST',
+            headers: headers,
+            credentials: 'include',
+            body: JSON.stringify(postData)
+        });
+
+        console.log('Response status:', res.status); // 除錯用
+
+        if (res.ok) {
+            alert('已送出！');
+            const dest = (auth && auth.role === 'ADMIN')
+                ? '/adopt/post-review.html?status=pending'
+                : '/adopt/my-adopt-progress.html?status=pending';
+            location.href = dest;
+            return;
         }
 
-        try {
-            window.showLoading?.();
-
-            // 獲取有效的 CSRF token
-            const csrfToken = await getValidCsrfToken();
-
-            if (!csrfToken) {
-                alert('無法獲取安全令牌，請重新整理頁面');
-                return;
-            }
-
-            const res = await fetch('/api/posts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Csrf-Token': csrfToken   // 使用正確的 header 名稱
-                },
-                credentials: 'include',
-                body: JSON.stringify(postData)  // 發送完整的表單資料
-            });
-
-            if (res.ok) {
-                alert('已送出！');
-                const dest = (auth && auth.role === 'ADMIN')
-                    ? '/adopt/post-review.html?status=pending'
-                    : '/adopt/my-adopt-progress.html?status=pending';
-                location.href = dest;
-                return;
-            }
-
-            if (res.status === 401) {
-                sessionStorage.setItem('redirect', '/post-adopt.html');
-                location.href = '/loginpage';
-                return;
-            }
-
-            const msg = await res.text();
-            alert('送出失敗：' + msg);
-        } catch (err) {
-            console.error('送出錯誤:', err);
-            alert('送出失敗，請稍後再試: ' + err.message);
-        } finally {
-            window.hideLoading?.();
+        if (res.status === 401) {
+            sessionStorage.setItem('redirect', '/post-adopt.html');
+            location.href = '/loginpage';
+            return;
         }
-    });
 
+        if (res.status === 403) {
+            console.error('CSRF token might be invalid or missing');
+            alert('權限驗證失敗，請重新整理頁面後再試');
+            return;
+        }
 
+        const msg = await res.text();
+        alert('送出失敗：' + msg);
+    } catch (err) {
+        console.error('送出錯誤:', err);
+        alert('送出失敗，請稍後再試: ' + err.message);
+    } finally {
+        window.hideLoading?.();
+    }
 });
-

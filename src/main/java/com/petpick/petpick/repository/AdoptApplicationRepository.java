@@ -41,8 +41,12 @@ public interface AdoptApplicationRepository extends JpaRepository<AdoptApplicati
              lower(p.contactName) like lower(concat('%', :q, '%')) or
              lower(p.contactPhone) like lower(concat('%', :q, '%')))
       """)
-    Page<AdoptApplication> adminSearch(ApplicationStatus status, String species, String q, Pageable pageable);
-
+    Page<AdoptApplication> adminSearch(
+            @Param("status") ApplicationStatus status,
+            @Param("species") String species,
+            @Param("q") String q,
+            Pageable pageable
+    );
     // ======= 新增：計算每個貼文的「pending 申請數量」=======
     @Query("SELECT a.postId, COUNT(a) FROM AdoptApplication a WHERE a.postId IN :postIds AND a.status = :status GROUP BY a.postId")
     List<Object[]> countPendingByPostIds(@Param("postIds") List<Long> postIds, @Param("status") ApplicationStatus status);
@@ -68,10 +72,11 @@ public interface AdoptApplicationRepository extends JpaRepository<AdoptApplicati
     @Transactional
     @Query("""
     UPDATE AdoptApplication a 
-    SET a.status = :rejectedStatus 
+    SET a.status = :rejectedStatus,
+    a.rejectReason = :comment,
+            a.updatedAt = CURRENT_TIMESTAMP
     WHERE a.postId = :postId 
       AND a.id <> :acceptedId 
-      AND a.applicantUserId = :adopterId 
       AND a.status = :pendingStatus
 """)
     int rejectOthersPendingOfPost(
