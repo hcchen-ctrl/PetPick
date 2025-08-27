@@ -33,7 +33,6 @@ public class SecurityConfig {
     @Lazy
     private CustomOAuth2UserService customOAuth2UserService;
 
-
     //暫時開放
     @Bean
     public HttpFirewall allowUrlEncodedDoubleSlashHttpFirewall() {
@@ -47,46 +46,62 @@ public class SecurityConfig {
         // 創建自定義的 CSRF token repository
         CookieCsrfTokenRepository tokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         tokenRepository.setHeaderName("X-Csrf-Token");
-        tokenRepository.setCookieName("XSRF-TOKEN"); // 確保 cookie 名稱
+        tokenRepository.setCookieName("XSRF-TOKEN");
 
         http.csrf(csrf -> csrf
-                .ignoringRequestMatchers("/register", "/api/missions/upload","/api/applications/**")
+                .ignoringRequestMatchers("/register", "/api/missions/upload", "/api/applications/**")
+                .ignoringRequestMatchers("/api/posts/**")
                 .csrfTokenRepository(tokenRepository)
         );
 
         // 表單提交
         http.formLogin(form -> form
-                // loginpage.html 表單 action 內容
-
-                // 自定義登入頁面
                 .loginPage("/loginpage")
                 .loginProcessingUrl("/login")
-                // 登入成功之後要造訪的頁面
-                .defaultSuccessUrl("/", true)  // welcome 頁面
-                // 登入失敗後要造訪的頁面
-                .failureUrl("/loginpage?error=true")        );
-
-        // ✅ Google OAuth2 登入設定
-        http.oauth2Login(oauth2 -> oauth2
-                .loginPage("/loginpage") // 使用同一個登入頁
-                .userInfoEndpoint(userInfo -> userInfo
-                        .userService(customOAuth2UserService) // 自訂 OAuth2UserService
-                )
-                .defaultSuccessUrl("/", true) // Google 登入成功也導向 /
-                .failureUrl("/loginpage?error=true")    // 登入失敗後要造訪的頁面
+                .defaultSuccessUrl("/", true)
+                .failureUrl("/loginpage?error=true")
         );
 
-        // 授權認證
+        // Google OAuth2 登入設定
+        http.oauth2Login(oauth2 -> oauth2
+                .loginPage("/loginpage")
+                .userInfoEndpoint(userInfo -> userInfo
+                        .userService(customOAuth2UserService)
+                )
+                .defaultSuccessUrl("/", true)
+                .failureUrl("/loginpage?error=true")
+        );
+
+        // ⚠️ 重要：授權認證順序修正 - 從最具體到最通用
         http.authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/css/**", "/js/**", "/images/**","/styles.css","/adopt/**","/shop/**","/memFunction.js", "/favicon.ico").permitAll()
-                .requestMatchers("/index","/api/**","/gov-list-page","/adopt-list","/shop/commodity","/loginpage", "/register").permitAll() // ⬅ 加上 /register
-                .requestMatchers("/rename").authenticated()//登入後才可以進入修改頁面
+                // 靜態資源
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/styles.css", "/adopt/**", "/shop/**", "/memFunction.js", "/favicon.ico").permitAll()
+
+                // 公開頁面
+                .requestMatchers("/index", "/gov-list-page", "/adopt-list", "/shop/commodity", "/loginpage", "/register").permitAll()
+
+                // ⚠️ 具體的管理員 API 路徑 - 必須放在最前面
+                .requestMatchers(HttpMethod.GET, "/api/posts").hasRole("ADMIN")        // 審核中心列表
+                .requestMatchers(HttpMethod.GET, "/api/posts/*").hasRole("ADMIN")      // 單個貼文詳情
+                .requestMatchers(HttpMethod.PATCH, "/api/posts/*/status").hasRole("ADMIN")  // 審核狀態更新
+                .requestMatchers(HttpMethod.PATCH, "/api/posts/*/hold").hasRole("ADMIN")    // 暫停/恢復
+                .requestMatchers(HttpMethod.PATCH, "/api/posts/*/close").hasRole("ADMIN")   // 關閉貼文
+
+                // 其他管理員專用 API
                 .requestMatchers("/api/applications/**").hasRole("ADMIN")
                 .requestMatchers("/api/admin/posts/**").hasRole("ADMIN")
-                .requestMatchers("/api/posts/**").hasRole("ADMIN") // 這裡也建議加
-                .requestMatchers("/api/**").permitAll() // ⬅ 放在最後
 
-                .requestMatchers("/managersIndex").authenticated()//登入後才可以進入修改頁面
+                // 用戶相關的 API - 需要登入但不限制角色
+                .requestMatchers(HttpMethod.POST, "/api/posts").authenticated()        // 創建貼文
+                .requestMatchers(HttpMethod.GET, "/api/posts/my").authenticated()      // 我的貼文
+                .requestMatchers(HttpMethod.PATCH, "/api/posts/*/cancel").authenticated() // 取消貼文
+
+                // 通用 API 路徑 - 放在最後
+                .requestMatchers("/api/**").permitAll()
+
+                // 其他需要認證的頁面
+                .requestMatchers("/rename").authenticated()
+                .requestMatchers("/managersIndex").authenticated()
                 .requestMatchers("/adminpage").hasRole("ADMIN")
                 .requestMatchers("/managerpage").hasRole("MANAGER")
                 .requestMatchers("/employeepage").hasAnyRole("MANAGER", "EMPLOYEE")
@@ -95,32 +110,27 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
         );
 
-
-//         http.csrf(csrf -> csrf.disable()); // 關閉 csrf 防護
-
         // 登出
         http.logout(logout -> logout
-                .deleteCookies("JSESSIONID")
+                .deleteCookies("JSESSIONID", "XSRF-TOKEN")  // 同時清除 CSRF token
                 .logoutSuccessUrl("/loginpage")
-                .logoutRequestMatcher(new AntPathRequestMatcher("/logout")) // 可以使用任何的 HTTP 方法登出
+                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
         );
 
         // 異常處理
         http.exceptionHandling(exception -> exception
-                //.accessDeniedPage("/異常處理頁面")  // 請自行撰寫
                 .accessDeniedHandler(myAccessDeniedHandler)
         );
 
-        // 勿忘我（remember-me）
+        // 勿忘我
         http.rememberMe(remember -> remember
                 .userDetailsService(userDetailsService)
-                .tokenValiditySeconds(60) // 通常都會大於 session timeout 的時間
+                .tokenValiditySeconds(60)
         );
 
         return http.build();
     }
 
-    // 注意！規定！要建立密碼演算的實例
     @Bean
     public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();

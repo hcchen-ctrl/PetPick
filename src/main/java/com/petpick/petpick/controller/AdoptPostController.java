@@ -109,11 +109,24 @@ public class AdoptPostController {
                                   @RequestParam(required = false, defaultValue = "") String reason,
                                   Authentication authentication) {
 
+        // 添加调试日志
+        System.out.println("=== updateStatus 被调用 ===");
+        System.out.println("请求 ID: " + id);
+        System.out.println("目标状态: " + status);
+        System.out.println("Authentication: " + authentication);
+
+        if (authentication != null) {
+            System.out.println("用户详情: " + authentication.getPrincipal());
+            System.out.println("权限: " + authentication.getAuthorities());
+        }
+
         MyUserDetails userDetails = (MyUserDetails) authentication.getPrincipal();
         String role = userDetails.getRole();
+        System.out.println("用户角色: " + role);
 
-        // 只有管理員可以審核
+        // 只有管理员可以审核
         if (!"ADMIN".equals(role)) {
+            System.out.println("权限不足，用户角色: " + role);
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "需要管理員權限");
         }
 
@@ -130,8 +143,10 @@ public class AdoptPostController {
         // 如果是退回且有原因，可以記錄退回原因（這裡假設你有對應的欄位）
         if (status == PostStatus.rejected && !reason.isEmpty()) {
             // post.setRejectReason(reason); // 如果你的實體有這個欄位的話
+            System.out.println("退回原因: " + reason);
         }
 
+        System.out.println("更新貼文狀態為: " + status);
         return postRepo.save(post);
     }
 

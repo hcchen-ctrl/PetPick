@@ -41,10 +41,12 @@ function buildParams() {
     p.set('size', state.size);
     return p.toString();
 }
+
 function syncUrl(push = false) {
     const url = `/post-review.html?${buildParams()}`;
     if (push) history.pushState(null, '', url); else history.replaceState(null, '', url);
 }
+
 window.addEventListener('popstate', () => {
     const q = new URLSearchParams(location.search);
     state.page = +(q.get('page') || 0);
@@ -85,6 +87,62 @@ const fmt = {
         return a.join('　');
     }
 };
+
+// ---- 改進的 CSRF Token function ----
+function getCsrfToken() {
+    console.log('正在獲取 CSRF Token...');
+
+    // 方法1: 從 cookie 中獲取 XSRF-TOKEN
+    const cookies = document.cookie.split(';');
+    console.log('所有 cookies:', document.cookie);
+
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'XSRF-TOKEN') {
+            const token = decodeURIComponent(value);
+            console.log('從 cookie 獲取到 CSRF Token:', token);
+            return token;
+        }
+    }
+
+    // 方法2: 從 meta tag 獲取
+    const metaToken = document.querySelector('meta[name="_csrf"]');
+    if (metaToken) {
+        const token = metaToken.getAttribute('content');
+        console.log('從 meta tag 獲取到 CSRF Token:', token);
+        return token;
+    }
+
+    // 方法3: 嘗試手動獲取 CSRF token（備用方案）
+    try {
+        const tokenElement = document.querySelector('input[name="_csrf"]');
+        if (tokenElement) {
+            const token = tokenElement.value;
+            console.log('從 input 獲取到 CSRF Token:', token);
+            return token;
+        }
+    } catch (e) {
+        console.warn('無法從 input 獲取 CSRF token:', e);
+    }
+
+    console.warn('無法獲取 CSRF Token');
+    return null;
+}
+
+// 強制獲取新的 CSRF token 的函數
+async function refreshCsrfToken() {
+    try {
+        const response = await fetch('/loginpage', { method: 'GET' });
+        if (response.ok) {
+            console.log('已刷新頁面以獲取新的 CSRF token');
+            // 重新檢查 token
+            return getCsrfToken();
+        }
+    } catch (e) {
+        console.error('刷新 CSRF token 失敗:', e);
+    }
+    return null;
+}
 
 // ---- core loaders ----
 async function load() {
@@ -225,75 +283,164 @@ async function openDetail(id) {
     mReject.onclick = () => updateStatus(id, 'rejected', true);
 }
 
-// ---- Admin actions ----
-// ---- 新增 CSRF token 處理函數 ----
-function getCsrfToken() {
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'XSRF-TOKEN') {
-            return decodeURIComponent(value);
-        }
-    }
-    return null;
-}
-
 // ---- 修改後的 Admin actions ----
 async function updateStatus(id, act, closeModal = false) {
     let reason = '';
-    if (act === 'rejected') reason = prompt('退件原因（可留空）') || '';
+    if (act === 'rejected') {
+        reason = prompt('退件原因（可留空）') || '';
+    }
 
-    const csrfToken = getCsrfToken();
+    let csrfToken = getCsrfToken();
+
+    // 如果沒有 token，嘗試刷新
+    if (!csrfToken) {
+        console.log('CSRF Token 為空，嘗試刷新...');
+        csrfToken = await refreshCsrfToken();
+    }
+
     const headers = {
         'Content-Type': 'application/json'
     };
+
     if (csrfToken) {
         headers['X-Csrf-Token'] = csrfToken;
+        console.log('設定 CSRF Token header:', csrfToken);
+    } else {
+        console.error('無法獲取 CSRF Token！');
+        alert('安全驗證失敗，請重新登入');
+        return;
     }
 
-    const ok = await fetch(`/api/posts/${id}/status?status=${act}&reason=${encodeURIComponent(reason)}`, {
-        method: 'PATCH',
-        headers: headers
-    }).then(r => r.ok);
+    try {
+        console.log('發送請求到:', `/api/posts/${id}/status`);
+        console.log('請求 headers:', headers);
 
-    alert(ok ? '已更新' : '更新失敗');
-    if (ok) { if (closeModal) modal.hide(); load(); }
+        const response = await fetch(`/api/posts/${id}/status?status=${act}&reason=${encodeURIComponent(reason)}`, {
+            method: 'PATCH',
+            headers: headers
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response headers:', [...response.headers.entries()]);
+
+        if (response.status === 403) {
+            console.error('403 Forbidden 錯誤');
+
+            // 嘗試讀取錯誤詳情
+            try {
+                const errorText = await response.text();
+                console.error('錯誤詳情:', errorText);
+            } catch (e) {
+                console.error('無法讀取錯誤詳情');
+            }
+
+            alert('操作失敗：權限不足或安全驗證失敗。請確認您有管理員權限並重新登入');
+            return;
+        }
+
+        const ok = response.ok;
+        alert(ok ? '已更新' : `更新失敗 (HTTP ${response.status})`);
+
+        if (ok) {
+            if (closeModal && typeof modal !== 'undefined') {
+                modal.hide();
+            }
+            if (typeof load === 'function') {
+                load();
+            }
+        }
+    } catch (error) {
+        console.error('請求異常:', error);
+        alert('請求失敗，請稍後再試');
+    }
 }
 
 async function adminHold(id, hold) {
-    const csrfToken = getCsrfToken();
+    let csrfToken = getCsrfToken();
+
+    if (!csrfToken) {
+        csrfToken = await refreshCsrfToken();
+    }
+
     const headers = {
         'Content-Type': 'application/json'
     };
+
     if (csrfToken) {
         headers['X-Csrf-Token'] = csrfToken;
+    } else {
+        alert('安全驗證失敗，請重新登入');
+        return;
     }
 
-    const ok = await fetch(`/api/posts/${id}/hold?hold=${hold}`, {
-        method: 'PATCH',
-        headers: headers
-    }).then(r => r.ok);
+    try {
+        const response = await fetch(`/api/posts/${id}/hold?hold=${hold}`, {
+            method: 'PATCH',
+            headers: headers
+        });
 
-    alert(ok ? '已更新' : '更新失敗');
-    if (ok) load();
+        console.log('adminHold response status:', response.status);
+
+        if (response.status === 403) {
+            console.error('403 Forbidden - 權限不足');
+            alert('操作失敗：權限不足，請確認您有管理員權限');
+            return;
+        }
+
+        const ok = response.ok;
+        alert(ok ? '已更新' : `更新失敗 (HTTP ${response.status})`);
+
+        if (ok && typeof load === 'function') {
+            load();
+        }
+    } catch (error) {
+        console.error('adminHold 請求失敗:', error);
+        alert('請求失敗，請稍後再試');
+    }
 }
 
 async function adminClose(id) {
-    const csrfToken = getCsrfToken();
+    let csrfToken = getCsrfToken();
+
+    if (!csrfToken) {
+        csrfToken = await refreshCsrfToken();
+    }
+
     const headers = {
         'Content-Type': 'application/json'
     };
+
     if (csrfToken) {
         headers['X-Csrf-Token'] = csrfToken;
+    } else {
+        alert('安全驗證失敗，請重新登入');
+        return;
     }
 
-    const ok = await fetch(`/api/posts/${id}/close`, {
-        method: 'PATCH',
-        headers: headers
-    }).then(r => r.ok);
+    try {
+        const response = await fetch(`/api/posts/${id}/close`, {
+            method: 'PATCH',
+            headers: headers
+        });
 
-    alert(ok ? '已關閉' : '關閉失敗');
-    if (ok) load();
+        console.log('adminClose response status:', response.status);
+
+        if (response.status === 403) {
+            console.error('403 Forbidden - 權限不足');
+            alert('操作失敗：權限不足，請確認您有管理員權限');
+            return;
+        }
+
+        const ok = response.ok;
+        alert(ok ? '已關閉' : `關閉失敗 (HTTP ${response.status})`);
+
+        if (ok && typeof load === 'function') {
+            load();
+        }
+    } catch (error) {
+        console.error('adminClose 請求失敗:', error);
+        alert('請求失敗，請稍後再試');
+    }
 }
 
 // ---- events ----
