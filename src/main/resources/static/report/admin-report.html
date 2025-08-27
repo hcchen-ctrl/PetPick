@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>回報管理</title>
+  <!-- 與 admin-orders.html 同版 Bootstrap 版本 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- 原 admin-report 需要的圖示/樣式（若站內其他頁仍依賴，可保留） -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+
+  <style>
+    /* ===== 佈局：沿用 admin-orders 的側欄與基本樣式 ===== */
+    .sidebar { min-height: 100vh; }
+    .table thead th { white-space: nowrap; }
+    .loading-backdrop { position: fixed; inset: 0; background: rgba(255,255,255,.6); display: none; align-items: center; justify-content: center; z-index: 2000; }
+    .toast-container { z-index: 2100; }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    /* ===== 原 admin-report 的卡片/側欄樣式：不動功能，只做外觀調整 ===== */
+    .side-select{width:100%;padding:.75rem 1rem;border-radius:12px}
+    .hint-card{padding:.75rem;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);font-size:.9rem}
+    .bg-success-subtle{background:#eaf7f0}.bg-danger-subtle{background:#fbeaea}
+    .card-report{border-radius:15px;background:#fff;padding:1rem;margin-bottom:1.5rem;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .card-report .report-img{width:100%;height:200px;object-fit:cover;border-radius:10px;margin-bottom:.75rem}
+    #searchBox{max-width:320px}
+  </style>
+</head>
+
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- 側邊選單：對齊 admin-orders 的風格，新增「回報管理」項目並設為 active -->
+      <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+        <div class="position-sticky pt-3">
+          <ul class="nav flex-column">
+            <li class="nav-item"><a class="nav-link" href="admin-dashboard.html">首頁</a></li>
+            <li class="nav-item"><a class="nav-link" href="admin-products.html">商品管理</a></li>
+            <li class="nav-item"><a class="nav-link" href="admin-orders.html">訂單管理</a></li>
+            <li class="nav-item"><a class="nav-link" href="admin-users.html">會員管理</a></li>
+            <!-- 新增：回報管理（本頁） -->
+            <li class="nav-item"><a class="nav-link active" href="admin-report.html">回報管理</a></li>
+          </ul>
+        </div>
+      </nav>
+
+      <!-- 主內容：把原 admin-report.html 的主要內容移入 -->
+      <main class="col-md-10 ms-sm-auto px-md-4 mt-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+          <h2 class="m-0">收養回報總覽（管理員）</h2>
+          <div class="d-flex align-items-center gap-2">
+            <input id="searchBox" type="search" class="form-control" placeholder="搜尋會員 / 寵物 / 描述…" style="width:280px;">
+            <button id="clearSearch" class="btn btn-outline-info btn-sm">清除</button>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <!-- 左側（原頁面的 aside） -->
+          <aside class="col-lg-3">
+            <div>
+              <label class="form-label fw-bold mb-2"><i class="fa-solid fa-bell me-2"></i>還須回報的會員</label>
+              <select id="selNeed" class="form-select side-select mb-3"><option value="">（選擇一位會員）</option></select>
+              <label class="form-label fw-bold mb-2"><i class="fa-regular fa-circle-check me-2"></i>無須回報的會員</label>
+              <select id="selDone" class="form-select side-select"><option value="">（選擇一位會員）</option></select>
+              <div class="mt-4">
+                <div class="hint-card bg-success-subtle text-success mb-2"><strong>追蹤回報：</strong>認養後一年內每月回報一次。</div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- 右側（原頁面的 main 區） -->
+          <section class="col-lg-9">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="text-muted">目前選擇：<strong id="who">—</strong></span>
+              <span class="text-muted small" id="quotaHint"></span>
+            </div>
+            <div id="memberReports" class="row g-3"></div>
+            <div id="noResult" class="text-center text-muted" style="display:none;">尚未選擇會員或沒有回報。</div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 詳細 Modal：原樣保留，不改功能 -->
+  <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">回報詳情</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-5"><img id="modalImg" src="" alt="report" class="img-fluid rounded"></div>
+            <div class="col-md-7">
+              <ul class="list-group list-group-flush">
+                <li class="list-group-item"><strong>寵物名稱：</strong><span id="mName"></span></li>
+                <li class="list-group-item"><strong>飼主姓名：</strong><span id="mOwner"></span></li>
+                <li class="list-group-item"><strong>回報日期：</strong><span id="mDate"></span></li>
+                <li class="list-group-item"><strong>適應狀況：</strong><span id="mStatus"></span></li>
+                <li class="list-group-item"><strong>近況描述：</strong><span id="mDesc"></span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap bundle（與 admin-orders 一致版本） -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- 匯入 API（保留原寫法，不動 JS 行為） -->
+  <script type="module">
+    import { listNeedAdoptions, listDoneAdoptions, listReportsByAdoptionId, searchAll, deleteReport } from '/js/reportapi.js';
+    window.__reportapi = { listNeedAdoptions, listDoneAdoptions, listReportsByAdoptionId, searchAll, deleteReport };
+  </script>
+
+  <!-- 頁面腳本（完整保留原 admin-report 的 JS，不改功能） -->
+  <script>
+    const $ = s => document.querySelector(s);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+    const safeImg = s => s && /^(https?:\/\/|data:image\/|\/images\/|\/uploads\/|\/feedback\/)/i.test(s) ? s : '';
+
+    const elSelNeed = $('#selNeed'), elSelDone = $('#selDone'), elWho = $('#who'), elList = $('#memberReports');
+    const elNo = $('#noResult'), elSearch = $('#searchBox'), elClear = $('#clearSearch'), hintEl = $('#quotaHint');
+
+    let NEED = [], DONE = [];
+
+    function renderOptions(select, items, isNeed){
+      select.length = 1; // 保留第一個提示
+      for(const a of items){
+        const opt = document.createElement('option');
+        opt.value = String(a.id);
+        if(isNeed){
+          const used = a.reportCount ?? 0, total = a.requiredReports ?? 12, left = Math.max(total - used, 0);
+          opt.textContent = `${a.ownerName}（剩 ${left}/${total} 次；領養日：${(a.adoptionDate||'').slice(0,10) || '—'}）`;
+        }else{
+          opt.textContent = `${a.ownerName}（已完成或關閉；領養日：${(a.adoptionDate||'').slice(0,10) || '—'}）`;
+        }
+        select.appendChild(opt);
+      }
+    }
+
+    async function reloadSelects(){
+      NEED = await window.__reportapi.listNeedAdoptions();
+      DONE = await window.__reportapi.listDoneAdoptions();
+      renderOptions(elSelNeed, NEED, true);
+      renderOptions(elSelDone, DONE, false);
+    }
+
+    function cardHtml(r, a){
+      const d = (r.reportDate||'').slice(0,10);
+      return `
+        <div class="col-md-6 col-lg-4">
+          <div class="card-report" data-id="${r.id}">
+            <img src="${safeImg(r.imageUrl)}" class="report-img" alt="${esc(a?.petName||'')}">
+            <h5 class="fw-bold mb-1">${esc(a?.petName||'')}</h5>
+            <p class="mb-1"><small>飼主：${esc(a?.ownerName||'')}</small></p>
+            <p class="mb-1"><small>日期：${esc(d)||'—'}</small></p>
+            <p class="mb-1"><small>狀況：${esc(r.status||'')}</small></p>
+            <p class="mb-2"><small>描述：${esc(r.notes||'')}</small></p>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-primary btn-detail">詳情</button>
+              <button class="btn btn-sm btn-outline-danger btn-del" data-del="${r.id}">刪除</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    async function renderAdoption(adoptionId){
+      elList.innerHTML = '';
+      elNo.style.display = 'none';
+      if(!adoptionId){ elWho.textContent='—'; hintEl.textContent=''; elNo.style.display='block'; return; }
+
+      const a = [...NEED, ...DONE].find(x => String(x.id) === String(adoptionId)) || null;
+      elWho.textContent = a ? `${a.ownerName}（${a.petName||''}）` : `#${adoptionId}`;
+      if(a){
+        const used = a.reportCount ?? 0, total = a.requiredReports ?? 12, left = Math.max(total - used, 0);
+        hintEl.textContent = `此會員尚須回報 ${left} / ${total} 次（一年內）`;
+      }else hintEl.textContent='';
+
+      const rows = await window.__reportapi.listReportsByAdoptionId(adoptionId);
+      if(!rows.length){ elNo.style.display='block'; return; }
+      rows.sort((b,a)=> new Date(a.reportDate) - new Date(b.reportDate));
+      elList.innerHTML = rows.map(r => cardHtml(r, a)).join('');
+    }
+
+    async function renderSearch(term){
+      const q = (term||'').trim();
+      if(q.length < 2){ await renderAdoption(elSelNeed.value || elSelDone.value || ''); return; }
+      elWho.textContent = `搜尋：「${q}」`; hintEl.textContent='';
+      const rows = await window.__reportapi.searchAll(q);
+      if(!rows.length){ elList.innerHTML=''; elNo.style.display='block'; return; }
+      elNo.style.display='none';
+      rows.sort((b,a)=> new Date(a.reportDate) - new Date(b.reportDate));
+      elList.innerHTML = rows.map(r => cardHtml(r, r)).join(''); // 搜尋結果已含 ownerName/petName
+    }
+
+    // 事件：變更選單
+    document.getElementById('selNeed').addEventListener('change', async ()=>{
+      document.getElementById('selDone').value=''; document.getElementById('searchBox').value=''; await renderAdoption(document.getElementById('selNeed').value || '');
+    });
+    document.getElementById('selDone').addEventListener('change', async ()=>{
+      document.getElementById('selNeed').value=''; document.getElementById('searchBox').value=''; await renderAdoption(document.getElementById('selDone').value || '');
+    });
+
+    // 事件：卡片（先抓刪除，再抓詳情）
+    document.getElementById('memberReports').addEventListener('click', async (e)=>{
+      const delBtn = e.target.closest('[data-del]');
+      if(delBtn){
+        const id = delBtn.getAttribute('data-del');
+        if(!confirm('確定要刪除此回報嗎？')) return;
+        try{
+          await window.__reportapi.deleteReport(id);
+          const q = (document.getElementById('searchBox').value||'').trim();
+          if(q.length>=2) return renderSearch(q);
+          return renderAdoption(document.getElementById('selNeed').value || document.getElementById('selDone').value || '');
+        }catch(err){ alert('刪除失敗，請稍後再試'); }
+        return;
+      }
+      const card = e.target.closest('.card-report'); if(!card) return;
+      // 詳情
+      const name = card.querySelector('h5')?.textContent || '';
+      const owner = card.querySelector('p:nth-of-type(1)')?.textContent.replace('飼主：','') || '';
+      const date = card.querySelector('p:nth-of-type(2)')?.textContent.replace('日期：','') || '';
+      const status = card.querySelector('p:nth-of-type(3)')?.textContent.replace('狀況：','') || '';
+      const desc = card.querySelector('p:nth-of-type(4)')?.textContent.replace('描述：','') || '';
+      document.getElementById('modalImg').src = card.querySelector('.report-img')?.src || '';
+      document.getElementById('mName').textContent = name;
+      document.getElementById('mOwner').textContent = owner;
+      document.getElementById('mDate').textContent = date;
+      document.getElementById('mStatus').textContent = status;
+      document.getElementById('mDesc').textContent = desc;
+      new bootstrap.Modal(document.getElementById('detailModal')).show();
+    });
+
+    // 事件：搜尋（debounce）
+    let timer=null;
+    document.getElementById('searchBox').addEventListener('input',()=>{
+      clearTimeout(timer);
+      timer = setTimeout(()=>renderSearch(document.getElementById('searchBox').value), 250);
+    });
+    document.getElementById('clearSearch').addEventListener('click', ()=>{ document.getElementById('searchBox').value=''; renderSearch(''); });
+
+    // 進入點
+    window.addEventListener('DOMContentLoaded', async ()=>{
+      await reloadSelects();
+      await renderAdoption('');
+    });
+  </script>
+</body>
+</html>
