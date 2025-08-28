@@ -84,18 +84,22 @@
 <!-- 自訂 JS -->
 <script>
     document.addEventListener("DOMContentLoaded", async () => {
-        const token = localStorage.getItem("jwtToken");
+        // 統一 JWT Token 的鍵名
+        const token = localStorage.getItem("jwt");
         const authArea = document.getElementById("authArea");
 
+        // 預設為未登入狀態的 HTML
+        const loggedOutHtml = `
+            <button class="btn btn-material" aria-label="聊天"><span class="material-icons">chat_bubble_outline</span></button>
+            <button class="btn btn-material" aria-label="購物車"><span class="material-icons">shopping_cart</span></button>
+            <button class="btn btn-material" aria-label="帳號" onclick="window.location.href='/loginpage.html'">
+                <span class="material-icons">account_circle</span>
+            </button>
+        `;
+
         if (!token) {
-            // 未登入情況：顯示登入按鈕，點擊後跳轉到登入頁面
-            authArea.innerHTML = `
-                <button class="btn btn-material" aria-label="聊天"><span class="material-icons">chat_bubble_outline</span></button>
-                <button class="btn btn-material" aria-label="購物車"><span class="material-icons">shopping_cart</span></button>
-                <button class="btn btn-material" aria-label="帳號" onclick="goToLogin()">
-                    <span class="material-icons">account_circle</span>
-                </button>
-            `;
+            authArea.innerHTML = loggedOutHtml;
+            updateAuthRequiredLinks(false);
             return;
         }
 
@@ -138,7 +142,7 @@
                             <strong>歡迎回來, ${data.name}</strong>
                         </li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="/rename">
+                        <li><a class="dropdown-item" href="/login/rename.html">
                             <i class="material-icons me-2" style="font-size: 18px;">edit</i>修改資料
                         </a></li>
                         <li><a class="dropdown-item" href="/adopt/my-adopt-progress.html">
@@ -159,29 +163,16 @@
 
         } catch (err) {
             console.warn("使用者尚未登入或 Token 無效", err);
-            localStorage.removeItem("jwtToken");
+            localStorage.removeItem("jwt");
             // Token 無效時，返回未登入狀態
-            authArea.innerHTML = `
-                <button class="btn btn-material" aria-label="聊天"><span class="material-icons">chat_bubble_outline</span></button>
-                <button class="btn btn-material" aria-label="購物車"><span class="material-icons">shopping_cart</span></button>
-                <button class="btn btn-material" aria-label="帳號" onclick="goToLogin()">
-                    <span class="material-icons">account_circle</span>
-                </button>
-            `;
+            authArea.innerHTML = loggedOutHtml;
             updateAuthRequiredLinks(false);
         }
     });
 
-    // 跳轉到登入頁面，並記住當前頁面
-    function goToLogin() {
-        // 記住當前頁面，登入成功後返回
-        localStorage.setItem("returnUrl", window.location.pathname);
-        window.location.href = "/loginpage.html";
-    }
-
     // 檢查登入狀態的通用函數
     function checkLoginForAdoption(targetUrl) {
-        const token = localStorage.getItem("jwtToken");
+        const token = localStorage.getItem("jwt");
         if (!token) {
             localStorage.setItem("returnUrl", targetUrl);
             window.location.href = "/loginpage.html";
@@ -208,22 +199,10 @@
 
     // 登出功能
     function logout() {
-        localStorage.removeItem("jwtToken");
+        localStorage.removeItem("jwt");
         localStorage.removeItem("returnUrl"); // 清除返回 URL
         window.location.href = "/"; // 登出後回到首頁
     }
-
-    // 檢查是否是從登入頁面返回
-    window.addEventListener("load", () => {
-        // 如果 URL 中有成功登入的參數，重新載入頁面以更新狀態
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get("loginSuccess") === "true") {
-            // 移除 URL 參數並重新載入
-            window.history.replaceState({}, document.title, window.location.pathname);
-            location.reload();
-        }
-    });
 </script>
-
 </body>
 </html>

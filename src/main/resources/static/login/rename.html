@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wepet 寵物資訊平台</title>
+    <!-- 引入 Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 引入自訂樣式 -->
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="../chatroom.css" />
+    <!-- 引入 Font Awesome 和 Material Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+</head>
+
+<body>
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+    <div class="container-fluid">
+        <!-- LOGO -->
+        <a class="navbar-brand" href="/index.html">
+            <img src="/images/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo" />
+            寵物資訊平台
+        </a>
+
+        <!-- 手機切換按鈕 -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- 導覽列連結 -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+                <!-- 左側按鈕 -->
+                <ul class="navbar-nav mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">尋找領養</a></li>
+                    <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">尋找任務</a></li>
+                    <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">寵物商城</a></li>
+                </ul>
+
+                <!-- 右側按鈕 -->
+                <div class="ms-auto d-flex align-items-center gap-2" id="authArea">
+                    <!-- JS 動態填入內容 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- 我的資料頁面 -->
+<div class="container" style="margin-top: 80px;">
+    <h1 class="page-title">我的資料</h1>
+    <div id="message-box"></div>
+
+    <div class="verification-options">
+        <button class="verification-btn btn btn-outline-primary" onclick="setVerificationMethod('update')">資料更新</button>
+        <button class="verification-btn btn btn-outline-primary" onclick="setVerificationMethod('password')">密碼變更</button>
+        <button class="verification-btn btn btn-outline-danger" onclick="setVerificationMethod('deleteAccount')">刪除帳號</button>
+    </div>
+
+    <!-- 資料更新表單 -->
+    <form id="profileUpdateForm" class="verification-section" style="display: block;">
+        <div class="form-group mb-3">
+            <label for="username" class="form-label">姓名</label>
+            <input type="text" class="form-control" id="username" placeholder="請輸入姓名" />
+        </div>
+        <div class="form-group mb-3">
+            <label for="gender" class="form-label">性別</label>
+            <select id="gender" class="form-select">
+                <option value="">請選擇</option>
+                <option value="男">男</option>
+                <option value="女">女</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+        <div class="form-group mb-3">
+            <label for="phonenumber" class="form-label">手機號碼</label>
+            <input type="text" class="form-control" id="phonenumber" />
+        </div>
+
+        <!-- 新增的欄位 -->
+        <div class="form-group mb-3">
+            <label for="city" class="form-label">縣市</label>
+            <select id="city" class="form-select" onchange="updateDistricts()">
+                <option value="">請選擇縣市</option>
+            </select>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="district" class="form-label">鄉鎮市區</label>
+            <select id="district" class="form-select">
+                <option value="">請選擇鄉鎮市區</option>
+            </select>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="experience" class="form-label">飼養經驗</label>
+            <select id="experience" class="form-select">
+                <option value="有">有</option>
+                <option value="無">無</option>
+            </select>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="daily" class="form-label">生活作息(大多時間)</label>
+            <select id="daily" class="form-select">
+                <option value="早起型（6:00-7:00起床）">早起型（6:00-7:00起床）</option>
+                <option value="正常作息（7:00-9:00起床）">正常作息（7:00-9:00起床）</option>
+                <option value="晚起型（9:00以後起床）">晚起型（9:00以後起床）</option>
+                <option value="夜貓子（經常熬夜）">夜貓子（經常熬夜）</option>
+            </select>
+        </div>
+
+        <div class="form-group mb-3">
+            <label class="form-label">您偏好飼養的寵物類型（可多選）</label>
+            <div>
+                <input type="checkbox" id="dog" name="petType" value="狗" />
+                <label for="dog">狗狗</label>
+
+                <input type="checkbox" id="cat" name="petType" value="貓" />
+                <label for="cat">貓咪</label>
+            </div>
+        </div>
+
+        <div class="form-group mb-3">
+            <label class="form-label">您偏好飼養的寵物個性（可多選）</label>
+            <div>
+                <input type="checkbox" id="cheerful" name="petActivity" value="活潑" />
+                <label for="cheerful">個性活潑型</label>
+
+                <input type="checkbox" id="quiet" name="petActivity" value="安靜" />
+                <label for="quiet">個性安靜型</label>
+
+                <input type="checkbox" id="fear" name="petActivity" value="怕生" />
+                <label for="fear">接受怕生的</label>
+            </div>
+        </div>
+
+        <div class="button-group mb-3">
+            <button type="submit" class="btn btn-primary">確認</button>
+            <button type="reset" class="btn btn-secondary" onclick="resetForm()">重設</button>
+        </div>
+    </form>
+
+    <!-- 修改密碼表單 -->
+    <form id="passwordChangeForm" class="verification-section" style="display: none;">
+        <div class="form-group mb-3">
+            <label for="currentPassword" class="form-label">目前密碼</label>
+            <input type="password" id="currentPassword" class="form-control" required>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="newPassword" class="form-label">新密碼</label>
+            <input type="password" id="newPassword" class="form-control" required>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="confirmPassword" class="form-label">確認新密碼</label>
+            <input type="password" id="confirmPassword" class="form-control" required>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">確認</button>
+            <button type="reset" class="btn btn-secondary">重設</button>
+        </div>
+    </form>
+
+    <!-- 刪除帳號區塊 -->
+    <div id="deleteAccountPage" class="verification-section" style="display: none;">
+        <div class="form-group">
+            <p class="form-label">您確定要刪除帳號嗎？此動作無法復原。</p>
+            <button type="button" id="deleteAccountBtn" class="btn btn-danger">確認刪除帳號</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // 台灣縣市與鄉鎮市區資料
+    const TW_CITIES_AND_DISTRICTS = {
+        "臺北市": ["中正區", "大同區", "中山區", "松山區", "大安區", "萬華區", "信義區", "士林區", "北投區", "內湖區", "南港區", "文山區"],
+        "新北市": ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "樹林區", "鶯歌區", "三峽區", "淡水區", "汐止區", "瑞芳區", "土城區", "蘆洲區", "五股區", "泰山區", "林口區", "深坑區", "石碇區", "坪林區", "三芝區", "石門區", "八里區", "平溪區", "雙溪區", "貢寮區", "金山區", "萬里區", "烏來區"],
+        "基隆市": ["仁愛區", "信義區", "中正區", "中山區", "安樂區", "暖暖區", "七堵區"],
+        "桃園市": ["中壢區", "平鎮區", "龍潭區", "楊梅區", "新屋區", "觀音區", "桃園區", "龜山區", "八德區", "大溪區", "復興區", "大園區", "蘆竹區"],
+        "新竹縣": ["竹北市", "竹東鎮", "新埔鎮", "關西鎮", "湖口鄉", "新豐鄉", "峨眉鄉", "寶山鄉", "北埔鄉", "芎林鄉", "橫山鄉", "尖石鄉", "五峰鄉"],
+        "新竹市": ["東區", "北區", "香山區"],
+        "苗栗縣": ["苗栗市", "通霄鎮", "苑裡鎮", "竹南鎮", "頭份市", "後龍鎮", "卓蘭鎮", "大湖鄉", "公館鄉", "銅鑼鄉", "南庄鄉", "頭屋鄉", "三義鄉", "西湖鄉", "造橋鄉", "獅潭鄉", "泰安鄉"],
+        "臺中市": ["中區", "東區", "南區", "西區", "北區", "北屯區", "西屯區", "南屯區", "太平區", "大里區", "霧峰區", "烏日區", "豐原區", "后里區", "石岡區", "東勢區", "和平區", "新社區", "潭子區", "大雅區", "神岡區", "大肚區", "沙鹿區", "龍井區", "梧棲區", "清水區", "大甲區", "外埔區", "大安區"],
+        "彰化縣": ["彰化市", "員林市", "和美鎮", "鹿港鎮", "溪湖鎮", "田中鎮", "北斗鎮", "二林鎮", "線西鄉", "伸港鄉", "福興鄉", "秀水鄉", "花壇鄉", "芬園鄉", "大村鄉", "埔心鄉", "埔鹽鄉", "永靖鄉", "社頭鄉", "二水鄉", "田尾鄉", "埤頭鄉", "芳苑鄉", "大城鄉", "竹塘鄉", "溪州鄉"],
+        "南投縣": ["南投市", "埔里鎮", "草屯鎮", "竹山鎮", "集集鎮", "名間鄉", "鹿谷鄉", "中寮鄉", "魚池鄉", "國姓鄉", "水里鄉", "信義鄉", "仁愛鄉"],
+        "雲林縣": ["斗六市", "斗南鎮", "虎尾鎮", "西螺鎮", "土庫鎮", "北港鎮", "古坑鄉", "大埤鄉", "莿桐鄉", "林內鄉", "二崙鄉", "崙背鄉", "麥寮鄉", "東勢鄉", "褒忠鄉", "臺西鄉", "元長鄉", "四湖鄉", "口湖鄉", "水林鄉"],
+        "嘉義縣": ["太保市", "朴子市", "布袋鎮", "大林鎮", "民雄鄉", "溪口鄉", "新港鄉", "六腳鄉", "東石鄉", "義竹鄉", "鹿草鄉", "中埔鄉", "竹崎鄉", "梅山鄉", "番路鄉", "大埔鄉", "阿里山鄉"],
+        "嘉義市": ["東區", "西區"],
+        "臺南市": ["中西區", "東區", "南區", "北區", "安平區", "安南區", "永康區", "歸仁區", "新化區", "左鎮區", "玉井區", "楠西區", "南化區", "仁德區", "關廟區", "龍崎區", "官田區", "麻豆區", "佳里區", "西港區", "七股區", "將軍區", "學甲區", "北門區", "新營區", "後壁區", "白河區", "東山區", "六甲區", "下營區", "柳營區", "鹽水區", "善化區", "大內區", "山上區", "新市區", "安定區"],
+        "高雄市": ["新興區", "前金區", "苓雅區", "鹽埕區", "鼓山區", "旗津區", "前鎮區", "三民區", "楠梓區", "小港區", "左營區", "仁武區", "大社區", "岡山區", "路竹區", "阿蓮區", "田寮區", "燕巢區", "橋頭區", "梓官區", "彌陀區", "永安區", "湖內區", "鳳山區", "大寮區", "林園區", "鳥松區", "大樹區", "旗山區", "美濃區", "六龜區", "內門區", "杉林區", "甲仙區", "桃源區", "那瑪夏區", "茂林區", "茄萣區"],
+        "屏東縣": ["屏東市", "潮州鎮", "東港鎮", "恆春鎮", "萬丹鄉", "長治鄉", "麟洛鄉", "九如鄉", "里港鄉", "高樹鄉", "鹽埔鄉", "內埔鄉", "竹田鄉", "萬巒鄉", "新埤鄉", "崁頂鄉", "林邊鄉", "南州鄉", "佳冬鄉", "新園鄉", "枋寮鄉", "枋山鄉", "春日鄉", "獅子鄉", "車城鄉", "牡丹鄉", "滿州鄉", "霧臺鄉", "瑪家鄉", "泰武鄉", "來義鄉", "三地門鄉"],
+        "宜蘭縣": ["宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉", "壯圍鄉", "員山鄉", "冬山鄉", "五結鄉", "三星鄉", "大同鄉", "南澳鄉"],
+        "花蓮縣": ["花蓮市", "鳳林鎮", "玉里鎮", "新城鄉", "吉安鄉", "壽豐鄉", "光復鄉", "豐濱鄉", "瑞穗鄉", "秀林鄉", "萬榮鄉", "卓溪鄉"],
+        "臺東縣": ["臺東市", "成功鎮", "關山鎮", "卑南鄉", "大武鄉", "太麻里鄉", "東河鄉", "長濱鄉", "鹿野鄉", "池上鄉", "綠島鄉", "海端鄉", "延平鄉", "金峰鄉", "達仁鄉", "蘭嶼鄉"],
+        "澎湖縣": ["馬公市", "湖西鄉", "白沙鄉", "西嶼鄉", "望安鄉", "七美鄉"],
+        "金門縣": ["金城鎮", "金湖鎮", "金沙鎮", "金寧鄉", "烈嶼鄉", "烏坵鄉"],
+        "連江縣": ["南竿鄉", "北竿鄉", "莒光鄉", "東引鄉"]
+    };
+
+    // 取得指定名稱的 Cookie 值
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    // 顯示指定的功能區塊並隱藏其他區塊
+    function setVerificationMethod(method) {
+        const updateSection = document.getElementById("profileUpdateForm");
+        const passwordSection = document.getElementById("passwordChangeForm");
+        const deleteSection = document.getElementById("deleteAccountPage");
+
+        updateSection.style.display = "none";
+        passwordSection.style.display = "none";
+        deleteSection.style.display = "none";
+
+        const messageBox = document.getElementById("message-box");
+        messageBox.innerHTML = ""; // 切換頁面時清空提示訊息
+
+        switch (method) {
+            case 'update':
+                updateSection.style.display = "block";
+                break;
+            case 'password':
+                passwordSection.style.display = "block";
+                break;
+            case 'deleteAccount':
+                deleteSection.style.display = "block";
+                break;
+        }
+    }
+
+    // 初始化頁面
+    document.addEventListener("DOMContentLoaded", async () => {
+        const token = localStorage.getItem("jwt");
+        const authArea = document.getElementById("authArea");
+
+        // 載入縣市選項
+        const citySelect = document.getElementById("city");
+        Object.keys(TW_CITIES_AND_DISTRICTS).forEach(city => {
+            const option = document.createElement("option");
+            option.value = city;
+            option.textContent = city;
+            citySelect.appendChild(option);
+        });
+
+        if (!token) {
+            console.error("沒有找到 JWT Token，重導向至登入頁面。");
+            window.location.href = "/loginpage.html";
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/auth/status", {
+                headers: { "Authorization": "Bearer " + token }
+            });
+
+            if (!res.ok) {
+                console.error(`API 驗證失敗：HTTP Status ${res.status} - ${res.statusText}`);
+                localStorage.removeItem("jwt");
+                window.location.href = "/loginpage.html";
+                return;
+            }
+
+            const data = await res.json();
+            console.log("從 API 取得的資料:", data);
+
+            let adminLinks = "";
+            let userLinks = "";
+
+            if (["ROLE_ADMIN", "ROLE_MANAGER"].includes(data.role)) {
+                adminLinks += `
+                    <li><a class="dropdown-item" href="/adopt/apply-review.html">管理領養</a></li>
+                    <li><a class="dropdown-item" href="/shop/admin-products.html">管理商城</a></li>
+                `;
+            }
+
+            if (["ROLE_USER", "ROLE_MANAGER", "ROLE_ADMIN"].includes(data.role)) {
+                userLinks += `
+                    <li><a class="dropdown-item" href="/mission/missionApplication.html">任務區</a></li>
+                `;
+            }
+
+            // 已登入情況：顯示會員下拉選單
+            authArea.innerHTML = `
+                <button class="btn btn-material" aria-label="聊天"><span class="material-icons">chat_bubble_outline</span></button>
+                <button class="btn btn-material" aria-label="購物車"><span class="material-icons">shopping_cart</span></button>
+                <div class="dropdown d-inline">
+                    <button class="btn btn-material dropdown-toggle" type="button" id="accountDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="material-icons">account_circle</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
+                        <li class="dropdown-header text-center">
+                            <strong>歡迎回來, ${data.name}</strong>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/login/rename.html">
+                            <i class="material-icons me-2" style="font-size: 18px;">edit</i>修改資料
+                        </a></li>
+                        <li><a class="dropdown-item" href="/adopt/my-adopt-progress.html">
+                            <i class="material-icons me-2" style="font-size: 18px;">pets</i>送養/領養記錄
+                        </a></li>
+                        ${userLinks}
+                        ${adminLinks}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                            <i class="material-icons me-2" style="font-size: 18px;">logout</i>登出
+                        </a></li>
+                    </ul>
+                </div>
+            `;
+
+            // 預填使用者資訊
+            document.getElementById("username").value = data.name || "";
+            document.getElementById("gender").value = data.gender || "";
+            document.getElementById("phonenumber").value = data.phonenumber || "";
+            document.getElementById("city").value = data.city || "";
+
+            // 如果有城市，動態載入鄉鎮市區
+            if (data.city) {
+                updateDistricts(data.district);
+            }
+
+            document.getElementById("experience").value = data.experience || "無";
+            document.getElementById("daily").value = data.daily || "正常作息（7:00-9:00起床）";
+
+            // 預填多選欄位
+            if (data.petList && Array.isArray(data.petList)) {
+                data.petList.forEach(pet => {
+                    const checkbox = document.querySelector(`input[name="petType"][value="${pet}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+
+            if (data.petActivitiesList && Array.isArray(data.petActivitiesList)) {
+                data.petActivitiesList.forEach(activity => {
+                    const checkbox = document.querySelector(`input[name="petActivity"][value="${activity}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+
+        } catch (err) {
+            console.error("載入使用者狀態失敗，正在重導向至登入頁面", err);
+            localStorage.removeItem("jwt");
+            window.location.href = "/loginpage.html";
+        }
+    });
+
+    // 動態更新鄉鎮市區選項
+    function updateDistricts(selectedDistrict = null) {
+        const citySelect = document.getElementById("city");
+        const districtSelect = document.getElementById("district");
+        const selectedCity = citySelect.value;
+
+        districtSelect.innerHTML = '<option value="">請選擇鄉鎮市區</option>';
+
+        if (selectedCity && TW_CITIES_AND_DISTRICTS[selectedCity]) {
+            TW_CITIES_AND_DISTRICTS[selectedCity].forEach(district => {
+                const option = document.createElement("option");
+                option.value = district;
+                option.textContent = district;
+                districtSelect.appendChild(option);
+            });
+        }
+
+        if (selectedDistrict) {
+            districtSelect.value = selectedDistrict;
+        }
+    }
+
+    // 重設表單
+    function resetForm() {
+        document.getElementById("profileUpdateForm").reset();
+        // 重設鄉鎮市區
+        updateDistricts();
+    }
+
+    // 更新個人資料
+    document.getElementById("profileUpdateForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const token = localStorage.getItem("jwt");
+
+        // 從 Cookie 中讀取 CSRF Token
+        const csrfToken = getCookie("XSRF-TOKEN");
+        const csrfHeader = "X-CSRF-TOKEN"; // CSRF 標頭名稱是固定的
+
+        const petTypes = Array.from(document.querySelectorAll('input[name="petType"]:checked')).map(el => el.value);
+        const petActivities = Array.from(document.querySelectorAll('input[name="petActivity"]:checked')).map(el => el.value);
+
+        const formData = {
+            username: document.getElementById("username").value,
+            gender: document.getElementById("gender").value,
+            phonenumber: document.getElementById("phonenumber").value,
+            city: document.getElementById("city").value,
+            district: document.getElementById("district").value,
+            experience: document.getElementById("experience").value,
+            daily: document.getElementById("daily").value,
+            petList: petTypes,
+            petActivitiesList: petActivities
+        };
+
+        const res = await fetch("/api/user/rename", {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token,
+                [csrfHeader]: csrfToken
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const result = await res.json();
+        const messageBox = document.getElementById("message-box");
+
+        if (result.success) {
+            messageBox.innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+            // 成功後更新navbar中的名稱
+            const accountDropdownButton = document.getElementById("accountDropdown");
+            const welcomeHeader = accountDropdownButton.nextElementSibling.querySelector(".dropdown-header strong");
+            if (welcomeHeader) {
+                welcomeHeader.textContent = `歡迎回來, ${formData.username}`;
+            }
+        } else {
+            messageBox.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+        }
+    });
+
+    // 修改密碼
+    document.getElementById("passwordChangeForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const token = localStorage.getItem("jwt");
+
+        // 從 Cookie 中讀取 CSRF Token
+        const csrfToken = getCookie("XSRF-TOKEN");
+        const csrfHeader = "X-CSRF-TOKEN";
+
+        const currentPassword = document.getElementById("currentPassword").value;
+        const newPassword = document.getElementById("newPassword").value;
+        const confirmPassword = document.getElementById("confirmPassword").value;
+        const messageBox = document.getElementById("message-box");
+
+        if (newPassword !== confirmPassword) {
+            messageBox.innerHTML = `<div class="alert alert-danger">新密碼與確認密碼不相符！</div>`;
+            return;
+        }
+
+        const res = await fetch("/api/user/change-password", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token,
+                [csrfHeader]: csrfToken
+            },
+            body: JSON.stringify({ currentPassword, newPassword })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+            messageBox.innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+            document.getElementById("passwordChangeForm").reset();
+        } else {
+            messageBox.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+        }
+    });
+
+    // 刪除帳號
+    document.getElementById("deleteAccountBtn").addEventListener("click", async () => {
+        const token = localStorage.getItem("jwt");
+        const messageBox = document.getElementById("message-box");
+
+        // 從 Cookie 中讀取 CSRF Token
+        const csrfToken = getCookie("XSRF-TOKEN");
+        const csrfHeader = "X-CSRF-TOKEN";
+
+        messageBox.innerHTML = `<div class="alert alert-warning">正在刪除帳號...</div>`;
+
+        const res = await fetch("/api/user/delete-account", {
+            method: "DELETE",
+            headers: {
+                "Authorization": "Bearer " + token,
+                [csrfHeader]: csrfToken
+            }
+        });
+
+        const result = await res.json();
+        if (result.success) {
+            messageBox.innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+            setTimeout(() => {
+                localStorage.removeItem("jwt");
+                window.location.href = "/"; // 刪除成功後導回首頁
+            }, 2000);
+        } else {
+            messageBox.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+        }
+    });
+
+    // 登出
+    function logout() {
+        localStorage.removeItem("jwt");
+        window.location.href = "/"; // 登出後回到首頁
+    }
+</script>
+</body>
+</html>

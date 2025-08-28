@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -49,21 +50,29 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // CSRF 設定
-        CookieCsrfTokenRepository tokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        tokenRepository.setHeaderName("X-Csrf-Token");
-        tokenRepository.setCookieName("XSRF-TOKEN");
+        // CSRF 設定：由於您的應用程式使用 JWT 進行無狀態身分驗證，
+        // CSRF 防護不再需要，且會與此架構產生衝突，因此將其停用。
+        http.csrf(csrf -> csrf.disable());
 
-        http.csrf(csrf -> csrf
-                .ignoringRequestMatchers("/api/**", "/register")
-                .csrfTokenRepository(tokenRepository)
-        );
-
-        // 路由權限設定
+        // API 權限設定
         http.authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()
+                // 公開可存取的靜態資源和頁面
+                .requestMatchers(
+                        "/loginpage.html",
+                        "/register",
+                        "/",
+                        "/index.html",
+                        "/login/rename.html",
+                        "/**.js",
+                        "/**.css",
+                        "/images/**",
+                        "/styles.css",
+                        "/chatroom.css"
+                ).permitAll()
+                // 所有 /api/user/ 下的請求都需要身分驗證
+                .requestMatchers("/api/user/**").authenticated()
+                .anyRequest().authenticated()
         );
-
 
         // 異常處理（未登入、權限不足）
         http.exceptionHandling(exception -> exception
@@ -103,7 +112,4 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
-
-
 }
-

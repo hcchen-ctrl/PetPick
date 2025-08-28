@@ -168,14 +168,46 @@
 </div>
 
 <script>
-        // 讀取 cookie 的函式（用來取得 CSRF token）
-        function getCookie(name) {
+    // 讀取 cookie 的函式（用來取得 CSRF token）
+    function getCookie(name) {
         const value = "; " + document.cookie;
         const parts = value.split("; " + name + "=");
         if (parts.length === 2) return parts.pop().split(";").shift();
     }
 
-        document.getElementById("formLogin").addEventListener("submit", async function (e) {
+    // 檢查登入狀態並處理重導向
+    async function checkLoginStatus() {
+        const token = localStorage.getItem("jwt");
+        if (token) {
+            // 如果 token 存在，發送請求到後端驗證其有效性
+            try {
+                const response = await fetch("/api/auth/status", {
+                    headers: { "Authorization": "Bearer " + token }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.loggedIn) {
+                        // Token 有效，導向主頁
+                        window.location.href = "/";
+                        return;
+                    }
+                }
+                // Token 無效或過期，清除它並停留在登入頁面
+                localStorage.removeItem("jwt");
+            } catch (error) {
+                console.error("驗證 JWT 失敗:", error);
+                // 發生錯誤，也清除 token
+                localStorage.removeItem("jwt");
+            }
+        }
+    }
+
+    // 在頁面載入時執行檢查
+    checkLoginStatus();
+
+    // 處理登入表單提交事件
+    document.getElementById("formLogin").addEventListener("submit", async function (e) {
         e.preventDefault();
 
         const username = document.getElementById("username").value.trim();
@@ -183,50 +215,50 @@
         const errorDiv = document.getElementById("errorMessage");
 
         // 清除錯誤訊息
-        errorDiv.classList.add("d-none");
         errorDiv.textContent = "";
 
         if (!username || !password) {
-        errorDiv.textContent = "請輸入帳號與密碼";
-        errorDiv.classList.remove("d-none");
-        return;
-    }
+            errorDiv.textContent = "請輸入帳號與密碼";
+            return;
+        }
 
         // CSRF token 從 Cookie 讀取
         const csrfToken = getCookie("XSRF-TOKEN");
+        if (!csrfToken) {
+            errorDiv.textContent = "無法取得 CSRF Token，請重整頁面。";
+            return;
+        }
 
         try {
-        const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-        "Content-Type": "application/json",
-        "X-Csrf-Token": csrfToken // 對應 SecurityConfig 裡設定的 header 名稱
-    },
-            body: JSON.stringify({ accountemail: username, password }),
-        credentials: "include"
-    });
+            const response = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Csrf-Token": csrfToken // 對應 SecurityConfig 裡設定的 header 名稱
+                },
+                body: JSON.stringify({ accountemail: username, password }),
+                credentials: "include"
+            });
 
-        const data = await response.json();
+            const data = await response.json();
 
-        if (!response.ok || !data.success) {
-        const errorMsg = data.message || (response.status === 401 ? "帳號或密碼錯誤" : "登入失敗，請稍後再試");
-        errorDiv.textContent = errorMsg;
-        errorDiv.classList.remove("d-none");
-        return;
-    }
+            if (!response.ok || !data.success) {
+                const errorMsg = data.message || (response.status === 401 ? "帳號或密碼錯誤" : "登入失敗，請稍後再試");
+                errorDiv.textContent = errorMsg;
+                return;
+            }
 
-        // 儲存 JWT token 到 localStorage（若後端有提供）
-        if (data.token) {
-        localStorage.setItem("jwtToken", data.token);
-    }
+            // 儲存 JWT token 到 localStorage
+            if (data.token) {
+                localStorage.setItem("jwt", data.token); // 使用 "jwt" 作為 key，保持前後端一致
+            }
 
-        // 登入成功後導向首頁
-        window.location.href = "/";
-    } catch (error) {
-        console.error("登入錯誤:", error);
-        errorDiv.textContent = "系統錯誤，請稍後再試";
-        errorDiv.classList.remove("d-none");
-    }
+            // 登入成功後導向首頁
+            window.location.href = "/";
+        } catch (error) {
+            console.error("登入錯誤:", error);
+            errorDiv.textContent = "系統錯誤，請稍後再試";
+        }
     });
 </script>
 
