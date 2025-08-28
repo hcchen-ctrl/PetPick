@@ -1,0 +1,154 @@
+body {
+    font-family: "Noto Sans TC", sans-serif;
+    background-color: #f9f9f9;
+    padding-top: 60px;
+}
+
+.thead-custom {
+    background-color: burlywood;
+}
+
+.navbar-light {
+    background-color: #f8f2e9 !important;
+    /* 柔和米色 */
+}
+
+.navbar-light .navbar-brand {
+    font-weight: bold;
+    font-size: 1.6rem;
+    color: #4e4e4e;
+}
+
+.navbar-light .nav-link {
+    color: #4e4e4e;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: color 0.3s ease;
+}
+
+.navbar-light .nav-link:hover {
+    color: #c48b5f;
+}
+
+.navbar-nav .btn {
+    background-color: #d19f72;
+    color: #4e4e4e;
+    border-radius: 20px;
+    border: none;
+    padding: 6px 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.navbar-nav .btn:hover {
+    background-color: #b9845e;
+    color: #4e4e4e;
+}
+
+.btn-custom {
+    background-color: #d19f72;
+    color: #4e4e4e;
+    border-radius: 20px;
+    border: none;
+    padding: 6px 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.btn-custom:hover {
+    background-color: #b9845e;
+}
+
+.btn-material :hover {
+    background-color: burlywood;
+    border-radius: 50%;
+    border: none;
+    transition: 0.3s;
+}
+
+.btn-material {
+    border: none;
+    transition: 0.3s;
+}
+
+
+.footer {
+    text-align: center;
+    background-color: #f8f2e9;
+    color: #333;
+    padding: 2rem 1rem;
+    width: 100%;
+}
+
+.footer p {
+    margin-bottom: 0.2rem;
+}
+
+.cart-img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+}
+
+#cart-badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+    border-radius: 999px;
+}
+
+/* 右下角置頂按鈕 */
+#backToTop {
+    position: fixed;
+    bottom: 40px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background-color: #d19f72;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    z-index: 999;
+    cursor: pointer;
+    transition: opacity 0.3s ease-in-out;
+}
+
+#backToTop:hover {
+    background-color: #b9845e;
+}
+
+.form-custom {
+    background-color: #f8f2e9;
+    padding: 20px 50px;
+    margin-bottom: 100px;
+    width: 350px;
+    border-radius: 50px;
+    border: 5px solid #b9845e;
+}
+
+/* 只讓 label 文字變淺，但保留連結正常顏色 */
+#tnc-group .form-check-label {
+    color: var(--bs-secondary-color, #6c757d);
+    /* 淺一點 */
+}
+
+/* 連結維持預設/強調色，不跟著變淺 */
+#tnc-group .form-check-label a {
+    color: var(--bs-link-color, #0d6efd);
+    text-decoration: underline;
+}
+
+/* Bootstrap 會把 disabled checkbox 的 label 整體變淡，這裡取消它 */
+#tnc-group .form-check-input:disabled~.form-check-label {
+    opacity: 1;
+}
+
+/* hover/聚焦時的連結顏色（可選） */
+#tnc-group .form-check-label a:hover,
+#tnc-group .form-check-label a:focus {
+    color: var(--bs-link-hover-color, #0a58ca);
+}

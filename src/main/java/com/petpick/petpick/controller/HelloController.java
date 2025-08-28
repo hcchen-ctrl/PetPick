@@ -3,7 +3,6 @@ package com.petpick.petpick.controller;
 import com.petpick.petpick.DTO.RegisterRequest;
 import com.petpick.petpick.entity.UserEntity;
 import com.petpick.petpick.service.UserService;
-import com.petpick.petpick.service.userService1;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,24 +23,39 @@ import java.util.Map;
 
 @Controller
 public class HelloController {
+
     @Autowired
     private UserService userService;
 
-    //放行首頁
-    @RequestMapping(value = "/index", method = RequestMethod.GET)
-        public String index() {
-            return "index"; // 對應 src/main/resources/templates/index.html
+    public HelloController(UserService userService) {
+        this.userService = userService;
+    }
+
+    // ✅ 整合首頁和登入後首頁
+    @RequestMapping(value = "/", method = RequestMethod.GET)
+    public String home(Model model, Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            String userName = getUserName(authentication);
+            model.addAttribute("userName", userName);
         }
 
+        return "index";
+    }
 
-//註冊頁面
-    @RequestMapping(value = "/register", method = RequestMethod.GET)
+    // ✅ 若有人訪問 /index，導回 /
+    @RequestMapping("/index")
+    public String redirectToHome() {
+        return "redirect:/";
+    }
+
+    // 註冊頁面
+    @GetMapping("/register")
     public String showRegisterForm(Model model) {
         model.addAttribute("registerRequest", new RegisterRequest());
         return "register";
     }
 
-    @RequestMapping(value = "/register", method = RequestMethod.POST)
+    @PostMapping("/register")
     public String processRegisterForm(@ModelAttribute("registerRequest") RegisterRequest request, Model model) {
         boolean success = userService.registerNewUser(request);
         if (!success) {
@@ -51,38 +65,17 @@ public class HelloController {
         return "success";
     }
 
-
-//新增google地方登入API
-    @RequestMapping("/")
-    public String welcome(Model model, Authentication authentication) {
-        String userIdentifier;
-
-        if (authentication instanceof OAuth2AuthenticationToken) {
-            // 是 Google 登入
-            OAuth2AuthenticationToken oauth2Token = (OAuth2AuthenticationToken) authentication;
-            OAuth2User oauthUser = oauth2Token.getPrincipal();
-            userIdentifier = oauthUser.getAttribute("email"); // Google 登入者 email
-        } else {
-            // 是一般表單登入
-            userIdentifier = authentication.getName(); // 你的 UserDetails.username
-        }
-
-        model.addAttribute("userName", userIdentifier);
-        return "welcome";
-    }
-
-//會員登入頁面
-    @RequestMapping(value = "/loginpage", method = RequestMethod.GET)
-    public String loginpage(@RequestParam(value = "error", required = false) String error,
-                            Model model) {
+    // 登入頁面
+    @GetMapping("/loginpage")
+    public String loginpage(@RequestParam(value = "error", required = false) String error, Model model) {
         if (error != null) {
             model.addAttribute("errorMessage", "登入失敗，請檢查帳號密碼");
         }
         return "loginpage";
     }
 
-    //更新個人資料頁面
-    @RequestMapping(value = "/rename", method = RequestMethod.GET)
+    // 修改個人資料
+    @GetMapping("/rename")
     public String showRenameForm(Authentication authentication, Model model) {
         String email = authentication.getName();
         UserEntity user = userService.findByAccountemail(email);
@@ -90,7 +83,7 @@ public class HelloController {
         return "rename";
     }
 
-    @RequestMapping(value = "/rename", method = RequestMethod.POST)
+    @PostMapping("/rename")
     public String processRename(@ModelAttribute("user") UserEntity formUser,
                                 Authentication authentication, Model model) {
         String email = authentication.getName();
@@ -100,12 +93,8 @@ public class HelloController {
         return "rename";
     }
 
-    //修改密碼
-    // 修改密碼請求 (POST)
-    public HelloController(UserService userService) {
-        this.userService = userService;
-    }
-    @RequestMapping(value = "/rename/change-password", method = RequestMethod.POST)
+    // 修改密碼
+    @PostMapping("/rename/change-password")
     public String changePassword(@RequestParam("currentPassword") String currentPassword,
                                  @RequestParam("newPassword") String newPassword,
                                  @RequestParam("confirmPassword") String confirmPassword,
@@ -114,49 +103,41 @@ public class HelloController {
 
         String email = authentication.getName();
         String resultMessage = userService.changePassword(email, currentPassword, newPassword, confirmPassword);
-
-        redirectAttributes.addFlashAttribute("passwordMessage", resultMessage); // ✅ 關鍵
+        redirectAttributes.addFlashAttribute("passwordMessage", resultMessage);
         return "redirect:/rename/change-password";
     }
 
-
-    @RequestMapping(value = "/rename/change-password", method = RequestMethod.GET)
+    @GetMapping("/rename/change-password")
     public String showChangePasswordPage(Authentication authentication, Model model) {
         String email = authentication.getName();
         model.addAttribute("user", userService.findByAccountemail(email));
-        return "rename"; // ✅ Thymeleaf 模板名稱，沒有加斜線
+        return "rename";
     }
 
-
-
-    //回傳公認領養的html
-    @RequestMapping("/gov-list-page")
+    // 公開頁面
+    @GetMapping("/gov-list-page")
     public String showGovListPage() {
         return "adopt/gov-list-page";
     }
 
-    //回傳領養的html
-    @RequestMapping("/adopt-list")
-    public String showadoptlist() {
-        return "adopt//adopt-list";
+    @GetMapping("/adopt-list")
+    public String showAdoptList() {
+        return "adopt/adopt-list";
     }
 
-    //回傳商城首頁
-    @RequestMapping(value = "/shop/commodity", method = RequestMethod.GET)
+    @GetMapping("/shop/commodity")
     public String commodity() {
         return "shop/commodity";
     }
 
-
-
+    // 管理者後台
     @PreAuthorize("hasRole('ROLE_MANAGER')")
-    @RequestMapping("/managersIndex")
+    @GetMapping("/managersIndex")
     public String managersIndex() {
         return "managersIndex";
     }
 
-
-    // --- JSON API: 登入狀態與登出 ---
+    // ✅ 前端 AJAX 用來查登入狀態
     @ResponseBody
     @GetMapping("/api/auth/status")
     public Map<String, Object> getStatus(Authentication authentication) {
@@ -164,9 +145,9 @@ public class HelloController {
 
         if (authentication != null && authentication.isAuthenticated()) {
             result.put("loggedIn", true);
-            result.put("uid", authentication.getName()); // 或 email、id 等
+            result.put("uid", authentication.getName());
             result.put("role", getUserRole(authentication));
-            result.put("name", getUserName(authentication)); // 視你的邏輯
+            result.put("name", getUserName(authentication));
         } else {
             result.put("loggedIn", false);
         }
@@ -174,13 +155,14 @@ public class HelloController {
         return result;
     }
 
+    // ✅ 前端登出 AJAX
     @ResponseBody
     @PostMapping("/api/auth/logout")
     public void logout(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        request.logout(); // Spring Security 登出
+        request.logout(); // Spring Security 處理登出
     }
 
-
+    // Helper 方法
     private String getUserRole(Authentication authentication) {
         return authentication.getAuthorities().stream()
                 .findFirst()
@@ -189,8 +171,23 @@ public class HelloController {
     }
 
     private String getUserName(Authentication authentication) {
-        return authentication.getName(); // 可視情況改為取 userService.getByEmail(...) 等
+        if (authentication instanceof OAuth2AuthenticationToken) {
+            OAuth2User oauthUser = ((OAuth2AuthenticationToken) authentication).getPrincipal();
+            // 優先取用 name 屬性，若無則 fallback email
+            String name = oauthUser.getAttribute("name");
+            if (name == null || name.isEmpty()) {
+                name = oauthUser.getAttribute("email");
+            }
+            return name != null ? name : "訪客";
+        } else {
+            // 非 OAuth2，從資料庫抓使用者真實名稱
+            String email = authentication.getName();
+            UserEntity user = userService.findByAccountemail(email);
+            if (user != null && user.getUsername() != null && !user.getUsername().isEmpty()) {
+                return user.getUsername();
+            }
+            // fallback 顯示 username 或 email
+            return email;
+        }
     }
-
-
 }

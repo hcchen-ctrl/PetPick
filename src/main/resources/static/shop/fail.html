@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>付款失敗｜Petpick</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/fail.css">
+</head>
+
+<body class="d-flex align-items-center min-vh-100">
+    <main class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="card p-4 p-md-5 text-center bg-white">
+                    <h1 class="h4 mb-2">付款未完成</h1>
+                    <p class="mb-4 muted">很抱歉，您的付款流程沒有成功。我們沒有扣到款或已自動取消本次交易。</p>
+
+                    <div class="text-start bg-light rounded p-3 mb-4">
+                        <div class="d-flex justify-content-between">
+                            <span class="muted">訂單編號</span>
+                            <strong id="orderId" class="kv">—</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span class="muted">金流交易序號</span>
+                            <span id="tradeNo" class="kv">—</span>
+                        </div>
+                        <div class="mt-2">
+                            <div class="muted mb-1">失敗原因</div>
+                            <div id="failMsg" class="text-danger fw-semibold">—</div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                        <a id="retryPay" class="btn btn-wide" href="cart.html">重新付款</a>
+                        <a id="viewOrder" class="btn-review btn-outline-secondary btn-wide" href="order.html">查看訂單</a>
+                        <a class="btn-commodity btn-link" href="commodity.html">回商城首頁</a>
+                    </div>
+
+                    <hr class="my-4">
+                    <p class="small text-muted mb-0">
+                        若您已看到銀行扣款成功但本頁顯示失敗，請聯繫客服並提供訂單編號與交易時間。<br>
+                        客服信箱：<a href="mailto:support@petpick.example">support@petpick.example</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+
+            // 從 /payment/result 轉來時可能帶的參數
+            const orderId = params.get("orderId") || params.get("CustomField1") || "";
+            const tradeNo = params.get("TradeNo") || params.get("gwsr") || ""; // gwsr 有些金流會用
+            const ok = params.get("ok");
+            // 優先顯示 msg，其次 RtnMsg，再次 Status / reason
+            const msg = params.get("msg") || params.get("RtnMsg") || params.get("Status") || params.get("reason") || "交易未完成或被取消";
+
+            // 安全寫入（避免 XSS：只用 textContent）
+            const byId = (id) => document.getElementById(id);
+            if (byId("orderId")) byId("orderId").textContent = orderId || "—";
+            if (byId("tradeNo")) byId("tradeNo").textContent = tradeNo || "—";
+            if (byId("failMsg")) byId("failMsg").textContent = msg;
+
+            // 動態調整「查看訂單」連結
+            const viewLink = byId("viewOrder");
+            if (viewLink) {
+                viewLink.href = orderId ? `order.html?orderId=${encodeURIComponent(orderId)}` : "order.html";
+            }
+
+            // 動態設定「重新付款」行為：導回購物車或結帳頁
+            const retry = byId("retryPay");
+            if (retry) {
+                // 你也可以改成 checkout.html
+                retry.href = "cart.html";
+            }
+
+            // 若帶 ok=1（理論上不會到這頁），防呆導去 success.html
+            if (ok === "1") {
+                window.location.replace(`success.html?orderId=${encodeURIComponent(orderId || "")}`);
+            }
+        })();
+    </script>
+</body>
+
+</html>

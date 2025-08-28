@@ -50,7 +50,12 @@ public class SecurityConfig {
 
         http.csrf(csrf -> csrf
                 .ignoringRequestMatchers("/register", "/api/missions/upload", "/api/applications/**")
-                .ignoringRequestMatchers("/api/posts/**")
+                .ignoringRequestMatchers("/api/posts/**","/api/upload/**")
+                .ignoringRequestMatchers("/api/chat/**")  // 👈 加入這行
+                .ignoringRequestMatchers("/api/missionapplications/**")  // 👈 加入這行
+                .ignoringRequestMatchers("/api/cart/add","/api/cart/**","/api/orders/**")
+
+
                 .csrfTokenRepository(tokenRepository)
         );
 
@@ -87,11 +92,17 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/posts/*/hold").hasRole("ADMIN")    // 暫停/恢復
                 .requestMatchers(HttpMethod.PATCH, "/api/posts/*/close").hasRole("ADMIN")   // 關閉貼文
 
+
                 // 其他管理員專用 API
                 .requestMatchers("/api/applications/**").hasRole("ADMIN")
                 .requestMatchers("/api/admin/posts/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/posts/*/status").hasRole("ADMIN")
+
 
                 // 用戶相關的 API - 需要登入但不限制角色
+                .requestMatchers("/api/chat/**").authenticated()  // 需要登入但不限制角色
+                .requestMatchers("/api/missionapplications/**").authenticated()  // 需要登入但不限制角色
+
                 .requestMatchers(HttpMethod.POST, "/api/posts").authenticated()        // 創建貼文
                 .requestMatchers(HttpMethod.GET, "/api/posts/my").authenticated()      // 我的貼文
                 .requestMatchers(HttpMethod.PATCH, "/api/posts/*/cancel").authenticated() // 取消貼文
@@ -106,7 +117,7 @@ public class SecurityConfig {
                 .requestMatchers("/managerpage").hasRole("MANAGER")
                 .requestMatchers("/employeepage").hasAnyRole("MANAGER", "EMPLOYEE")
 
-                .requestMatchers("/").authenticated()
+                .requestMatchers("/").permitAll()
                 .anyRequest().authenticated()
         );
 

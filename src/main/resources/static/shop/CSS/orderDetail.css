@@ -1,0 +1,154 @@
+body {
+    font-family: "Noto Sans TC", sans-serif;
+    background-color: #f9f9f9;
+    padding-top: 60px;
+}
+
+.thead-custom {
+    background-color: burlywood;
+}
+
+.navbar-light {
+    background-color: #f8f2e9 !important;
+    /* 柔和米色 */
+}
+
+.navbar-light .navbar-brand {
+    font-weight: bold;
+    font-size: 1.6rem;
+    color: #4e4e4e;
+}
+
+.navbar-light .nav-link {
+    color: #4e4e4e;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: color 0.3s ease;
+}
+
+.navbar-light .nav-link:hover {
+    color: #c48b5f;
+}
+
+.navbar-nav .btn {
+    background-color: #d19f72;
+    color: white;
+    border-radius: 20px;
+    border: none;
+    padding: 6px 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.btn-custom {
+    background-color: #d19f72;
+    color: #4e4e4e;
+    border-radius: 20px;
+    border: none;
+    padding: 6px 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.btn-custom:hover {
+    background-color: #b9845e;
+}
+
+.navbar-nav .btn:hover {
+    background-color: #b9845e;
+}
+
+.btn-material :hover {
+    background-color: burlywood;
+    border-radius: 50%;
+    border: none;
+    transition: 0.3s;
+}
+
+
+.footer {
+    text-align: center;
+    background-color: #f8f2e9;
+    color: #333;
+    padding: 2rem 1rem;
+    width: 100%;
+}
+
+.footer p {
+    margin-bottom: 0.2rem;
+}
+
+.cart-img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+}
+
+#cart-badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+    border-radius: 999px;
+}
+
+.order-progress .op-steps {
+    display: flex;
+    align-items: center;
+    gap: 8px
+}
+
+.order-progress .op-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 90px;
+    text-align: center
+}
+
+.order-progress .op-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #d0d5dd;
+    box-shadow: 0 0 0 2px #fff inset
+}
+
+.order-progress .op-bar {
+    flex: 1;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 4px
+}
+
+.order-progress .op-step.active .op-dot {
+    background: #ff2d55
+}
+
+/* 目前步驟 */
+.order-progress .op-step.done .op-dot {
+    background: #22c55e
+}
+
+/* 已完成步驟 */
+.order-progress .op-step .op-label {
+    font-size: .9rem;
+    margin-top: 6px
+}
+
+.order-progress .op-step .op-time {
+    font-size: .75rem;
+    color: #6b7280
+}
+
+.order-progress .op-bar.done {
+    background: #22c55e
+}
+
+.order-progress .op-bar.active {
+    background: linear-gradient(90deg, #22c55e 50%, #e5e7eb 50%)
+}
+
+@media (max-width:420px) {
+    .order-progress .op-step {
+        min-width: auto
+    }
+}

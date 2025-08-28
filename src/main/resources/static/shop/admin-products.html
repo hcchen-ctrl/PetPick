@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>商品管理 - 後台</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    .table td,
+    .table th {
+      vertical-align: middle;
+    }
+
+    .cursor-pointer {
+      cursor: pointer;
+    }
+
+    /* 載入遮罩 */
+    #loadingMask {
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, .6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="loadingMask">
+    <div class="spinner-border" role="status" aria-label="loading"></div>
+  </div>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- 側邊選單 -->
+      <nav class="col-md-2 d-none d-md-block bg-light min-vh-100">
+        <div class="p-3">
+          <ul class="nav flex-column">
+            <li class="nav-item"><a class="nav-link" href="admin-dashboard.html">首頁</a></li>
+            <li class="nav-item"><a class="nav-link active fw-bold" href="admin-products.html">商品管理</a></li>
+            <li class="nav-item"><a class="nav-link" href="admin-orders.html">訂單管理</a></li>
+            <li class="nav-item"><a class="nav-link" href="admin-users.html">會員管理</a></li>
+          </ul>
+        </div>
+      </nav>
+
+      <!-- 主內容 -->
+      <main class="col-12 col-md-10 ms-sm-auto px-md-4 py-4">
+        <!-- 標題 -->
+        <div class="mb-2">
+          <h2 class="m-0">商品管理</h2>
+        </div>
+
+        <!-- 工具列：左(新增)／中(搜尋)／右(每頁筆數) -->
+        <div class="row align-items-center mb-3 g-2">
+          <!-- 左：新增商品（標題正下方） -->
+          <div class="col-12 col-md-3">
+            <button id="btnNew" class="btn btn-primary">新增商品</button>
+          </div>
+
+          <!-- 中：搜尋（置中） -->
+          <div class="col-12 col-md-6 d-flex justify-content-center">
+            <input id="keyword" class="form-control" placeholder="搜尋編號、名稱或描述…" style="max-width: 520px; width: 100%;" />
+          </div>
+
+
+
+          <!-- 右：每頁筆數（最右側） -->
+          <!-- 分頁列 -->
+          <div class="col-12 col-md-3 d-flex justify-content-md-end">
+            <ul id="pagination" class="pagination pagination-sm mb-0 me-2"></ul>
+            <select id="pageSize" class="form-select form-select-sm" style="width:auto;">
+              <option value="10" selected>每頁 10 筆</option>
+              <option value="20">每頁 20 筆</option>
+              <option value="50">每頁 50 筆</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-dark">
+              <tr>
+                <th style="width:110px;">商品編號</th>
+                <th style="width:220px;">名稱</th>
+                <th>商品描述</th>
+                <th style="width:140px;">價格</th>
+                <th style="width:110px;">庫存</th>
+                <th style="width:100px;">圖片</th>
+                <th style="width:110px;">狀態</th>
+                <th style="width:300px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="product-table-body">
+              <tr>
+                <td colspan="8" class="text-center text-muted py-4">載入中…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+
+
+        <!-- Toast 容器 -->
+        <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 圖片預覽 Modal -->
+  <div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">商品圖片</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img id="modal-image" src="" alt="商品圖片" class="img-fluid rounded" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增/編輯 Modal -->
+  <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form id="productForm" class="modal-content" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="productModalTitle">新增商品</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="productId" />
+          <div class="mb-3">
+            <label class="form-label">商品名稱</label>
+            <input type="text" class="form-control" id="productName" required />
+            <div class="invalid-feedback">請輸入名稱（1~50字）。</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">商品描述</label>
+            <textarea class="form-control" id="productDescription" rows="2" required></textarea>
+            <div class="invalid-feedback">請輸入描述（1~300字）。</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">價格</label>
+              <input type="number" class="form-control" id="productPrice" min="0" step="1" required />
+              <div class="invalid-feedback">請輸入正確的價格。</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label">庫存</label>
+              <input type="number" class="form-control" id="productStock" min="0" step="1" required />
+              <div class="invalid-feedback">請輸入正確的庫存。</div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label">圖片連結</label>
+            <input type="url" class="form-control" id="productImage" placeholder="https://…" />
+            <div class="form-text">留空則使用預設占位圖。</div>
+          </div>
+          <div class="mt-2">
+            <img id="imagePreview" class="rounded border d-none" alt="預覽" style="max-width:100%;max-height:180px;">
+          </div>
+
+          <!-- 上/下架切換 -->
+          <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="productActive" checked>
+            <label class="form-check-label" for="productActive">上架中</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-primary">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 刪除確認 Modal -->
+  <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title">刪除商品</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+        </div>
+        <div class="modal-body">
+          確定要刪除 <span id="delName" class="fw-bold"></span>（#<span id="delId"></span>）嗎？
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" id="btnDeleteDo" class="btn btn-danger">刪除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/shop/JS/adminProduct.js"></script>
+</body>
+
+</html>

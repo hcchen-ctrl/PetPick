@@ -1,0 +1,40 @@
+body {
+    background: #f8f9fa;
+}
+
+.card {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
+}
+
+.emoji {
+    font-size: 56px;
+    line-height: 1;
+}
+
+.btn-wide {
+    min-width: 160px;
+}
+
+.muted {
+    color: #6c757d;
+}
+
+.kv {
+    font-variant-numeric: tabular-nums;
+}
+
+.btn {
+    background-color: #d19f72;
+    color: white;
+    border-radius: 20px;
+    border: none;
+    padding: 6px 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+    background-color: #b9845e;
+}

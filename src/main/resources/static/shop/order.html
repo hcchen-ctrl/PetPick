@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐾 訂單總覽</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/order.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light shadow-sm fixed-top">
+        <div class="container-fluid">
+            <!-- LOGO -->
+            <a class="navbar-brand" href="#">
+                <img src="./figure/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo">
+                PetPick
+            </a>
+
+            <!-- 手機切換按鈕 -->
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- 導覽列連結 -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+
+                    <!-- 左側按鈕 -->
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="#">尋找領養</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="missonMain.html">尋找任務</a>
+                        </li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="commodity.html">寵物商城</a></li>
+                    </ul>
+
+                    <!-- 右側按鈕 -->
+                    <div class=" position-fixed end-0 m-4 ">
+                        <button id="chat-toggle" class="btn btn-material">
+                            <span class="material-icons">chat_bubble_outline</span>
+                        </button>
+                        <a class="btn" href="cart.html" role="button"><button id="cart-button"
+                                                                              class="btn btn-material position-relative" onclick="cartHtml()">
+                                <span class="material-icons">shopping_cart</span>
+                                <span id="cart-badge"
+                                    class="badge bg-danger position-absolute top-0 start-75 translate-middle">
+                                    0
+                                </span>
+                            </button>
+                        </a>
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-material" type="button" id="accountMenuBtn" data-bs-toggle="dropdown"
+                                aria-expanded="false" aria-label="帳號選單">
+                                <span class="material-icons">account_circle</span>
+                            </button>
+
+                            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="accountMenuBtn">
+                                <li><a class="dropdown-item" href="order.html">我的訂單</a></li>
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+
+    <main class="flex-grow-1 mt-5 pt-4">
+        <div class="container mt-5">
+            <h2 class="mb-4 text-center">訂單總覽</h2>
+            <table class="table table-hover">
+                <thead class="thead-custom">
+                    <tr>
+                        <th>訂單編號（#orderId / MerchantTradeNo）</th>
+                        <th>日期</th>
+                        <th>總金額</th>
+                        <th>狀態</th>
+                        <th>訂單明細</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="order-table-body">
+                    <!-- 由 JS 動態插入 -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>快速連結：領養 / 商城 / 醫療回報 / 寵物救助</p>
+            <p>email: ispan@gmail.com</p>
+            <p>地址：台中市南屯區公益路二段51號</p>
+            <p>本站所有資訊來自開放平台與會員自行刊登，若有侵權請聯繫移除。</p>
+        </div>
+    </footer>
+
+    <button id="backToTop" class="btn btn-material shadow">↑</button>
+
+    <div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">取消訂單</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body">
+                    <p>確定要取消訂單 <span id="cm-order-no" class="fw-bold"></span> 嗎？</p>
+                    <div class="mb-3">
+                        <label for="cm-reason" class="form-label">原因（選填）</label>
+                        <textarea id="cm-reason" class="form-control" rows="3" placeholder="例：重複下單 / 修改收件資訊"></textarea>
+                    </div>
+                    <div id="cm-alert" class="alert alert-danger d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">關閉</button>
+                    <button type="button" id="cm-confirm" class="btn btn-danger">
+                        <span class="spinner-border spinner-border-sm d-none" id="cm-spin" role="status"
+                            aria-hidden="true"></span>
+                        確認取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/shop/JS/order.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ"
+        crossorigin="anonymous"></script>
+</body>
+
+</html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>超商選店完成</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <div class="card shadow-sm p-4 mx-auto" style="max-width:720px">
+      <h1 class="h4 mb-4">已選擇取貨門市</h1>
+      <dl class="row">
+        <dt class="col-sm-3">超商</dt><dd class="col-sm-9" id="brand"></dd>
+        <dt class="col-sm-3">門市名稱</dt><dd class="col-sm-9" id="name"></dd>
+        <dt class="col-sm-3">門市編號</dt><dd class="col-sm-9" id="sid"></dd>
+        <dt class="col-sm-3">地址</dt><dd class="col-sm-9" id="addr"></dd>
+      </dl>
+      <div class="mt-3 d-flex gap-2">
+        <!-- 改成返回商城 -->
+        <a class="btn btn-primary" href="/commodity.html">返回商城</a>
+        <!-- 改成訂單明細 -->
+        <button class="btn btn-outline-secondary" id="orderBtn" type="button">訂單明細</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const q = new URLSearchParams(location.search);
+    const map = { UNIMARTC2C:"7-ELEVEN", FAMIC2C:"全家", HILIFEC2C:"萊爾富", OKMARTC2C:"OK" };
+    const brand = q.get("brand") || "";
+    document.getElementById("brand").textContent = map[brand] || brand || "—";
+    document.getElementById("name").textContent  = q.get("name") || "—";
+    document.getElementById("sid").textContent   = q.get("id")   || "—";
+    document.getElementById("addr").textContent  = q.get("addr") || "—";
+
+    // 存起來給結帳頁用
+    try {
+      sessionStorage.setItem("cvs_selected", JSON.stringify({
+        CVSStoreType: brand,
+        CVSStoreName: q.get("name"),
+        CVSStoreID: q.get("id"),
+        CVSAddress: q.get("addr")
+      }));
+    } catch {}
+
+    // 訂單明細按鈕：帶 orderId；沒有就回訂單總覽
+    document.getElementById("orderBtn").addEventListener("click", ()=>{
+      const oid = q.get("orderId") || sessionStorage.getItem("last_order_id");
+      const target = oid ? `/orderDetail.html?orderId=${encodeURIComponent(oid)}` : `/order.html`;
+      location.assign(target);
+    });
+  </script>
+  <script>
+(async () => {
+  const uid = Number(sessionStorage.getItem("checkout_user_id")) || 1;
+  try {
+    const r = await fetch(`/api/cart/withProduct/${encodeURIComponent(uid)}`);
+    const items = r.ok ? await r.json() : [];
+    const badge = document.getElementById("cart-badge");
+    if (badge) badge.textContent = (Array.isArray(items) ? items.length : 0);
+  } catch {}
+})();
+</script>
+</body>
+</html>

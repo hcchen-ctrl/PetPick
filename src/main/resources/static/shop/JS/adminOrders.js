@@ -1,0 +1,1193 @@
+// js/adminOrders.js
+(function () {
+  // ====== Config / State ======
+  const API_BASE = "/api/admin/orders";
+  // ★ 管理端請求一律帶上 ADMIN 標頭（對應後端 DemoAuthFilter）
+  const ADMIN_HEADERS = { "X-Demo-Role": "ADMIN" };
+
+  // ★ 用旗標控制「建立託運單即視為已出貨」語意（預設關）
+  const FLAGS = {
+    SHIPPED_ON_CONSIGNMENT: false,
+  };
+
+  const state = {
+    page: 1,                   // 1-based
+    size: 10,
+    totalPages: 1,
+    totalElements: 0,
+    filters: {
+      q: "",
+      status: "",
+      delivery: "",
+      dateFrom: "",
+      dateTo: "",
+    },
+    selected: new Set(),       // 勾選的 orderId 集合
+  };
+
+  const lastPaid = new Set();
+
+  // ====== DOM ======
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+  const tbody = $("#order-table-body");
+  const pagination = $("#pagination");
+  const orderCountEl = $("#orderCount");
+  const lastRefreshedEl = $("#lastRefreshed");
+  const loading = $("#loading");
+  const toastContainer = $("#toastContainer");
+  const logisticsMeta = $("#logisticsMeta");
+  const btnHomeCreate = $("#btnHomeCreate");
+  const btnQueryTracking = $("#btnQueryTracking"); // === NEW ===
+
+  // 篩選元件
+  const qFilter = $("#qFilter");
+  const statusFilter = $("#statusFilter");
+  const deliveryFilter = $("#deliveryFilter");
+  const fromDate = $("#fromDate");
+  const toDate = $("#toDate");
+  const btnSearch = $("#btnSearch");
+  const btnReset = $("#btnReset");
+  const pageSize = $("#pageSize");
+
+  // 批次
+  const chkHeader = $("#chkHeader");
+  const chkAll = $("#chkAll");
+  const btnBulkMarkPaid = $("#btnBulkMarkPaid");
+  const btnBulkShip = $("#btnBulkShip");
+  const btnBulkCancel = $("#btnBulkCancel");
+  const btnExport = $("#btnExport");
+
+  // Modals：狀態
+  const statusModal = new bootstrap.Modal($("#statusModal"));
+  const statusOrderId = $("#statusOrderId");
+  const statusSelect = $("#statusSelect");
+  const statusNote = $("#statusNote");
+  const btnStatusSave = $("#btnStatusSave");
+
+  // Modals：已付款
+  const markPaidModal = new bootstrap.Modal($("#markPaidModal"));
+  const markPaidOrderId = $("#markPaidOrderId");
+  const gatewayInput = $("#gatewayInput");
+  const tradeNoInput = $("#tradeNoInput");
+  const paidAmountInput = $("#paidAmountInput");
+  const btnMarkPaid = $("#btnMarkPaid");
+
+  // 單筆快取
+  const orderCache = new Map();
+
+  // Modals：物流
+  const logisticsModal = new bootstrap.Modal($("#logisticsModal"));
+  const logisticsOrderId = $("#logisticsOrderId");
+  const logisticsIdInput = $("#logisticsIdInput");
+  const trackingNoInput = $("#trackingNoInput");
+  const btnLogisticsSave = $("#btnLogisticsSave");
+
+  // Modals：取消
+  const cancelModal = new bootstrap.Modal($("#cancelModal"));
+  const cancelOrderId = $("#cancelOrderId");
+  const cancelReasonInput = $("#cancelReasonInput");
+  const btnCancelSave = $("#btnCancelSave");
+
+  // ====== Init ======
+  document.addEventListener("DOMContentLoaded", () => {
+    wireUI();
+    loadPage(1);
+  });
+
+  function wireUI() {
+    // 查詢
+    btnSearch.addEventListener("click", () => {
+      state.filters.q = (qFilter.value || "").trim();
+      state.filters.status = statusFilter.value || "";
+      state.filters.delivery = deliveryFilter.value || "";
+      state.filters.dateFrom = fromDate.value || "";
+      state.filters.dateTo = toDate.value || "";
+      loadPage(1);
+    });
+
+    // 重設
+    btnReset.addEventListener("click", () => {
+      qFilter.value = "";
+      statusFilter.value = "";
+      deliveryFilter.value = "";
+      fromDate.value = "";
+      toDate.value = "";
+      state.filters = { q: "", status: "", delivery: "", dateFrom: "", dateTo: "" };
+      loadPage(1);
+    });
+
+    // 每頁筆數
+    pageSize.addEventListener("change", () => {
+      const n = Number(pageSize.value) || 10;
+      state.size = n;
+      loadPage(1);
+    });
+
+    // 全選（表頭 & 批次區域）
+    const syncHeaderAll = (checked) => {
+      if (chkHeader) chkHeader.checked = checked;
+      if (chkAll) chkAll.checked = checked;
+    };
+    if (chkHeader) chkHeader.addEventListener("change", () => toggleAll(chkHeader.checked, syncHeaderAll));
+    if (chkAll) chkAll.addEventListener("change", () => toggleAll(chkAll.checked, syncHeaderAll));
+
+    // 批次功能
+    btnBulkMarkPaid.addEventListener("click", () => openBulkMarkPaid());
+    btnBulkShip.addEventListener("click", () => bulkUpdateStatus("Shipped"));
+    btnBulkCancel.addEventListener("click", () => openBulkCancel());
+    btnExport.addEventListener("click", () => exportCSV());
+    updateBulkButtons();
+
+    // Modals 行為
+    btnStatusSave.addEventListener("click", onSaveStatus);
+    btnMarkPaid.addEventListener("click", onMarkPaid);
+    btnLogisticsSave.addEventListener("click", onSaveLogistics);
+    btnCancelSave.addEventListener("click", onSaveCancel);
+
+    // === 查詢追蹤/物流按鈕（會在不同分支更換 handler）
+    if (btnQueryTracking) {
+      btnQueryTracking.addEventListener("click", async () => {
+        const id = Number(logisticsModal._currentId);
+        if (!id) return;
+        try {
+          showLoading(true);
+          // 預設用宅配查詢；在 cvs_cod 分支會改綁至 queryCvsFromEcpay
+          const j = await queryTrackingFromEcpay(id);
+          if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+          if (j.trackingNo) trackingNoInput.value = j.trackingNo;
+
+          const o = await fetchOrderOne(id);
+          if (o.logisticsId && !logisticsIdInput.value) logisticsIdInput.value = o.logisticsId;
+          if (o.trackingNo && !trackingNoInput.value) trackingNoInput.value = o.trackingNo;
+
+          if (trackingNoInput.value) {
+            toast(`已取得追蹤碼：${escapeHtml(trackingNoInput.value)}`);
+          } else {
+            toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
+          }
+          try { await hydrateStatus(); } catch { }
+        } catch (err) {
+          toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
+        } finally {
+          showLoading(false);
+        }
+      });
+    }
+  }
+
+  // ====== API ======
+  async function fetchOrders() {
+    const p = new URLSearchParams();
+    if (state.filters.q) p.set("q", state.filters.q);
+    if (state.filters.status) p.set("status", state.filters.status);
+    if (state.filters.delivery) p.set("delivery", state.filters.delivery);
+    if (state.filters.dateFrom) p.set("dateFrom", state.filters.dateFrom);
+    if (state.filters.dateTo) p.set("dateTo", state.filters.dateTo);
+    p.set("page", String(state.page));
+    p.set("size", String(state.size));
+
+    const url = `${API_BASE}?${p.toString()}`;
+    const res = await fetch(url, { headers: { ...ADMIN_HEADERS } });
+    if (!res.ok) throw new Error(`讀取失敗 (${res.status})`);
+
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      state.totalElements = data.length;
+      state.totalPages = 1;
+      return data;
+    } else {
+      state.totalElements = Number(data.totalElements ?? 0);
+      state.totalPages = Number(data.totalPages ?? 1);
+      return Array.isArray(data.content) ? data.content : [];
+    }
+  }
+
+    async function apiPatch(url, body) {
+        const r = await fetch(url, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            credentials: "include", // ✅ 帶上登入 cookie (JSESSIONID)
+            body: JSON.stringify(body || {}),
+        });
+
+        if (!r.ok) {
+            const errorText = await r.text();
+            throw new Error(errorText);
+        }
+
+        return true;
+    }
+
+
+    async function apiPost(url, body) {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...ADMIN_HEADERS },
+      body: JSON.stringify(body || {}),
+    });
+    if (!r.ok) throw new Error(await safeText(r));
+    return true;
+  }
+
+  // GET
+  async function apiGet(url) {
+    const r = await fetch(url, { headers: { ...ADMIN_HEADERS } });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.ok === false) {
+      throw new Error(j.error || `HTTP ${r.status}`);
+    }
+    return j;
+  }
+
+  // ====== Load / Render ======
+  async function loadPage(pageNum = 1) {
+    state.page = Math.max(1, pageNum);
+    showLoading(true);
+    try {
+      const list = await fetchOrders();
+      renderTable(list);
+      renderPagination();
+      orderCountEl.textContent = String(state.totalElements);
+      lastRefreshedEl.textContent = fmtDateTime(new Date().toISOString());
+      state.selected.clear();
+      syncHeaderChecks();
+      updateBulkButtons();
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">載入失敗：${escapeHtml(err.message || "")}</td></tr>`;
+      pagination.innerHTML = "";
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function renderTable(list) {
+    if (!list || list.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">暫無訂單</td></tr>`;
+      return;
+    }
+    list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    tbody.innerHTML = list.map(o => rowHtml(o)).join("");
+
+    // 綁定 row checkbox 與 row actions
+    $$(".row-check").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const id = Number(cb.dataset.id);
+        if (cb.checked) state.selected.add(id); else state.selected.delete(id);
+        syncHeaderChecks();
+        updateBulkButtons();
+      });
+    });
+
+    // 單筆動作
+    $$(".btn-view").forEach(btn => btn.addEventListener("click", onView));
+    $$(".btn-status").forEach(btn => btn.addEventListener("click", onOpenStatus));
+    $$(".btn-paid").forEach(btn => btn.addEventListener("click", onOpenMarkPaid));
+    $$(".btn-logistics").forEach(btn => btn.addEventListener("click", onOpenLogistics));
+    $$(".btn-cancel").forEach(btn => btn.addEventListener("click", onOpenCancel));
+
+    hydrateDelivery();
+    hydrateStatus();
+  }
+
+  // === 做法 A：狀態欄改為「付款 / 配送」兩個徽章 ===
+  function rowHtml(o) {
+    const id = o.orderId ?? o.id;
+    const mtn = (o.merchantTradeNo ?? "").trim();
+    const member = o.receiverName || o.userName || (o.userId != null ? `#${o.userId}` : "—");
+    const total = Number(o.totalPrice ?? o.total ?? 0);
+    const rawStatus = o.status ?? ""; // 仍保留給「修改狀態」對話框用
+    const time = fmtDateTime(o.createdAt || o.date);
+    const delivery = displayDelivery(o);
+
+    let payStatus = paymentStatusOf(o);
+    const shipStatus = deliveryStatusOf(o);
+
+    // 非超取 COD：若本輪判成「待付款」，但上一輪已記錄為「已付款」，先以已付款顯示，待 hydrate 覆蓋
+    const shipType = String(o.shippingType || "").toLowerCase();
+    if (payStatus === "待付款" && shipType !== "cvs_cod" && lastPaid.has(Number(id))) {
+      payStatus = "已付款";
+    }
+
+    const checked = state.selected.has(Number(id)) ? "checked" : "";
+
+    return `
+    <tr data-row-id="${escapeAttr(id)}">
+      <td><input class="form-check-input row-check" type="checkbox" data-id="${escapeAttr(id)}" ${checked}></td>
+      <td class="font-mono lh-sm">
+        <div>#${escapeHtml(id)}</div>
+        <div class="text-muted">${mtn ? escapeHtml(mtn) : ""}</div>
+      </td>
+      <td>${escapeHtml(member)}</td>
+      <td>NT$${total.toLocaleString("zh-Hant-TW")}</td>
+      <td class="td-status">
+        <span class="badge ${badgeCls(payStatus)} me-1">付款：${escapeHtml(payStatus)}</span><br>
+        <span class="badge ${badgeCls(shipStatus)}">配送：${escapeHtml(shipStatus)}</span>
+      </td>
+      <td class="td-delivery">${escapeHtml(delivery)}</td>
+      <td>${time}</td>
+      <td class="d-flex flex-wrap gap-1 align-items-center">
+        <button class="btn btn-sm btn-outline-primary btn-view" data-id="${escapeAttr(id)}">查看</button>
+        <button class="btn btn-sm btn-outline-secondary btn-status" data-id="${escapeAttr(id)}" data-status="${escapeAttr(rawStatus)}">變更物流狀態</button>
+        <button class="btn btn-sm btn-success btn-paid" data-id="${escapeAttr(id)}" data-amount="${escapeAttr(total)}">付款</button>
+        <button class="btn btn-sm btn-info btn-logistics" data-id="${escapeAttr(id)}">物流</button>
+        <button class="btn btn-sm btn-outline-danger btn-cancel" data-id="${escapeAttr(id)}">取消</button>
+      </td>
+    </tr>
+  `;
+  }
+
+  function renderPagination() {
+    const { page, totalPages } = state;
+    if (totalPages <= 1) { pagination.innerHTML = ""; return; }
+
+    const item = (label, target, disabled = false, active = false) =>
+      `<li class="page-item ${disabled ? "disabled" : ""} ${active ? "active" : ""}">
+        <a class="page-link" href="#" data-page="${target}">${label}</a>
+       </li>`;
+
+    let html = "";
+    html += item("«", 1, page === 1);
+    html += item("‹", Math.max(1, page - 1), page === 1);
+
+    const pageWindow = 2;
+    const start = Math.max(1, page - pageWindow);
+    const end = Math.min(totalPages, page + pageWindow);
+    for (let i = start; i <= end; i++) {
+      html += item(String(i), i, false, i === page);
+    }
+
+    html += item("›", Math.min(totalPages, page + 1), page === totalPages);
+    html += item("»", totalPages, page === totalPages);
+
+    pagination.innerHTML = html;
+    $$("#pagination a.page-link").forEach(a => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        const p = Number(a.dataset.page);
+        if (Number.isFinite(p) && p >= 1 && p <= state.totalPages) loadPage(p);
+      });
+    });
+  }
+
+  // ====== Row Actions ======
+  function onView(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    location.href = `orderDetail.html?orderId=${encodeURIComponent(id)}`;
+  }
+
+  function onOpenStatus(e) {
+    const id = e.currentTarget.dataset.id;
+    const s = e.currentTarget.dataset.status || "Pending";
+    statusOrderId.textContent = `#${id}`;
+    statusSelect.value = s;
+    statusNote.value = "";
+    statusModal.show();
+    statusModal._currentId = Number(id);
+  }
+
+  async function onSaveStatus() {
+    const id = statusModal._currentId;
+    if (!id) return;
+    try {
+      showLoading(true);
+      await apiPatch(`${API_BASE}/${id}/status`, {
+        status: statusSelect.value,
+        note: statusNote.value || ""
+      });
+      statusModal.hide();
+      toast("狀態已更新");
+      loadPage(state.page);
+    } catch (err) {
+      toast(`更新失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function onOpenMarkPaid(e) {
+    const id = e.currentTarget.dataset.id;
+    const amt = Number(e.currentTarget.dataset.amount || 0);
+    markPaidOrderId.textContent = `#${id}`;
+    gatewayInput.value = "Manual";
+    tradeNoInput.value = "";
+    paidAmountInput.value = String(amt || "");
+    markPaidModal.show();
+    markPaidModal._currentId = Number(id);
+  }
+
+  async function onMarkPaid() {
+    const id = markPaidModal._currentId;
+    if (!id) return;
+    try {
+      showLoading(true);
+      await apiPost(`${API_BASE}/${id}/mark-paid`, {
+        gateway: (gatewayInput.value || "Manual").trim(),
+        tradeNo: (tradeNoInput.value || "").trim(),
+        paidAmount: Number(paidAmountInput.value || 0)
+      });
+      markPaidModal.hide();
+      toast("已標記為已付款");
+      loadPage(state.page);
+    } catch (err) {
+      toast(`操作失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  async function onOpenLogistics(e) {
+    const id = Number(e.currentTarget.dataset.id);
+    logisticsOrderId.textContent = `#${id}`;
+    logisticsIdInput.value = "";
+    trackingNoInput.value = "";
+    logisticsMeta.textContent = "讀取中…";
+    btnHomeCreate.classList.add("d-none");           // 預設先隱藏
+    btnQueryTracking.classList.add("d-none");        // 預設隱藏
+    logisticsModal._currentId = id;
+
+    try {
+      showLoading(true);
+      const o = await fetchOrderOne(id);
+
+      // 預填既有物流欄位（若有）
+      if (o.logisticsId) logisticsIdInput.value = o.logisticsId;
+      if (o.trackingNo) trackingNoInput.value = o.trackingNo;
+
+      // 顯示配送資訊
+      const t = String(o.shippingType || "").toLowerCase();
+      if (t === "address") {
+        logisticsMeta.innerHTML = `
+          <div><span class="badge bg-secondary">宅配</span> ${escapeHtml(o.addr || "")}</div>
+          <div class="text-muted">收件人：${escapeHtml(o.receiverName || "—")}（${escapeHtml(o.receiverPhone || "—")}）</div>
+        `;
+        // 宅配：顯示兩顆按鈕（建立、查詢）
+        btnHomeCreate.classList.remove("d-none");
+        btnHomeCreate.textContent = "建立宅配託運單";
+        btnHomeCreate.onclick = () => createHomeFor(id);
+
+        btnQueryTracking.classList.remove("d-none");
+        btnQueryTracking.textContent = "查詢宅配狀態";
+        btnQueryTracking.onclick = async () => {
+          try {
+            showLoading(true);
+            const j = await queryTrackingFromEcpay(id);
+            if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+            if (j.trackingNo) trackingNoInput.value = j.trackingNo;
+
+            const o2 = await fetchOrderOne(id);
+            if (o2.trackingNo) {
+              trackingNoInput.value = o2.trackingNo;
+              toast(`已取得追蹤碼：${escapeHtml(o2.trackingNo)}`);
+            } else {
+              toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
+            }
+            try { await hydrateStatus(); } catch { }
+          } catch (err) {
+            toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
+          } finally {
+            showLoading(false);
+          }
+        };
+      } else if (t === "cvs_cod") {
+        const brand = o.storeBrand || "全家";
+        const brandText = brand ? `（${escapeHtml(brand)}）` : "";
+        logisticsMeta.innerHTML = `
+          <div><span class="badge bg-info text-dark">超商取貨付款</span> ${brandText}</div>
+          <div class="text-muted">${escapeHtml(o.storeName || "—")}　${o.storeAddress ? "｜" + escapeHtml(o.storeAddress) : ""}</div>
+        `;
+        // ★ 走 B2C 全家：顯示建立 / 查詢
+        btnHomeCreate.classList.remove("d-none");
+        btnHomeCreate.textContent = "建立超商託運單（全家B2C）";
+        btnHomeCreate.onclick = () => createCvsForB2C(id);    // NEW
+
+        btnQueryTracking.classList.remove("d-none");
+        btnQueryTracking.textContent = "查詢超商狀態";
+        btnQueryTracking.onclick = async () => {
+          try {
+            showLoading(true);
+            const j = await queryCvsFromEcpay(id);           // NEW
+            if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+            if (j.trackingNo) trackingNoInput.value = j.trackingNo;
+
+            const o2 = await fetchOrderOne(id);
+            if (o2.trackingNo) {
+              trackingNoInput.value = o2.trackingNo;
+              toast(`已取得追蹤碼：${escapeHtml(o2.trackingNo)}`);
+            } else {
+              toast("目前仍未提供追蹤碼，稍後可再試一次。", "secondary");
+            }
+            try { await hydrateStatus(); } catch { }
+          } catch (err) {
+            toast(`查詢失敗：${escapeHtml(err.message || "")}`, "danger");
+          } finally {
+            showLoading(false);
+          }
+        };
+      } else {
+        logisticsMeta.innerHTML = `<div class="text-muted">配送：${escapeHtml(o.shippingType || "—")}</div>`;
+        btnHomeCreate.classList.add("d-none");
+        btnHomeCreate.onclick = null;
+        btnQueryTracking.classList.add("d-none");
+        btnQueryTracking.onclick = null;
+      }
+
+      logisticsModal.show();
+    } catch (err) {
+      toast(`讀取訂單失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  async function onSaveLogistics() {
+    const id = logisticsModal._currentId;
+    if (!id) return;
+    try {
+      showLoading(true);
+
+      // 只有在有值時才更新，避免把 DB 的 NULL 蓋成空字串
+      const payload = {};
+      const lid = (logisticsIdInput.value || "").trim();
+      const tno = (trackingNoInput.value || "").trim();
+      if (lid) payload.logisticsId = lid;
+      if (tno) payload.trackingNo = tno;
+
+      if (Object.keys(payload).length === 0) {
+        toast("沒有可更新的欄位", "warning");
+        return;
+      }
+
+      await apiPost(`${API_BASE}/${id}/logistics`, payload);
+
+      // 若有追蹤碼或物流編號 → 不再自動標記為已出貨（交由「建立託運單」按鈕決定）
+      logisticsModal.hide();
+      toast("物流資訊已儲存");
+      loadPage(state.page);
+    } catch (err) {
+      toast(`操作失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function onOpenCancel(e) {
+    const id = e.currentTarget.dataset.id;
+    cancelOrderId.textContent = `#${id}`;
+    cancelReasonInput.value = "";
+    cancelModal.show();
+    cancelModal._currentId = Number(id);
+  }
+
+  async function onSaveCancel() {
+    const id = cancelModal._currentId;
+    if (!id) return;
+    try {
+      showLoading(true);
+      await apiPost(`${API_BASE}/${id}/cancel`, {
+        reason: cancelReasonInput.value || ""
+      });
+      cancelModal.hide();
+      toast("訂單已取消");
+      loadPage(state.page);
+    } catch (err) {
+      toast(`取消失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  // ====== Bulk ======
+  function selectedIds() {
+    return Array.from(state.selected.values());
+  }
+
+  function toggleAll(checked, syncHeaderAll) {
+    $$(".row-check").forEach(cb => {
+      cb.checked = checked;
+      const id = Number(cb.dataset.id);
+      if (checked) state.selected.add(id); else state.selected.delete(id);
+    });
+    if (typeof syncHeaderAll === "function") syncHeaderAll(checked);
+    updateBulkButtons();
+  }
+
+  function syncHeaderChecks() {
+    const all = $$(".row-check");
+    const checked = all.filter(cb => cb.checked).length;
+    const allChecked = all.length > 0 && checked === all.length;
+    if (chkHeader) chkHeader.checked = allChecked;
+    if (chkAll) chkAll.checked = allChecked;
+  }
+
+  function updateBulkButtons() {
+    const hasSel = state.selected.size > 0;
+    btnBulkMarkPaid.disabled = !hasSel;
+    btnBulkShip.disabled = !hasSel;
+    btnBulkCancel.disabled = !hasSel;
+  }
+
+  function openBulkMarkPaid() {
+    if (state.selected.size === 0) return;
+    markPaidOrderId.textContent = `${state.selected.size} 筆`;
+    gatewayInput.value = "Manual";
+    tradeNoInput.value = "";
+    paidAmountInput.value = "";
+    markPaidModal.show();
+    markPaidModal._bulk = true;
+  }
+
+  async function bulkUpdateStatus(targetStatus) {
+    const ids = selectedIds();
+    if (ids.length === 0) return;
+    try {
+      showLoading(true);
+      await apiPost(`${API_BASE}/bulk-status`, {
+        orderIds: ids,
+        status: targetStatus,
+        note: ""
+      });
+      toast(`已批次標記為 ${targetStatus}`);
+      loadPage(state.page);
+    } catch (err) {
+      toast(`批次操作失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function openBulkCancel() {
+    if (state.selected.size === 0) return;
+    cancelOrderId.textContent = `${state.selected.size} 筆`;
+    cancelReasonInput.value = "";
+    cancelModal.show();
+    cancelModal._bulk = true;
+  }
+
+  const _origOnSaveCancel = onSaveCancel;
+  btnCancelSave.removeEventListener?.("click", onSaveCancel);
+  btnCancelSave.addEventListener("click", async () => {
+    if (cancelModal._bulk) {
+      try {
+        showLoading(true);
+        await apiPost(`${API_BASE}/bulk-status`, {
+          orderIds: selectedIds(),
+          status: "Cancelled",
+          note: cancelReasonInput.value || ""
+        });
+        cancelModal.hide();
+        toast("已批次取消");
+        loadPage(state.page);
+      } catch (err) {
+        toast(`批次取消失敗：${escapeHtml(err.message || "")}`, "danger");
+      } finally {
+        showLoading(false);
+      }
+    } else {
+      await _origOnSaveCancel();
+    }
+    cancelModal._bulk = false;
+  });
+
+  const _origOnMarkPaid = onMarkPaid;
+  btnMarkPaid.removeEventListener?.("click", onMarkPaid);
+  btnMarkPaid.addEventListener("click", async () => {
+    if (markPaidModal._bulk) {
+      try {
+        showLoading(true);
+        const ids = selectedIds();
+        await apiPost(`${API_BASE}/bulk-status`, {
+          orderIds: ids,
+          status: "Paid",
+          note: `手動：${(gatewayInput.value || "Manual")} / ${tradeNoInput.value || ""} / ${paidAmountInput.value || ""}`
+        });
+        markPaidModal.hide();
+        toast("已批次標記為已付款");
+        loadPage(state.page);
+      } catch (err) {
+        toast(`批次標記失敗：${escapeHtml(err.message || "")}`, "danger");
+      } finally {
+        showLoading(false);
+      }
+    } else {
+      await _origOnMarkPaid();
+    }
+    markPaidModal._bulk = false;
+  });
+
+  // ====== Export CSV ======
+  async function exportCSV() {
+    try {
+      showLoading(true);
+      const rows = [];
+      const sizeBackup = state.size;
+      const pageBackup = state.page;
+      const tmpSize = 100;
+
+      state.size = tmpSize;
+      await loadPage(1);
+      rows.push(...collectRowsFromTbody());
+
+      for (let p = 2; p <= state.totalPages; p++) {
+        state.page = p;
+        const list = await fetchOrders();
+        renderTable(list);
+        rows.push(...collectRowsFromTbody());
+      }
+
+      state.size = sizeBackup;
+      state.page = pageBackup;
+      await loadPage(state.page);
+
+      const head = ["訂單編號", "綠界訂單編號", "會員", "金額", "狀態", "配送", "下單時間"];
+      const csv = [head, ...rows].map(r => r.map(csvCell).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `orders_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("CSV 匯出完成");
+    } catch (err) {
+      toast(`匯出失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function collectRowsFromTbody() {
+    return Array.from(tbody.querySelectorAll("tr")).map(tr => {
+      const tds = tr.querySelectorAll("td");
+      if (tds.length < 8) return [];
+      const idBox = tds[1];
+      const id = idBox.querySelector("div:nth-child(1)")?.textContent.trim() || "";
+      const mtn = idBox.querySelector("div:nth-child(2)")?.textContent.trim() || "";
+      const member = tds[2]?.textContent.trim() || "";
+      const amount = tds[3]?.textContent.replace(/\s+/g, " ").trim() || "";
+      const status = tds[4]?.innerText.trim() || ""; // 會拿到「付款：.. 配送：..」
+      const delivery = tds[5]?.textContent.trim() || "";
+      const time = tds[6]?.textContent.trim() || "";
+      return [id.replace(/^#/, ""), mtn, member, amount.replace(/^NT\$/, ""), status, delivery, time];
+    }).filter(r => r.length > 0);
+  }
+
+  // ====== Utils ======
+  function showLoading(v) {
+    if (!loading) return;
+    loading.style.display = v ? "flex" : "none";
+  }
+
+  function toast(message, type = "success") {
+    const id = "t" + Math.random().toString(36).slice(2);
+    const html = `
+      <div id="${id}" class="toast align-items-center text-bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>`;
+    toastContainer.insertAdjacentHTML("beforeend", html);
+    const el = document.getElementById(id);
+    const t = new bootstrap.Toast(el, { delay: 2500 });
+    t.show();
+    el.addEventListener("hidden.bs.toast", () => el.remove());
+  }
+
+  function statusBadgeClass(s) {
+    const k = String(s || "").toLowerCase();
+    if (["paid", "已付款"].includes(k)) return "bg-success";
+    if (["pending", "待付款"].includes(k)) return "bg-warning text-dark";
+    if (["shipped", "已出貨"].includes(k)) return "bg-info text-dark";
+    if (["delivered", "已配達"].includes(k)) return "bg-success";
+    if (["cancelled", "取消"].includes(k)) return "bg-secondary";
+    if (["failed", "付款失敗"].includes(k)) return "bg-danger";
+    return "bg-light text-dark";
+  }
+
+  function fmtDateTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d)) return escapeHtml(iso);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${y}-${m}-${day} ${hh}:${mm}`;
+  }
+
+  function displayDelivery(o) {
+    const statusKey = String(o.status || "").toLowerCase();
+    if (statusKey === "cancelled" || statusKey === "failed") {
+      return "—"; // 付款已取消或失敗：不顯示配送資訊
+    }
+    const type = String(o.shippingType || "").toLowerCase();
+    if (type === "cvs_cod" || o.storeId || o.storeName || o.storeAddress) {
+      const brand = o.storeBrand || "";
+      const name = o.storeName || "";
+      const addr = o.storeAddress || "";
+      const parts = [brand, name].filter(Boolean).join(" ");
+      return parts || addr ? `${parts ? parts : ""}${addr ? (parts ? " " : "") + `（${addr}）` : ""}` : "超商取貨付款";
+    }
+    if (type === "address" || o.addr) {
+      return o.addr ? `宅配（${o.addr}）` : "宅配";
+    }
+    return "—";
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+  function escapeAttr(s) { return String(s ?? "").replaceAll('"', '&quot;'); }
+  async function safeText(r) { try { return await r.text(); } catch { return `HTTP ${r.status}`; } }
+
+  // === utils: normalize logistics status (兼容不同欄位命名) ===
+  function getLogisticsStatus(o) {
+    let raw = o.logisticsStatus ?? o.logisticStatus ?? o.ecpayLogisticsStatus ?? o.shippingStatus ?? o.shipping_state ?? o.shipStatus ?? "";
+    if (!raw) return "";
+    let s = String(raw).trim().replace(/[\s-]+/g, "_").toUpperCase().replace(/[^A-Z_]/g, "");
+    const map = {
+      INTRANSIT: "IN_TRANSIT",
+      OUT_FOR_DELIVERY: "IN_TRANSIT",
+      DELIVERING: "IN_TRANSIT",
+      SHIPPING: "IN_TRANSIT",
+      SENT: "IN_TRANSIT",
+      DISPATCHED: "IN_TRANSIT",
+
+      LABEL_CREATED: "CREATED",
+      READY_TO_SHIP: "CREATED",
+      ACCEPTED: "CREATED",
+      PRINTED: "CREATED",
+
+      ARRIVED: "DELIVERED",
+      RECEIVED: "DELIVERED",
+      DELIVERY_DONE: "DELIVERED",
+      DONE: "DELIVERED"
+    };
+    return map[s] || s;
+  }
+
+  // ★ 是否已建立託運單（有 logisticsId / trackingNo / 任何物流狀態）
+  function consignmentCreated(o) {
+    const ls = getLogisticsStatus(o);
+    return Boolean(o.logisticsId || o.trackingNo || ls);
+  }
+
+  // 物流/配送狀態顯示
+  function deliveryStatusOf(o) {
+    const orderS = String(o.status || "").toUpperCase();
+    if (orderS === "FAILED" || orderS === "CANCELLED") return "—";
+
+    const shipType = String(o.shippingType || "").trim().toLowerCase();
+    const ls = getLogisticsStatus(o);
+
+    // 已配達（含超取完成）
+    if (ls === "DELIVERED" || ls === "PICKED_UP" || ls === "RECEIVED" || ls === "DONE") {
+      return "已配達";
+    }
+
+    // 宅配：以實際狀態為準；只有按了「建立託運單」造成 SHIPPED 或收到 IN_TRANSIT 才顯示「已出貨」
+    if (shipType === "address") {
+      if (orderS === "SHIPPED" || ls === "IN_TRANSIT") return "已出貨";
+      return "待出貨";
+    }
+
+    // 超商取貨（COD，B2C 全家）
+    if (shipType === "cvs_cod") {
+      if (FLAGS.SHIPPED_ON_CONSIGNMENT && consignmentCreated(o)) return "已出貨";
+      if (orderS === "SHIPPED" || ls === "IN_TRANSIT") return "已出貨";
+      return "待出貨";
+    }
+
+    // 其他配送型別
+    if (shipType) {
+      return (orderS === "SHIPPED" || ls === "IN_TRANSIT" || (FLAGS.SHIPPED_ON_CONSIGNMENT && consignmentCreated(o)))
+        ? "已出貨"
+        : "待出貨";
+    }
+
+    return "—";
+  }
+
+  function badgeCls(label) {
+    const k = (label || "").toLowerCase();
+    if (k.includes("已付款") || k === "已配達") return "bg-success";
+    if (k === "已出貨") return "bg-info text-dark";
+    if (k === "待付款" || k === "待出貨") return "bg-warning text-dark";
+    if (k === "運送中") return "bg-info text-dark";
+    if (k === "已取消") return "bg-secondary";
+    if (k === "付款失敗") return "bg-danger";
+    return "bg-light text-dark";
+  }
+
+  // ====== 付款方式解析（只分 CREDIT / COD）======
+  function resolvePayMethod(o) {
+    // 1) 先看常見欄位字樣
+    const candidates = [
+      o.paymentMethod, o.payment_method, o.payment, o.payMethod,
+      o.pay_type, o.paymentType, o.payment_type,
+      o.gateway, o.paymentGateway, o.method
+    ];
+    const s = candidates.map(v => String(v ?? "").trim().toLowerCase()).filter(Boolean).join("|");
+
+    if (/credit|card|信用卡/.test(s)) return "CREDIT";
+    if (/cod|貨到|cvs_cod|collection/.test(s)) return "COD";
+
+    // 2) 看布林旗標（建立託運單常見）
+    if (o.isCollection === true || o.collection === true) return "COD";
+    if (Number(o.collectionAmount || 0) > 0) return "COD";
+
+    // 3) 配送型別：超商取貨付款一定是 COD
+    const shipType = String(o.shippingType || "").trim().toLowerCase();
+    if (shipType === "cvs_cod") return "COD";
+
+    // 只有兩種付款方式時，其餘視為 CREDIT（保守預設）
+    return "CREDIT";
+  }
+
+  // === 付款狀態（修正版：信用卡看真實付款線索；COD 等到完成才算付）===
+  function paymentStatusOf(o) {
+    const s = String(o.status || "").trim().toUpperCase();
+    const shipType = String(o.shippingType || "").trim().toLowerCase();
+    const logi = getLogisticsStatus(o);
+
+    // 明確失敗 / 取消
+    if (s === "FAILED") return "付款失敗";
+    if (s === "CANCELLED") return "已取消";
+
+    const method = resolvePayMethod(o);
+
+    if (method === "COD") {
+      // 超商 COD：取件/配達才算已付
+      if (shipType === "cvs_cod") {
+        if (logi === "DELIVERED") return "已付款（COD）";
+        return "待付款";
+      }
+      // 宅配 COD：配達完成才算已付
+      if (shipType === "address") {
+        if (logi === "DELIVERED") return "已付款（COD）";
+        return "待付款";
+      }
+      // 其他型別（極少見）：保守處理
+      return "待付款";
+    }
+
+    // 非 COD（如信用卡）：僅看真實付款線索
+    const paidAmount = Number(o.paidAmount ?? o.totalPaid ?? 0);
+    if (s === "PAID") return "已付款";
+    if (o.paidAt) return "已付款";
+    if (paidAmount > 0) return "已付款";
+    if ((Boolean)(o.merchantTradeNo)) return "已付款";
+
+    // ※ 不再用 tradeNo / gateway 當作已付依據，避免誤判
+    return "待付款";
+  }
+
+  // ====== 補強：用單筆 API 回填付款/配送徽章 ======
+  async function hydrateStatus() {
+    const rows = Array.from(tbody.querySelectorAll("tr[data-row-id]"));
+    for (const tr of rows) {
+      const td = tr.querySelector(".td-status");
+      if (!td) continue;
+      const idAttr = tr.getAttribute("data-row-id");
+      if (!idAttr) continue;
+      const id = Number(idAttr);
+
+      try {
+        const o = await fetchOrderOne(id);
+        const pay = paymentStatusOf(o);
+        const ship = deliveryStatusOf(o);
+
+        // 記錄「已付款」（含已付款（COD）），供下一輪避免 UI 回退
+        if (pay === "已付款" || pay.startsWith("已付款")) {
+          lastPaid.add(id);
+        }
+
+        td.innerHTML =
+          `<span class="badge ${badgeCls(pay)} me-1">付款：${escapeHtml(pay)}</span><br>` +
+          `<span class="badge ${badgeCls(ship)}">配送：${escapeHtml(ship)}</span>`;
+      } catch { /* ignore */ }
+    }
+  }
+
+  // ====== 這三個函式移進 IIFE 內 ======
+  async function hydrateDelivery() {
+    const rows = Array.from(tbody.querySelectorAll("tr[data-row-id]"));
+    for (const tr of rows) {
+      const td = tr.querySelector(".td-delivery");
+      if (!td) continue;
+      const current = (td.textContent || "").trim();
+      if (current && current !== "—") continue;
+
+      const id = tr.getAttribute("data-row-id");
+      if (!id) continue;
+
+      try {
+        const r = await fetch(`${API_BASE}/${encodeURIComponent(id)}`, { headers: { ...ADMIN_HEADERS } });
+        if (!r.ok) continue;
+        const o = await r.json();
+        td.textContent = displayDelivery(o);
+      } catch { }
+    }
+  }
+
+  async function fetchOrderOne(id) {
+    id = Number(id);
+    if (orderCache.has(id)) return orderCache.get(id);
+    const r = await fetch(`${API_BASE}/${id}`, { headers: { ...ADMIN_HEADERS } });
+    if (!r.ok) throw new Error(`讀取訂單失敗 (${r.status})`);
+    const data = await r.json();
+    orderCache.set(id, data);
+    return data;
+  }
+
+  // === 後端封裝的「查詢宅配單」
+  async function queryTrackingFromEcpay(orderId) {
+    const j = await apiGet(`/api/logistics/home/query/${encodeURIComponent(orderId)}`);
+    // 這支 API 已在後端內部把 trackingNo / logisticsStatus 回寫 DB（若有變動）
+    return j;
+  }
+
+  // === NEW === 後端封裝的「查詢 CVS（B2C 全家）」：GET /api/logistics/cvs/query/{orderId}
+  async function queryCvsFromEcpay(orderId) {
+    const j = await apiGet(`/api/logistics/cvs/query/${encodeURIComponent(orderId)}`);
+    return j;
+  }
+
+  // ★ 建立宅配託運單：依付款方式決定是否代收（isCollection）
+  async function createHomeFor(orderId) {
+    if (!orderId) return;
+    try {
+      showLoading(true);
+
+      // 依訂單實際付款方式判斷是否代收貨款
+      const base = await fetchOrderOne(orderId);
+      const isCod = resolvePayMethod(base) === "COD";
+
+      const r = await fetch("/api/logistics/home/ecpay/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...ADMIN_HEADERS },
+        body: JSON.stringify({ orderId, isCollection: isCod })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok === false) throw new Error(j.error || "建立失敗");
+
+      if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+      if (j.trackingNo) trackingNoInput.value = j.trackingNo;
+
+      const payload = {};
+      if (j.logisticsId) payload.logisticsId = j.logisticsId;
+      if (j.trackingNo) payload.trackingNo = j.trackingNo;
+      if (Object.keys(payload).length > 0) {
+        await apiPost(`${API_BASE}/${orderId}/logistics`, payload);
+      }
+
+      if (j.trackingNo) {
+        toast(`宅配託運單建立完成，追蹤碼：${escapeHtml(j.trackingNo)}`);
+      } else {
+        toast("宅配託運單建立完成，追蹤碼尚未提供（將於回拋或查詢後自動更新）", "warning");
+        await pollTracking(orderId, 6, 5000);
+      }
+
+      try { await hydrateStatus(); } catch { }
+
+      // 建單後標記出貨（維持原行為）
+      await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界宅配" });
+      orderCache.delete(Number(orderId));
+      await loadPage(state.page);
+    } catch (err) {
+      toast(`宅配建立失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  // ★ NEW ★ 建立 CVS（B2C 全家）託運單
+  async function createCvsForB2C(orderId) {
+    if (!orderId) return;
+    try {
+      showLoading(true);
+      // 走 B2C 全家（FAMI）＋ 取貨付款
+      const r = await fetch("/api/logistics/cvs/ecpay/create-b2c", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...ADMIN_HEADERS },
+        body: JSON.stringify({ orderId, subType: "FAMI", isCollection: true })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok === false) throw new Error(j.error || "建立失敗");
+
+      // 立即顯示/回填
+      if (j.logisticsId) logisticsIdInput.value = j.logisticsId;
+      if (j.trackingNo) trackingNoInput.value = j.trackingNo;
+
+      // 回寫 DB（門市特有欄位若有）
+      const payload = {};
+      if (j.logisticsId) payload.logisticsId = j.logisticsId;
+      if (j.trackingNo) payload.trackingNo = j.trackingNo;
+      if (j.cvsPaymentNo) payload.cvsPaymentNo = j.cvsPaymentNo;
+      if (j.cvsValidationNo) payload.cvsValidationNo = j.cvsValidationNo;
+      if (Object.keys(payload).length > 0) {
+        await apiPost(`${API_BASE}/${orderId}/logistics`, payload);
+      }
+
+      if (j.trackingNo) {
+        toast(`超商託運單建立完成，追蹤碼：${escapeHtml(j.trackingNo)}`);
+      } else if (j.logisticsId) {
+        toast(`超商託運單建立完成（LogisticsID：${escapeHtml(j.logisticsId)}）`);
+      } else {
+        toast("超商託運單建立完成（追蹤碼將於回拋或查詢後更新）", "warning");
+      }
+
+      // 建單後刷新徽章
+      try { await hydrateStatus(); } catch { }
+
+      // ★ 按了這顆建立超商託運單，就標記為 Shipped
+      await apiPatch(`${API_BASE}/${orderId}/status`, { status: "Shipped", note: "Admin 建立綠界超商B2C（全家）" });
+      orderCache.delete(Number(orderId));
+      await loadPage(state.page);
+    } catch (err) {
+      toast(`超商託運單建立失敗：${escapeHtml(err.message || "")}`, "danger");
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  // ★ 輪詢追蹤碼（搭配 Query API）
+  async function pollTracking(orderId, times = 3, intervalMs = 5000) {
+    for (let i = 0; i < times; i++) {
+      try {
+        await wait(intervalMs);
+        await queryTrackingFromEcpay(orderId);
+        const o = await fetchOrderOne(orderId);
+        if (o && o.trackingNo) {
+          trackingNoInput.value = o.trackingNo;
+          toast(`已取得追蹤碼：${escapeHtml(o.trackingNo)}`);
+          return;
+        }
+      } catch { /* ignore */ }
+    }
+    toast("仍未收到追蹤碼（可能綠界稍後回拋）", "secondary");
+  }
+
+  function wait(ms) {
+    return new Promise(res => setTimeout(res, ms));
+  }
+
+  // === CSV cell escape ===
+  function csvCell(v) {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  // ====== /moved inside IIFE ======
+})();
