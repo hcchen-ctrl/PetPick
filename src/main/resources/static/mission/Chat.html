@@ -104,7 +104,7 @@
   <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
   <script src="/mission/realtime.js"></script>
   <script>
-    const CURRENT_USER_ID = window.CURRENT_USER_ID || 1;
+    const CURRENT_USER_ID = window.CURRENT_USER_ID;
     Realtime.init(CURRENT_USER_ID, {
       unreadSelector: '#chatBubbleBadge-unread',
       normalSelector: '#chatBubbleBadge',

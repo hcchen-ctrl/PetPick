@@ -1,10 +1,11 @@
 const API = {
   ownerMissions: `/api/owners/${CURRENT_USER_ID}/missions`,
-  ownerApps:     `/api/applications/me/owner?userId=${CURRENT_USER_ID}`,      // 收到的申請
-  myApplied:     `/api/applications/me/applicant?userId=${CURRENT_USER_ID}`, // 我申請的
-  accept:  (appId)=> `/api/applications/${appId}/status?ownerId=${CURRENT_USER_ID}&status=accepted`,
-  reject:  (appId)=> `/api/applications/${appId}/status?ownerId=${CURRENT_USER_ID}&status=rejected`,
-  cancel:  (appId)=> `/api/applications/${appId}?applicantId=${CURRENT_USER_ID}`,
+  ownerApps:     `/api/missionapplications/me/owner?userId=${CURRENT_USER_ID}`,      // 收到的申請
+  myApplied:     `/api/missionapplications/me/applicant?userId=${CURRENT_USER_ID}`, // 我申請的
+    accept:  (appId)=> `/api/missionapplications/${appId}/status?ownerId=${CURRENT_USER_ID}&status=ACCEPTED`,
+    reject:  (appId)=> `/api/missionapplications/${appId}/status?ownerId=${CURRENT_USER_ID}&status=REJECTED`,
+
+    cancel:  (appId)=> `/api/missionapplications/${appId}?applicantId=${CURRENT_USER_ID}`,
   delMission: (mid)=> `/api/missions/${mid}?posterId=${CURRENT_USER_ID}`
 };
 

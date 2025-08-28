@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PetPick 會員登入</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="chatroom.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.6/build/pure-min.css" />
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/index">
+            <img src="/images/pet-icon.png" width="36" height="36" alt="logo" />
+            PetPick
+        </a>
+        <button
+                class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarNav"
+                aria-controls="navbarNav"
+                aria-expanded="false"
+                aria-label="Toggle navigation"
+        >
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+                <ul class="navbar-nav mb-2 mb-lg-0">
+                    <li class="nav-item dropdown">
+                        <a
+                                class="nav-link dropdown-toggle btn btn-login m-1"
+                                href="#"
+                                id="adoptDropdown"
+                                role="button"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                        >尋找領養</a
+                        >
+                        <ul class="dropdown-menu" aria-labelledby="adoptDropdown">
+                            <li><a class="dropdown-item" href="/gov-list.html">公立認養</a></li>
+                            <li><a class="dropdown-item" href="/adopt-list.html">領養認養</a></li>
+                            <li><a class="dropdown-item" href="/post-adopt.html">刊登送養</a></li>
+                            <li><a class="dropdown-item" href="/adopt-report.html">收養回報</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-login m-1" href="/mission/missonMain.html">尋找任務</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-login m-1" href="/shop/index.html">寵物商城</a>
+                    </li>
+                </ul>
+
+                <div class="d-lg-none mt-2 mobile-iconbar">
+                    <button class="btn btn-material" aria-label="聊天">
+                        <span class="material-icons">chat_bubble_outline</span>
+                    </button>
+                    <button class="btn btn-material" aria-label="購物車">
+                        <span class="material-icons">shopping_cart</span>
+                    </button>
+                    <button class="btn btn-material" aria-label="帳號" id="mobileAccountBtn">
+                        <span class="material-icons">account_circle</span>
+                    </button>
+                </div>
+
+                <div
+                        id="desktop-iconbar"
+                        class="d-none d-lg-block position-fixed end-0 m-4"
+                        style="z-index:1030"
+                >
+                    <button class="btn btn-material" aria-label="聊天">
+                        <span class="material-icons">chat_bubble_outline</span>
+                    </button>
+                    <button class="btn btn-material" aria-label="購物車">
+                        <span class="material-icons">shopping_cart</span>
+                    </button>
+                    <button class="btn btn-material" aria-label="帳號" id="desktopAccountBtn">
+                        <span class="material-icons">account_circle</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container" style="margin-top: 100px;">
+    <div id="loginForm" class="auth-container fade-in active">
+        <div class="auth-header text-center mb-4">
+            <div class="pet-icon">
+                <i class="fas fa-heart fa-3x text-danger"></i>
+            </div>
+            <h2>會員登入</h2>
+            <p class="subtitle">歡迎回到 petpick，讓我們一起幫助更多毛孩找到溫暖的家</p>
+        </div>
+
+        <div class="auth-body">
+            <form id="formLogin" class="pure-form">
+                <fieldset>
+                    <div id="errorMessage" style="color: red; margin-bottom: 1rem;"></div>
+
+                    <div class="form-group mb-3">
+                        <label for="username">
+                            <i class="fas fa-envelope"></i> 電子信箱
+                        </label>
+                        <input
+                                id="username"
+                                class="form-control"
+                                type="email"
+                                placeholder="請輸入電子信箱"
+                                name="username"
+                                required
+                        />
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="password">
+                            <i class="fas fa-lock"></i> 密碼
+                        </label>
+                        <input
+                                id="password"
+                                class="form-control"
+                                type="password"
+                                placeholder="請輸入密碼"
+                                name="password"
+                                required
+                        />
+                    </div>
+
+                    <button type="submit" class="button-login btn btn-primary w-100">
+                        <i class="fas fa-sign-in-alt"></i> 登入
+                    </button>
+                </fieldset>
+            </form>
+
+            <div class="divider text-center my-4">
+                <span>或使用以下方式登入</span>
+            </div>
+
+            <div class="social-login text-center mb-3">
+                <a href="/oauth2/authorization/google" class="btn btn-google social-btn">
+                    <i class="fab fa-google"></i> 使用 Google 帳號登入
+                </a>
+            </div>
+
+            <div class="switch-form text-center">
+                <p>
+                    還沒有帳號嗎？
+                    <button class="button-account btn btn-link" onclick="location.href='/register'">
+                        立即註冊
+                    </button>
+                </p>
+                <p>
+                    <button class="button-account btn btn-link text-secondary" onclick="alert('請聯絡客服重設密碼')">
+                        忘記密碼？
+                    </button>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+        // 讀取 cookie 的函式（用來取得 CSRF token）
+        function getCookie(name) {
+        const value = "; " + document.cookie;
+        const parts = value.split("; " + name + "=");
+        if (parts.length === 2) return parts.pop().split(";").shift();
+    }
+
+        document.getElementById("formLogin").addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value.trim();
+        const errorDiv = document.getElementById("errorMessage");
+
+        // 清除錯誤訊息
+        errorDiv.classList.add("d-none");
+        errorDiv.textContent = "";
+
+        if (!username || !password) {
+        errorDiv.textContent = "請輸入帳號與密碼";
+        errorDiv.classList.remove("d-none");
+        return;
+    }
+
+        // CSRF token 從 Cookie 讀取
+        const csrfToken = getCookie("XSRF-TOKEN");
+
+        try {
+        const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+        "Content-Type": "application/json",
+        "X-Csrf-Token": csrfToken // 對應 SecurityConfig 裡設定的 header 名稱
+    },
+            body: JSON.stringify({ accountemail: username, password }),
+        credentials: "include"
+    });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+        const errorMsg = data.message || (response.status === 401 ? "帳號或密碼錯誤" : "登入失敗，請稍後再試");
+        errorDiv.textContent = errorMsg;
+        errorDiv.classList.remove("d-none");
+        return;
+    }
+
+        // 儲存 JWT token 到 localStorage（若後端有提供）
+        if (data.token) {
+        localStorage.setItem("jwtToken", data.token);
+    }
+
+        // 登入成功後導向首頁
+        window.location.href = "/";
+    } catch (error) {
+        console.error("登入錯誤:", error);
+        errorDiv.textContent = "系統錯誤，請稍後再試";
+        errorDiv.classList.remove("d-none");
+    }
+    });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

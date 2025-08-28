@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 
 @RestController
-@RequestMapping("/api/applications")
+@RequestMapping("/api/missionapplications")
 public class ApplicationController {
 
     private final ApplicationService svc;

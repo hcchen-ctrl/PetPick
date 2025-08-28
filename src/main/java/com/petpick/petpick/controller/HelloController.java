@@ -1,145 +1,44 @@
 package com.petpick.petpick.controller;
 
+import com.petpick.petpick.DTO.LoginRequest;
 import com.petpick.petpick.DTO.RegisterRequest;
+import com.petpick.petpick.JWT.JwtUtil;
 import com.petpick.petpick.entity.UserEntity;
 import com.petpick.petpick.service.UserService;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-@Controller
+@RestController
+@RequestMapping("/api")
 public class HelloController {
 
+    private final UserService userService;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtil jwtUtil;
+
     @Autowired
-    private UserService userService;
-
-    public HelloController(UserService userService) {
+    public HelloController(UserService userService,
+                           AuthenticationManager authenticationManager,
+                           JwtUtil jwtUtil) {
         this.userService = userService;
+        this.authenticationManager = authenticationManager;
+        this.jwtUtil = jwtUtil;
     }
 
-    // ✅ 整合首頁和登入後首頁
-    @RequestMapping(value = "/", method = RequestMethod.GET)
-    public String home(Model model, Authentication authentication) {
-        if (authentication != null && authentication.isAuthenticated()) {
-            String userName = getUserName(authentication);
-            model.addAttribute("userName", userName);
-        }
-
-        return "index";
-    }
-
-    // ✅ 若有人訪問 /index，導回 /
-    @RequestMapping("/index")
-    public String redirectToHome() {
-        return "redirect:/";
-    }
-
-    // 註冊頁面
-    @GetMapping("/register")
-    public String showRegisterForm(Model model) {
-        model.addAttribute("registerRequest", new RegisterRequest());
-        return "register";
-    }
-
-    @PostMapping("/register")
-    public String processRegisterForm(@ModelAttribute("registerRequest") RegisterRequest request, Model model) {
-        boolean success = userService.registerNewUser(request);
-        if (!success) {
-            model.addAttribute("errorMessage", "註冊失敗：信箱已註冊或密碼不一致");
-            return "register";
-        }
-        return "success";
-    }
-
-    // 登入頁面
-    @GetMapping("/loginpage")
-    public String loginpage(@RequestParam(value = "error", required = false) String error, Model model) {
-        if (error != null) {
-            model.addAttribute("errorMessage", "登入失敗，請檢查帳號密碼");
-        }
-        return "loginpage";
-    }
-
-    // 修改個人資料
-    @GetMapping("/rename")
-    public String showRenameForm(Authentication authentication, Model model) {
-        String email = authentication.getName();
-        UserEntity user = userService.findByAccountemail(email);
-        model.addAttribute("user", user);
-        return "rename";
-    }
-
-    @PostMapping("/rename")
-    public String processRename(@ModelAttribute("user") UserEntity formUser,
-                                Authentication authentication, Model model) {
-        String email = authentication.getName();
-        boolean updated = userService.updateUserByEmail(email, formUser);
-        model.addAttribute("successMessage", updated ? "更新成功" : "更新失敗");
-        model.addAttribute("user", userService.findByAccountemail(email));
-        return "rename";
-    }
-
-    // 修改密碼
-    @PostMapping("/rename/change-password")
-    public String changePassword(@RequestParam("currentPassword") String currentPassword,
-                                 @RequestParam("newPassword") String newPassword,
-                                 @RequestParam("confirmPassword") String confirmPassword,
-                                 Authentication authentication,
-                                 RedirectAttributes redirectAttributes) {
-
-        String email = authentication.getName();
-        String resultMessage = userService.changePassword(email, currentPassword, newPassword, confirmPassword);
-        redirectAttributes.addFlashAttribute("passwordMessage", resultMessage);
-        return "redirect:/rename/change-password";
-    }
-
-    @GetMapping("/rename/change-password")
-    public String showChangePasswordPage(Authentication authentication, Model model) {
-        String email = authentication.getName();
-        model.addAttribute("user", userService.findByAccountemail(email));
-        return "rename";
-    }
-
-    // 公開頁面
-    @GetMapping("/gov-list-page")
-    public String showGovListPage() {
-        return "adopt/gov-list-page";
-    }
-
-    @GetMapping("/adopt-list")
-    public String showAdoptList() {
-        return "adopt/adopt-list";
-    }
-
-    @GetMapping("/shop/commodity")
-    public String commodity() {
-        return "shop/commodity";
-    }
-
-    // 管理者後台
-    @PreAuthorize("hasRole('ROLE_MANAGER')")
-    @GetMapping("/managersIndex")
-    public String managersIndex() {
-        return "managersIndex";
-    }
-
-    // ✅ 前端 AJAX 用來查登入狀態
-    @ResponseBody
-    @GetMapping("/api/auth/status")
+    // 查詢登入狀態及基本資訊
+    @GetMapping("/auth/status")
     public Map<String, Object> getStatus(Authentication authentication) {
         Map<String, Object> result = new HashMap<>();
 
@@ -155,14 +54,54 @@ public class HelloController {
         return result;
     }
 
-    // ✅ 前端登出 AJAX
-    @ResponseBody
-    @PostMapping("/api/auth/logout")
-    public void logout(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        request.logout(); // Spring Security 處理登出
+    // 註冊新使用者
+    @PostMapping("/auth/register")
+    public Map<String, Object> register(@RequestBody @Valid RegisterRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        boolean success = userService.registerNewUser(request);
+        if (success) {
+            response.put("success", true);
+            response.put("message", "註冊成功");
+        } else {
+            response.put("success", false);
+            response.put("message", "註冊失敗：信箱已註冊或密碼不一致");
+        }
+        return response;
     }
 
-    // Helper 方法
+    // 修改個人資料
+    @PutMapping("/user/rename")
+    public Map<String, Object> rename(@RequestBody UserEntity formUser, Authentication authentication) {
+        Map<String, Object> response = new HashMap<>();
+        String email = authentication.getName();
+        boolean updated = userService.updateUserByEmail(email, formUser);
+        response.put("success", updated);
+        response.put("message", updated ? "更新成功" : "更新失敗");
+        if (updated) {
+            response.put("user", userService.findByAccountemail(email));
+        }
+        return response;
+    }
+
+    // 修改密碼
+    @PostMapping("/user/change-password")
+    public Map<String, Object> changePassword(@RequestBody Map<String, String> passwordPayload,
+                                              Authentication authentication) {
+        String currentPassword = passwordPayload.get("currentPassword");
+        String newPassword = passwordPayload.get("newPassword");
+        String confirmPassword = passwordPayload.get("confirmPassword");
+
+        Map<String, Object> response = new HashMap<>();
+        String email = authentication.getName();
+        String resultMessage = userService.changePassword(email, currentPassword, newPassword, confirmPassword);
+
+        boolean success = resultMessage.contains("成功");
+        response.put("success", success);
+        response.put("message", resultMessage);
+        return response;
+    }
+
+    // Helper - 取得角色
     private String getUserRole(Authentication authentication) {
         return authentication.getAuthorities().stream()
                 .findFirst()
@@ -170,24 +109,48 @@ public class HelloController {
                 .orElse("USER");
     }
 
+    // Helper - 取得名稱
     private String getUserName(Authentication authentication) {
         if (authentication instanceof OAuth2AuthenticationToken) {
             OAuth2User oauthUser = ((OAuth2AuthenticationToken) authentication).getPrincipal();
-            // 優先取用 name 屬性，若無則 fallback email
             String name = oauthUser.getAttribute("name");
             if (name == null || name.isEmpty()) {
                 name = oauthUser.getAttribute("email");
             }
             return name != null ? name : "訪客";
         } else {
-            // 非 OAuth2，從資料庫抓使用者真實名稱
             String email = authentication.getName();
             UserEntity user = userService.findByAccountemail(email);
-            if (user != null && user.getUsername() != null && !user.getUsername().isEmpty()) {
-                return user.getUsername();
-            }
-            // fallback 顯示 username 或 email
-            return email;
+            return (user != null && user.getUsername() != null && !user.getUsername().isEmpty())
+                    ? user.getUsername()
+                    : email;
         }
     }
+
+    // 登入 API，路徑改成 /auth/login，回傳 JWT token
+    @PostMapping("/auth/login")
+    public Map<String, Object> login(@RequestBody LoginRequest loginRequest) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getAccountemail(), loginRequest.getPassword())
+            );
+
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String token = jwtUtil.generateToken(userDetails.getUsername());
+
+            response.put("success", true);
+            response.put("token", token);
+            response.put("message", "登入成功");
+        } catch (BadCredentialsException ex) {
+            response.put("success", false);
+            response.put("message", "帳號或密碼錯誤");
+        } catch (Exception ex) {
+            ex.printStackTrace();  // 印出完整錯誤堆疊，方便排查
+            response.put("success", false);
+            response.put("message", "登入失敗：" + ex.getMessage());
+        }
+        return response;
+    }
+
 }

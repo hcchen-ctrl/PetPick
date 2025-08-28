@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>PetPick</title>
+    <link rel="icon" href="/images/pet-icon.png" type="image/x-icon"/>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+    <link rel="stylesheet" href="../styles.css"/>
+
+    <style>
+        #userDropdown, #userControls {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <img src="/images/pet-icon.png" width="36" height="36" class="d-inline-block align-top" alt="logo" />
+            PetPick
+        </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+                <ul class="navbar-nav mb-2 mb-lg-0">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle btn btn-login m-1" href="#" id="adoptDropdown"
+                           role="button" data-bs-toggle="dropdown" aria-expanded="false">尋找領養</a>
+                        <ul class="dropdown-menu" aria-labelledby="adoptDropdown">
+                            <li><a class="dropdown-item" href="/gov-list-page">公立認養</a></li>
+                            <li><a class="dropdown-item" href="/adopt/adopt-list.html">領養認養</a></li>
+                            <li><a class="dropdown-item" id="menu-post-adopt" href="#" onclick="checkLoginForAdoption('/adopt/post-adopt.html')">刊登送養</a></li>
+                            <li><a class="dropdown-item" id="menu-adopt-report" href="#" onclick="checkLoginForAdoption('/adopt/adopt-report.html')">收養回報</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link btn btn-login m-1" href="/mission/missionMain.html">尋找任務</a></li>
+                    <li class="nav-item"><a class="nav-link btn btn-login m-1" href="/shop/commodity.html">寵物商城</a></li>
+                </ul>
+                <!-- 使用者操作區 -->
+                <div class="ms-auto d-flex align-items-center gap-2" id="authArea">
+                    <!-- JS 動態填入內容 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<header>
+    <div class="index-header">
+        <div class="d-flex align-items-center h-100">
+            <div class="text-black" style="margin-left: 50%;">
+                <h1 class="fw-bold mb-3">寵物方面的大小事<br>讓我們為您解決吧！</h1>
+                <a class="btn btn-login" href="/gov-list-page">尋找領養</a>
+                <a class="btn btn-login" href="/mission/missionMain.html">尋找任務</a>
+                <a class="btn btn-login" href="/shop/commodity">寵物商城</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- 其他區塊與卡片略，保持原樣 -->
+
+<footer class="bg-dark text-light py-4 mt-5">
+    <div class="container text-center">
+        <small>&copy; 2025 PetPick. All rights reserved.</small>
+    </div>
+</footer>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- 自訂 JS -->
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const token = localStorage.getItem("jwtToken");
+        const authArea = document.getElementById("authArea");
+
+        if (!token) {
+            // 未登入情況：顯示登入按鈕，點擊後跳轉到登入頁面
+            authArea.innerHTML = `
+                <button class="btn btn-material" aria-label="聊天"><span class="material-icons">chat_bubble_outline</span></button>
+                <button class="btn btn-material" aria-label="購物車"><span class="material-icons">shopping_cart</span></button>
+                <button class="btn btn-material" aria-label="帳號" onclick="goToLogin()">
+                    <span class="material-icons">account_circle</span>
+                </button>
+            `;
+            return;
+        }
+
+        try {
+            const response = await fetch("/api/auth/status", {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (!response.ok) throw new Error("Unauthorized");
+
+            const data = await response.json();
+
+            let adminLinks = "";
+            let userLinks = "";
+
+            if (["ROLE_ADMIN", "ROLE_MANAGER"].includes(data.role)) {
+                adminLinks += `
+                    <li><a class="dropdown-item" href="/adopt/apply-review.html">管理領養</a></li>
+                    <li><a class="dropdown-item" href="/shop/admin-products.html">管理商城</a></li>
+                `;
+            }
+
+            if (["ROLE_USER", "ROLE_MANAGER", "ROLE_ADMIN"].includes(data.role)) {
+                userLinks += `
+                    <li><a class="dropdown-item" href="/mission/missionApplication.html">任務區</a></li>
+                `;
+            }
+
+            // 已登入情況：顯示會員下拉選單
+            authArea.innerHTML = `
+                <button class="btn btn-material" aria-label="聊天"><span class="material-icons">chat_bubble_outline</span></button>
+                <button class="btn btn-material" aria-label="購物車"><span class="material-icons">shopping_cart</span></button>
+                <div class="dropdown d-inline">
+                    <button class="btn btn-material dropdown-toggle" type="button" id="accountDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="material-icons">account_circle</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
+                        <li class="dropdown-header text-center">
+                            <strong>歡迎回來, ${data.name}</strong>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/rename">
+                            <i class="material-icons me-2" style="font-size: 18px;">edit</i>修改資料
+                        </a></li>
+                        <li><a class="dropdown-item" href="/adopt/my-adopt-progress.html">
+                            <i class="material-icons me-2" style="font-size: 18px;">pets</i>送養/領養記錄
+                        </a></li>
+                        ${userLinks}
+                        ${adminLinks}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="logout()">
+                            <i class="material-icons me-2" style="font-size: 18px;">logout</i>登出
+                        </a></li>
+                    </ul>
+                </div>
+            `;
+
+            // 更新需要登入的連結
+            updateAuthRequiredLinks(true);
+
+        } catch (err) {
+            console.warn("使用者尚未登入或 Token 無效", err);
+            localStorage.removeItem("jwtToken");
+            // Token 無效時，返回未登入狀態
+            authArea.innerHTML = `
+                <button class="btn btn-material" aria-label="聊天"><span class="material-icons">chat_bubble_outline</span></button>
+                <button class="btn btn-material" aria-label="購物車"><span class="material-icons">shopping_cart</span></button>
+                <button class="btn btn-material" aria-label="帳號" onclick="goToLogin()">
+                    <span class="material-icons">account_circle</span>
+                </button>
+            `;
+            updateAuthRequiredLinks(false);
+        }
+    });
+
+    // 跳轉到登入頁面，並記住當前頁面
+    function goToLogin() {
+        // 記住當前頁面，登入成功後返回
+        localStorage.setItem("returnUrl", window.location.pathname);
+        window.location.href = "/loginpage.html";
+    }
+
+    // 檢查登入狀態的通用函數
+    function checkLoginForAdoption(targetUrl) {
+        const token = localStorage.getItem("jwtToken");
+        if (!token) {
+            localStorage.setItem("returnUrl", targetUrl);
+            window.location.href = "/loginpage.html";
+        } else {
+            window.location.href = targetUrl;
+        }
+    }
+
+    // 更新需要登入的連結
+    function updateAuthRequiredLinks(isLoggedIn) {
+        const postAdoptLink = document.getElementById("menu-post-adopt");
+        const adoptReportLink = document.getElementById("menu-adopt-report");
+
+        if (isLoggedIn) {
+            postAdoptLink.href = "/adopt/post-adopt.html";
+            postAdoptLink.onclick = null;
+            adoptReportLink.href = "/adopt/adopt-report.html";
+            adoptReportLink.onclick = null;
+        } else {
+            postAdoptLink.href = "#";
+            adoptReportLink.href = "#";
+        }
+    }
+
+    // 登出功能
+    function logout() {
+        localStorage.removeItem("jwtToken");
+        localStorage.removeItem("returnUrl"); // 清除返回 URL
+        window.location.href = "/"; // 登出後回到首頁
+    }
+
+    // 檢查是否是從登入頁面返回
+    window.addEventListener("load", () => {
+        // 如果 URL 中有成功登入的參數，重新載入頁面以更新狀態
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("loginSuccess") === "true") {
+            // 移除 URL 參數並重新載入
+            window.history.replaceState({}, document.title, window.location.pathname);
+            location.reload();
+        }
+    });
+</script>
+
+</body>
+</html>
