@@ -22,6 +22,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "http://localhost:5173")
 public class HelloController {
 
     private final UserService userService;
@@ -37,22 +38,31 @@ public class HelloController {
         this.jwtUtil = jwtUtil;
     }
 
-    // 查詢登入狀態及基本資訊
-    @GetMapping("/auth/status")
-    public Map<String, Object> getStatus(Authentication authentication) {
+    @GetMapping("/auth/me")
+    public Map<String, Object> getCurrentUser(Authentication authentication) {
         Map<String, Object> result = new HashMap<>();
 
         if (authentication != null && authentication.isAuthenticated()) {
-            result.put("loggedIn", true);
-            result.put("uid", authentication.getName());
-            result.put("role", getUserRole(authentication));
-            result.put("name", getUserName(authentication));
+            String email = authentication.getName(); // 取得登入帳號（email）
+
+            // 從資料庫撈出 UserEntity 物件
+            UserEntity user = userService.findByAccountemail(email);
+
+            if (user != null) {
+                result.put("userId", user.getUserid());  // 使用物件取得 userid
+                result.put("username", getUserName(authentication));
+                result.put("token", ""); // JWT token 前端自行存
+            } else {
+                result.put("error", "找不到使用者");
+            }
         } else {
-            result.put("loggedIn", false);
+            result.put("error", "未登入");
         }
 
         return result;
     }
+
+
 
     // 註冊新使用者
     @PostMapping("/auth/register")

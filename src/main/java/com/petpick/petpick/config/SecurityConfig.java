@@ -19,10 +19,14 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -50,14 +54,17 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // CSRF 設定：由於您的應用程式使用 JWT 進行無狀態身分驗證，
-        // CSRF 防護不再需要，且會與此架構產生衝突，因此將其停用。
+        // 停用 CSRF，因為 JWT 是無狀態認證
         http.csrf(csrf -> csrf.disable());
+
+        // 啟用 CORS
+        http.cors();
 
         // API 權限設定
         http.authorizeHttpRequests(auth -> auth
                 // 公開可存取的靜態資源和頁面
                 .requestMatchers(
+                        "/api/auth/login", "/api/auth/register",
                         "/loginpage.html",
                         "/register",
                         "/",
@@ -101,6 +108,21 @@ public class SecurityConfig {
                 UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    // CORS 設定 Bean，允許 localhost:5173 跨域請求
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true); // 允許攜帶 Cookie 或 Authorization Header
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        // 你也可以依需求設定其他路徑的 CORS 規則
+        return source;
     }
 
     @Bean
