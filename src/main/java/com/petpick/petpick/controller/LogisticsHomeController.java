@@ -53,16 +53,66 @@ public class LogisticsHomeController {
 
     log.info("[HomeCreate][in] orderId={} demoUid={}", req.getOrderId(), demoUid);
 
+    // 呼叫綠界建立宅配單
     var r = ecpaySvc.createHomeShipment(req);
 
     log.info("[HomeCreate][out] ok={} err={} logisticsId={} trackingNo={}",
         r.ok, r.error, r.logisticsId, r.trackingNo);
 
+    // === Sandbox 偽造 trackingNo（並且同步寫回 DB） ===
+    try {
+      final boolean isStage =
+          prop.isStage() ||
+          "SANDBOX".equalsIgnoreCase(System.getenv("ECPAY_ENV"));
+
+      if (r.ok) {
+        Optional<Order> opt = orderRepository.findById(req.getOrderId());
+        if (opt.isPresent()) {
+          Order o = opt.get();
+          boolean changed = false;
+
+          // 儲存從綠界取得的 LogisticsID
+          if (!nv(r.logisticsId).isBlank() && !nv(r.logisticsId).equals(nv(o.getLogisticsId()))) {
+            o.setLogisticsId(r.logisticsId);
+            changed = true;
+          }
+
+          // 若為測試環境且沒有回 trackingNo → 造假碼並回寫
+          if (isStage && nv(r.trackingNo).isBlank()) {
+            String fake = "TEST" + String.valueOf(System.currentTimeMillis()).substring(5);
+            r.trackingNo = fake;          // 回應給前端
+            o.setTrackingNo(fake);        // 寫回 DB
+            // 沒有狀態就補 CREATED，避免前端顯示回退
+            if (nv(o.getLogisticsStatus()).isBlank()) {
+              o.setLogisticsStatus("CREATED");
+            }
+            changed = true;
+            log.info("[HomeCreate][stage] trackingNo forged for orderId={}, fake={}", o.getOrderId(), fake);
+          } else if (!nv(r.trackingNo).isBlank() && !nv(r.trackingNo).equals(nv(o.getTrackingNo()))) {
+            // 正常情況：有回 trackingNo → 回寫
+            o.setTrackingNo(r.trackingNo);
+            changed = true;
+          }
+
+          if (changed) {
+            orderRepository.saveAndFlush(o);
+            log.info("[HomeCreate] order updated orderId={} logisticsId={} trackingNo={} status={}",
+                o.getOrderId(), o.getLogisticsId(), o.getTrackingNo(), o.getLogisticsStatus());
+          }
+        } else {
+          log.warn("[HomeCreate] order not found to update logistics, orderId={}", req.getOrderId());
+        }
+      }
+    } catch (Exception e) {
+      log.warn("[HomeCreate] stage tracking fallback failed: {}", e.toString());
+    }
+    // === Sandbox 偽造 trackingNo END ===
+
     HomeCreateResp out = new HomeCreateResp();
     out.ok = r.ok;
     out.error = r.error;
     out.logisticsId = r.logisticsId;   // 若沒有會是 null
-    out.trackingNo = r.trackingNo;     // 若沒有會是 null
+    out.trackingNo = r.trackingNo;     // 可能是綠界回傳或 sandbox 偽造
 
     return ResponseEntity.status(r.ok ? 200 : 400).body(out);
   }
