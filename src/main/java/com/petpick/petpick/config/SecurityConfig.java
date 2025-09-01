@@ -58,7 +58,14 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable());
 
         // 啟用 CORS
-        http.cors();
+        http.cors(cors -> cors.configurationSource(request -> {
+            var corsConfig = new org.springframework.web.cors.CorsConfiguration();
+            corsConfig.setAllowedOrigins(List.of("http://localhost:5173"));
+            corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+            corsConfig.setAllowedHeaders(List.of("*"));
+            corsConfig.setAllowCredentials(true);
+            return corsConfig;
+        }));
 
         // API 權限設定
         http.authorizeHttpRequests(auth -> auth
@@ -76,21 +83,33 @@ public class SecurityConfig {
                         "/styles.css",
                         "/chatroom.css"
                 ).permitAll()
-                // 所有 /api/user/ 下的請求都需要身分驗證
+
+                // ✅ 領養相關的 API 完全開放（包括 GET 和其他方法）
+//                .requestMatchers("/api/**").permitAll()   // 所有 API 都允許
+                .requestMatchers("/api/kinds/**", "/api/shelters/**", "/api/ages/**", "/api/sexes/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/adopts/**").permitAll()
+                .requestMatchers("/api/adopts").permitAll()  // 確保列表 API 可存取
+
+                // 需要認證的 API
                 .requestMatchers("/api/user/**").authenticated()
+                .requestMatchers("/api/missions/**").authenticated()
+
+                // 其他請求需要認證
                 .anyRequest().authenticated()
         );
 
         // 異常處理（未登入、權限不足）
         http.exceptionHandling(exception -> exception
                 .authenticationEntryPoint((request, response, authException) -> {
-                    String accept = request.getHeader("Accept");
-                    if (accept != null && accept.contains("text/html")) {
-                        response.sendRedirect("/loginpage.html");
-                    } else {
+                    // ✅ 對 API 請求返回 JSON 錯誤，對頁面請求重定向
+                    String requestURI = request.getRequestURI();
+                    if (requestURI.startsWith("/api/")) {
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType("application/json");
-                        response.getWriter().write("{\"error\": \"Unauthorized\"}");
+                        response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" +
+                                authException.getMessage() + "\"}");
+                    } else {
+                        response.sendRedirect("/loginpage.html");
                     }
                 })
                 .accessDeniedHandler(myAccessDeniedHandler)
@@ -103,9 +122,8 @@ public class SecurityConfig {
                 .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
         );
 
-        // JWT Filter 加入到 Spring Security 過濾器鏈
-        http.addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService),
-                UsernamePasswordAuthenticationFilter.class);
+         http.addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService),
+                 UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

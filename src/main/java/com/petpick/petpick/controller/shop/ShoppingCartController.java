@@ -43,8 +43,13 @@ public class ShoppingCartController {
     /** 取得使用者的購物車內容（包含商品資訊） */
     @GetMapping("/withProduct/{userId}")
     public ResponseEntity<List<CartProductDTO>> getCartWithProductByUserId(@PathVariable Integer userId) {
-        return ResponseEntity.ok(shoppingCartService.getCartWithProductByUserId(userId));
+        List<CartProductDTO> result = shoppingCartService.getCartWithProductByUserId(userId);
+        if (result == null) {
+            result = List.of(); // 回傳空陣列而不是 null
+        }
+        return ResponseEntity.ok(result);
     }
+
 
     /** 刪除購物車中的某個項目（以 cartId） */
     @DeleteMapping("/item/{cartId}")

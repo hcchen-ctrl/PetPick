@@ -1,6 +1,5 @@
 package com.petpick.petpick.JWT;
 
-import com.petpick.petpick.JWT.JwtUtil;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,11 +14,21 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
+
+    // 定義不需要驗證的路徑（白名單）
+    private static final List<String> WHITELIST = List.of(
+            "/api/kinds",
+            "/api/shelters",
+            "/api/ages",
+            "/api/sexes",
+            "/api/adopts" // 如果這個列表 API 也要開放
+    );
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
@@ -31,6 +40,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        String path = request.getRequestURI();
+
+        // 白名單路徑直接放行
+        if (isWhitelisted(path)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // 從 Header 取得 Token
         String token = getTokenFromRequest(request);
 
@@ -38,17 +55,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String username = jwtUtil.validateTokenAndGetUsername(token);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // 從 DB 載入用戶詳細資訊
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                // 建立 Authentication 物件
                 UsernamePasswordAuthenticationToken authenticationToken =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());
 
                 authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                // 放入 SecurityContext
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
             }
         }
@@ -58,10 +72,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private String getTokenFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        // 通常格式是 "Bearer TOKEN"
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
         return null;
+    }
+
+    // 判斷是否為白名單路徑
+    private boolean isWhitelisted(String path) {
+        return WHITELIST.stream().anyMatch(path::startsWith);
     }
 }

@@ -3,6 +3,7 @@ package com.petpick.petpick.controller.mission;
 import java.io.IOException;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petpick.petpick.DTO.mission.MissionDetailDTO;
 import com.petpick.petpick.DTO.mission.MissionUploadRequest;
 import com.petpick.petpick.service.mission.MissionUploadService;
@@ -30,10 +31,14 @@ public class MissionUploadController {
         produces = MediaType.APPLICATION_JSON_VALUE
     )
     public MissionDetailDTO upload(
-            @RequestPart("data") MissionUploadRequest data,
+            @RequestPart("data") String data,
             @RequestPart(value = "images", required = false) List<MultipartFile> images
-            ) 
-            throws IOException {
-        return missionUploadService.createMission(data, images);
+    ) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.findAndRegisterModules(); // ✅ 支援 JavaTime (LocalDateTime)
+        MissionUploadRequest dto = mapper.readValue(data, MissionUploadRequest.class);
+
+        return missionUploadService.createMission(dto, images);
     }
+
 }
