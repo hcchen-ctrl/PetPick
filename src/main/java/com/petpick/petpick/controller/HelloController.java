@@ -49,17 +49,31 @@ public class HelloController {
             UserEntity user = userService.findByAccountemail(email);
 
             if (user != null) {
-                result.put("userId", user.getUserid());  // 使用物件取得 userid
+                result.put("loggedIn", true);
+                result.put("authenticated", true);
+                result.put("userId", user.getUserid());
+                result.put("uid", user.getUserid());  // ✅ 添加 uid 欄位供前端使用
                 result.put("username", getUserName(authentication));
+                result.put("role", getUserRole(authentication)); // ✅ 添加角色資訊
+                result.put("email", email);
                 result.put("token", ""); // JWT token 前端自行存
             } else {
+                result.put("loggedIn", false);
                 result.put("error", "找不到使用者");
             }
         } else {
+            result.put("loggedIn", false);
+            result.put("authenticated", false);
             result.put("error", "未登入");
         }
 
         return result;
+    }
+
+    // ✅ 添加認證狀態檢查端點（與 /auth/me 相同功能，但路徑不同）
+    @GetMapping("/auth/status")
+    public Map<String, Object> getAuthStatus(Authentication authentication) {
+        return getCurrentUser(authentication); // 重用相同邏輯
     }
 
 
@@ -116,8 +130,10 @@ public class HelloController {
         return authentication.getAuthorities().stream()
                 .findFirst()
                 .map(GrantedAuthority::getAuthority)
+                .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth) // 去掉前綴
                 .orElse("USER");
     }
+
 
     // Helper - 取得名稱
     private String getUserName(Authentication authentication) {

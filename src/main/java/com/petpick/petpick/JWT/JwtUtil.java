@@ -28,16 +28,21 @@ public class JwtUtil {
     // 驗證 JWT 並回傳使用者名稱
     public String validateTokenAndGetUsername(String token) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
+            String username = Jwts.parserBuilder()
+                    .setSigningKey(key) // 這行一定要有，才能驗證簽名
                     .build()
                     .parseClaimsJws(token)
-                    .getBody();
-
-            return claims.getSubject();
-        } catch (JwtException e) {
-            // 包含過期、格式錯誤、無效簽名等
+                    .getBody()
+                    .getSubject();
+            System.out.println("✅ JWT 驗證成功, username = " + username);
+            return username;
+        } catch (Exception e) {
+            System.out.println("❌ JWT 驗證失敗: " + e.getMessage());
             return null;
         }
     }
+
+
+
+
 }

@@ -36,7 +36,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @RequestMapping("/api/logistics/home")
 public class LogisticsHomeController {
 

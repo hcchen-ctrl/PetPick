@@ -42,8 +42,6 @@ public class AdoptPostController {
      */
     @PostMapping
     public AdoptPost create(@RequestBody AdoptPost in, Authentication authentication) {
-        System.out.println("Create called: " + in.getTitle());
-
         MyUserDetails userDetails = (MyUserDetails) authentication.getPrincipal();
         long uid = userDetails.getId();
         String role = userDetails.getRole();
@@ -51,14 +49,21 @@ public class AdoptPostController {
         if ("ADMIN".equals(role)) {
             in.setSourceType(SourceType.platform);
             in.setPostedByEmployeeId(uid);
-            in.setStatus(PostStatus.approved);     // ★ 直接通過上架
+            in.setStatus(PostStatus.approved);
         } else {
             in.setSourceType(SourceType.user);
             in.setPostedByUserId(uid);
-            in.setStatus(PostStatus.pending);      // ★ 進入審核
+            in.setStatus(PostStatus.pending);
         }
-        return postRepo.save(in);
+
+        System.out.println("💾 即將儲存: " + in);
+
+        AdoptPost saved = postRepo.save(in);
+
+        System.out.println("✅ 已儲存 AdoptPost: " + saved);
+        return saved;
     }
+
 
     /** 讀自己的刊登（會員用；ADMIN 不允許） */
     @GetMapping("/my")

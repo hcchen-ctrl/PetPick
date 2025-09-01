@@ -1,5 +1,6 @@
 package com.petpick.petpick.controller;
 
+import com.petpick.petpick.entity.AdoptApplication;
 import com.petpick.petpick.entity.AdoptPost;
 import com.petpick.petpick.model.enums.ApplicationStatus;
 import com.petpick.petpick.model.enums.PostStatus;
@@ -11,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -238,5 +240,56 @@ public class AdoptQueryController {
             }
         }
 
-        // ...existing helper methods...
-    }
+    // 在 AdoptQueryController 中添加申請端點
+    @PostMapping("/{id}/apply")
+    public ResponseEntity<?> applyForAdoption(@PathVariable Long id,
+                                              @RequestBody(required = false) Map<String, String> request,
+                                              Authentication authentication) {
+        try {
+            log.info("Application request for post ID: {}", id);
+
+            if (authentication == null || !authentication.isAuthenticated()) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "需要登入才能申請");
+            }
+
+            Long currentUserId = getCurrentUserId(authentication);
+            if (currentUserId == null) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "無法識別用戶");
+            }
+
+            // 檢查貼文是否存在且為 approved 狀態
+            AdoptPost post = repo.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到此貼文"));
+
+            if (post.getStatus() != PostStatus.approved) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "此貼文尚未開放申請");
+            }
+
+            // 檢查是否已經申請過
+            List<ApplicationStatus> existingStatuses = List.of(ApplicationStatus.pending, ApplicationStatus.approved);
+            List<Long> appliedIds = appRepo.findAppliedPostIds(currentUserId, existingStatuses, List.of(id));
+
+            if (!appliedIds.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "您已申請過此貼文");
+            }
+
+//             創建申請記錄 (這裡需要你的 AdoptApplication 實體)
+             AdoptApplication application = new AdoptApplication();
+            application.setPostId(post.getId());  // ✅ 因為你存的是 postId
+            application.setApplicantUserId(currentUserId);
+             application.setMessage(request != null ? request.get("message") : null);
+             application.setStatus(ApplicationStatus.pending);
+             appRepo.save(application);
+
+            log.info("Application created successfully for user {} and post {}", currentUserId, id);
+
+            return ResponseEntity.ok(Map.of("message", "申請已送出"));
+
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error creating application for post {}", id, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "系統錯誤: " + e.getMessage());
+        }
+    }    }

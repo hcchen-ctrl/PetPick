@@ -14,6 +14,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +27,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.io.IOException;
 import java.util.List;
 
 @Configuration
@@ -58,20 +60,21 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable());
 
         // 啟用 CORS
-        http.cors(cors -> cors.configurationSource(request -> {
-            var corsConfig = new org.springframework.web.cors.CorsConfiguration();
-            corsConfig.setAllowedOrigins(List.of("http://localhost:5173"));
-            corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-            corsConfig.setAllowedHeaders(List.of("*"));
-            corsConfig.setAllowCredentials(true);
-            return corsConfig;
-        }));
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
+
+        // ✅ 停用預設的 form login 和 http basic
+        http.formLogin(form -> form.disable());
+        http.httpBasic(basic -> basic.disable());
+
+        // ✅ 設定為無狀態會話
+        http.sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        );
 
         // API 權限設定
         http.authorizeHttpRequests(auth -> auth
                 // 公開可存取的靜態資源和頁面
                 .requestMatchers(
-                        "/api/auth/login", "/api/auth/register",
                         "/loginpage.html",
                         "/register",
                         "/",
@@ -84,62 +87,119 @@ public class SecurityConfig {
                         "/chatroom.css"
                 ).permitAll()
 
-                // ✅ 領養相關的 API 完全開放（包括 GET 和其他方法）
-//                .requestMatchers("/api/**").permitAll()   // 所有 API 都允許
+                // ✅ 認證相關 API
+                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                .requestMatchers("/api/auth/me", "/api/auth/logout").authenticated()
+
+                // ✅ 商品相關 API
+                .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
+
+                // ✅ 購物車相關 API - 明確指定所有需要認證
+                .requestMatchers(HttpMethod.GET, "/api/cart/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/cart/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/cart/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/cart/**").authenticated()
+
+                // ✅ 訂單相關 API - 新增這個區塊
+                .requestMatchers(HttpMethod.POST, "/api/orders/checkout").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/orders/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/orders/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/orders/**").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/orders/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/orders/**").authenticated()
+
+                // ✅ 物流相關 API - 新增這個區塊
+                .requestMatchers("/api/logistics/**").authenticated()
+                .requestMatchers("/api/pay/**").authenticated()
+
+                // ✅ 領養相關 API
                 .requestMatchers("/api/kinds/**", "/api/shelters/**", "/api/ages/**", "/api/sexes/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/adopts/**").permitAll()
-                .requestMatchers("/api/adopts").permitAll()  // 確保列表 API 可存取
+                .requestMatchers(HttpMethod.POST, "/api/adopts").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/adopts/*/apply").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/posts/*/cancel", "/api/posts/*/hold", "/api/posts/*/close").authenticated()
 
-                // 需要認證的 API
+                // ✅ 其他需要認證的 API
                 .requestMatchers("/api/user/**").authenticated()
                 .requestMatchers("/api/missions/**").authenticated()
 
-                // 其他請求需要認證
+                // ✅ 所有其他 API 請求都需要認證
+                .requestMatchers("/api/**").authenticated()
+
+                // 其他請求（非 API）需要認證
                 .anyRequest().authenticated()
         );
 
-        // 異常處理（未登入、權限不足）
+        // ✅ 修正異常處理 - 確保 API 請求不會被重定向
         http.exceptionHandling(exception -> exception
                 .authenticationEntryPoint((request, response, authException) -> {
-                    // ✅ 對 API 請求返回 JSON 錯誤，對頁面請求重定向
                     String requestURI = request.getRequestURI();
+
+                    System.out.println("🔐 認證失敗: " + request.getMethod() + " " + requestURI + " - " + authException.getMessage());
+                    System.out.println("🔍 Auth Header: " + request.getHeader("Authorization"));
+
+                    // ✅ 強制所有 /api/ 路徑都返回 JSON 錯誤
                     if (requestURI.startsWith("/api/")) {
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.setContentType("application/json");
-                        response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" +
-                                authException.getMessage() + "\"}");
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.setHeader("Cache-Control", "no-cache");
+                        response.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+                        response.setHeader("Access-Control-Allow-Credentials", "true");
+
+                        try {
+                            response.getWriter().write("{" +
+                                    "\"error\": \"Unauthorized\"," +
+                                    "\"message\": \"JWT Token required\"," +
+                                    "\"path\": \"" + requestURI + "\"," +
+                                    "\"method\": \"" + request.getMethod() + "\"," +
+                                    "\"timestamp\": \"" + java.time.Instant.now() + "\"" +
+                                    "}");
+                            response.getWriter().flush();
+                        } catch (IOException e) {
+                            System.err.println("無法寫入錯誤回應: " + e.getMessage());
+                        }
                     } else {
-                        response.sendRedirect("/loginpage.html");
+                        // 非 API 請求才重定向
+                        try {
+                            response.sendRedirect("/loginpage.html");
+                        } catch (IOException e) {
+                            System.err.println("重定向失敗: " + e.getMessage());
+                        }
                     }
                 })
                 .accessDeniedHandler(myAccessDeniedHandler)
         );
 
-        // 登出設定
-        http.logout(logout -> logout
-                .deleteCookies("JSESSIONID", "XSRF-TOKEN")
-                .logoutSuccessUrl("/loginpage.html")
-                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
-        );
+        // ✅ 修正登出設定 - 完全移除可能衝突的登出配置
+        // http.logout(Customizer.withDefaults()); // 移除這個
 
-         http.addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService),
-                 UsernamePasswordAuthenticationFilter.class);
+        // ✅ 確保JWT過濾器在最前面
+        http.addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService),
+                UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // CORS 設定 Bean，允許 localhost:5173 跨域請求
+    // ✅ 修正的 CORS 設定 Bean
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // ✅ 使用 allowedOriginPatterns 而不是 allowedOrigins
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:5173"));
+
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true); // 允許攜帶 Cookie 或 Authorization Header
+        configuration.setAllowCredentials(true); // 允許攜帶認證資訊
+
+        // 設定預檢請求的快取時間
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-        // 你也可以依需求設定其他路徑的 CORS 規則
         return source;
     }
 

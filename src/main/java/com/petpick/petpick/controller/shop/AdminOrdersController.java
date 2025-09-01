@@ -29,7 +29,6 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/admin/orders")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class AdminOrdersController {
 

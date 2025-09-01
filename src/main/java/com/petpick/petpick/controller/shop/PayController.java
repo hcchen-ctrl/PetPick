@@ -18,7 +18,6 @@ import com.petpick.petpick.config.EcpayProperties;
 
 @RestController
 @RequestMapping("/api/pay/ecpay")
-@CrossOrigin(origins = "*")
 public class PayController {
 
     private final EcpayService ecpayService;

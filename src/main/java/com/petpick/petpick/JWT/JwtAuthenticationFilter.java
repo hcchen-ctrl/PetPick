@@ -27,7 +27,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/shelters",
             "/api/ages",
             "/api/sexes",
-            "/api/adopts" // 如果這個列表 API 也要開放
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/products" // GET 請求會在 Security 層面處理
     );
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
@@ -41,30 +43,48 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
 
         String path = request.getRequestURI();
+        String method = request.getMethod();
+
+        // ✅ 增加除錯資訊
+        System.out.println("🔍 JWT Filter: " + method + " " + path);
 
         // 白名單路徑直接放行
         if (isWhitelisted(path)) {
+            System.out.println("✅ 白名單路徑，直接放行: " + path);
             filterChain.doFilter(request, response);
             return;
         }
 
         // 從 Header 取得 Token
         String token = getTokenFromRequest(request);
+        System.out.println("👉 Authorization Header: " + request.getHeader("Authorization"));
+        System.out.println("👉 提取的 Token: " + (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null"));
 
         if (token != null) {
-            String username = jwtUtil.validateTokenAndGetUsername(token);
+            try {
+                String username = jwtUtil.validateTokenAndGetUsername(token);
+                System.out.println("🔓 Token 驗證結果, username: " + username);
 
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    System.out.println("👤 載入用戶詳情成功: " + userDetails.getUsername());
+                    System.out.println("🔑 用戶權限: " + userDetails.getAuthorities());
 
-                UsernamePasswordAuthenticationToken authenticationToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
+                    UsernamePasswordAuthenticationToken authenticationToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities());
 
-                authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                    System.out.println("✅ JWT 驗證成功, username = " + username);
+                }
+            } catch (Exception e) {
+                System.err.println("❌ JWT 驗證失敗: " + e.getMessage());
+                SecurityContextHolder.clearContext();
             }
+        } else {
+            System.out.println("⚠️ 未提供 JWT Token");
         }
 
         filterChain.doFilter(request, response);

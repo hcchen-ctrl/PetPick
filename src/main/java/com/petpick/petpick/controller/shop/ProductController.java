@@ -25,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin // 如需跨網域可在此細調 allowedOrigins/allowedMethods
 @RequiredArgsConstructor
 public class ProductController {
 
