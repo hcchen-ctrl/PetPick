@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>領養詳情 - PetPick</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="icon" href="/images/pet-icon.png" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/gov-list.css">
+    <link rel="stylesheet" href="/css/loading.css">
+    <style>
+        #petCarousel {
+            border-radius: .5rem;
+            overflow: hidden;
+            background: #f8f9fa
+        }
+
+        .carousel-fitbox {
+            height: 420px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa
+        }
+
+        .carousel-fitbox img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            display: block
+        }
+
+        .sex-icon {
+            display: inline-flex;
+            align-items: center;
+            line-height: 1
+        }
+
+        .sex-icon img {
+            height: 18px;
+            width: auto !important;
+            margin-left: .25rem;
+            vertical-align: -2px;
+            display: inline-block
+        }
+
+        @media (max-width:576px) {
+            .carousel-fitbox {
+                height: 300px
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/index.html"><img src="/images/pet-icon.png" width="36" height="36"
+                    class="d-inline-block align-top" alt="logo"> PetPick</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span
+                    class="navbar-toggler-icon"></span></button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center w-100">
+                    <ul class="navbar-nav mb-2 mb-lg-0">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle btn btn-login m-1" href="#" id="adoptDropdown"
+                                role="button" data-bs-toggle="dropdown">尋找領養</a>
+                            <ul class="dropdown-menu" aria-labelledby="adoptDropdown">
+                                <li><a class="dropdown-item" href="/gov-list.html">公立認養</a></li>
+                                <li><a class="dropdown-item" href="/adopt-list.html">領養認養</a></li>
+                                <li><a class="dropdown-item" href="/post-adopt.html">刊登送養</a></li>
+                                <li><a class="dropdown-item" href="/adopt-report.html">收養回報</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1"
+                                href="/mission/missonMain.html">尋找任務</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-login m-1" href="/shop/index.html">寵物商城</a></li>
+                    </ul>
+                    <div id="authArea" class="ms-auto d-flex gap-2 align-items-center"></div>
+                    <div class="d-lg-none mt-2 mobile-iconbar">
+                        <button class="btn btn-material"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material"><span class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" id="mobileAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+                    <div id="desktop-iconbar" class="d-none d-lg-block position-fixed end-0 m-4" style="z-index:1030;">
+                        <button class="btn btn-material"><span
+                                class="material-icons">chat_bubble_outline</span></button>
+                        <button class="btn btn-material"><span class="material-icons">shopping_cart</span></button>
+                        <button class="btn btn-material" id="desktopAccountBtn"><span
+                                class="material-icons">account_circle</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4" id="box">載入中…</div>
+
+    <script type="module" src="/js/adopt-view.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/js/authbar.js"></script>
+    <script src="/js/theme.js"></script>
+    <script src="/js/loading.js"></script>
+</body>
+
+</html>

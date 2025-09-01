@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>申請審核中心 - PetPick</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="icon" href="/images/pet-icon.png" type="image/x-icon">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            border-right: 1px solid #eee;
+        }
+
+        .sidebar .nav-link.active {
+            background: #cfa178;
+            color: #fff;
+        }
+
+        .sidebar .nav-link {
+            border-radius: .375rem;
+        }
+
+        .card-thumb {
+            width: 100%;
+            height: 200px;
+            background: #f8f9fa;
+            border-radius: .5rem;
+            overflow: hidden;
+        }
+
+        .card-thumb>img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .badge-status {
+            font-weight: 600;
+        }
+
+        .carousel-img {
+            width: 100%;
+            height: 420px;
+            object-fit: contain;
+            background: #f8f9fa;
+            border-radius: .5rem;
+        }
+
+        @media (max-width:576px) {
+            .carousel-img {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 側邊欄 -->
+            <nav class="col-md-2 d-none d-md-block bg-light sidebar p-3">
+                <div class="position-sticky">
+                    <h6 class="text-muted px-2 mb-3">後台選單</h6>
+                    <ul class="nav flex-column gap-1">
+                        <li class="nav-item"><a class="nav-link" href="/admin-dashboard.html">後台首頁</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/admin-products.html">商品管理</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/admin-orders.html">訂單管理</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/admin-users.html">會員管理</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/post-review.html">刊登審核</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="/apply-review.html">申請審核</a></li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主內容 -->
+            <main class="col-md-10 ms-sm-auto px-md-4 py-4">
+                <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+                    <h2 class="m-0">申請審核中心</h2>
+                    <div class="text-muted small">
+                        <span id="resultCount">—</span>
+                    </div>
+                </div>
+
+                <!-- 篩選列（沿用原本 ID） -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <form id="filters" class="row g-2">
+                            <div class="col-12 col-sm-3">
+                                <label class="form-label mb-1">狀態</label>
+                                <select id="fStatus" class="form-select form-select-sm">
+                                    <option value="all">全部</option>
+                                    <option value="pending" selected>審核中</option>
+                                    <option value="approved">已通過</option>
+                                    <option value="rejected">已退回</option>
+                                    <option value="cancelled">已取消</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-3">
+                                <label class="form-label mb-1">動物種類</label>
+                                <select id="fSpecies" class="form-select form-select-sm">
+                                    <option value="">全部</option>
+                                    <option>狗</option>
+                                    <option>貓</option>
+                                    <option>兔</option>
+                                    <option>蛇</option>
+                                    <option>豬</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label class="form-label mb-1">關鍵字</label>
+                                <input id="fQ" type="text" class="form-control form-control-sm"
+                                    placeholder="申請者/標題/電話…">
+                            </div>
+                            <div class="col-12 col-sm-2 d-grid">
+                                <button class="btn btn-primary btn-sm mt-sm-4" type="submit">搜尋</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 分頁控制 -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div></div>
+                    <div id="pager" class="btn-group btn-group-sm"></div>
+                </div>
+
+                <!-- 空狀態 -->
+                <div id="empty" class="alert alert-secondary d-none">目前沒有資料。</div>
+
+                <!-- 卡片清單 -->
+                <div class="row g-3" id="list"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 詳情 Modal（沿用原本 ID） -->
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mTitle">申請詳情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+                </div>
+                <div class="modal-body" id="mBody">
+                    <div class="text-center text-muted">載入中…</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" id="mReject">退回</button>
+                    <button class="btn btn-success" id="mApprove">通過</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { requireAdmin } from '/js/auth.js';
+        await requireAdmin(); // 後台頁面權限保護
+        import '/js/apply-review.js';
+    </script>
+</body>
+
+</html>

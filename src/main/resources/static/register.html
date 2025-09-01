@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>註冊 - PetPick</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="icon" href="/images/pet-icon.png" type="image/x-icon">
+    <style>
+        body {
+            background: #f7f7f7;
+            padding-top: 60px;
+            font-family: "Noto Sans TC", sans-serif
+        }
+
+        .card {
+            border-radius: 16px
+        }
+
+        .strength {
+            height: 6px;
+            border-radius: 4px;
+            background: #e9ecef;
+            overflow: hidden
+        }
+
+        .strength>div {
+            height: 100%;
+            width: 0%;
+            transition: width .25s
+        }
+
+        .input-hint {
+            font-size: .85rem;
+            color: #6c757d
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg bg-white shadow-sm fixed-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">PetPick</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="card shadow-sm">
+                    <div class="card-body p-4 p-md-5">
+                        <h1 class="h4 mb-3">建立帳號</h1>
+                        <p class="text-muted mb-4">填寫以下資料以建立 PetPick 帳號（Email 為登入帳號）</p>
+
+                        <form id="registerForm" novalidate>
+                            <div class="mb-3">
+                                <label for="username" class="form-label">姓名/暱稱</label>
+                                <input type="text" class="form-control" id="username" maxlength="50" required>
+                                <div class="invalid-feedback">請輸入姓名/暱稱</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email（登入帳號）</label>
+                                <input type="email" class="form-control" id="email" autocomplete="email" required>
+                                <div class="invalid-feedback" id="emailFeedback">Email 格式不正確或已被註冊</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">手機</label>
+                                <input type="tel" class="form-control" id="phone" placeholder="09xxxxxxxx" required>
+                                <div class="invalid-feedback">請輸入正確手機號碼</div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label for="password" class="form-label">密碼</label>
+                                <input type="password" class="form-control" id="password" autocomplete="new-password"
+                                    required>
+                                <div class="input-hint">6–20 碼，需含英文字母與數字</div>
+                                <div class="invalid-feedback">密碼需 6–20 碼且含英數。</div>
+                            </div>
+                            <div class="strength mb-3" aria-hidden="true">
+                                <div id="strengthBar"></div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="confirm" class="form-label">確認密碼</label>
+                                <input type="password" class="form-control" id="confirm" autocomplete="new-password"
+                                    required>
+                                <div class="invalid-feedback">兩次密碼需一致。</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="agree" required>
+                                <label class="form-check-label" for="agree">我已閱讀並同意 <a href="#">服務條款</a></label>
+                                <div class="invalid-feedback">請勾選同意。</div>
+                            </div>
+
+                            <button class="btn btn-primary w-100" id="submitBtn" type="submit" disabled>建立帳號</button>
+                        </form>
+
+                        <div class="text-center mt-3">
+                            已有帳號？<a href="/login.html">前往登入</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+        <div id="toast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toastBody">訊息</div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 驗證碼輸入 Modal -->
+    <div class="modal fade" id="verifyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Email 驗證</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">我們已寄出驗證碼到 <strong id="targetEmail"></strong>。</p>
+                    <label for="verifyCode" class="form-label">請輸入 6 位數驗證碼</label>
+                    <input id="verifyCode" class="form-control" maxlength="6" inputmode="numeric"
+                        autocomplete="one-time-code" />
+                    <div class="form-text d-none" id="devHint">開發模式：<a href="#" id="btnDevFill">自動填入驗證碼</a></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">稍後再說</button>
+                    <button type="button" class="btn btn-primary" id="btnVerify">送出驗證</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const USE_MOCK = false;
+        const DEV_EXPOSE = true; // 後端若開了 petpick.dev.expose-verify-code=true 就設 true
+
+        const $ = (s) => document.querySelector(s);
+        const form = document.querySelector('#registerForm');
+        const submitBtn = document.querySelector('#submitBtn');
+        const toastEl = document.querySelector('#toast');
+        const toast = new bootstrap.Toast(toastEl);
+        const toastBody = document.querySelector('#toastBody');
+
+        const username = document.querySelector('#username');
+        const email = document.querySelector('#email');
+        const phone = document.querySelector('#phone');
+        const password = document.querySelector('#password');
+        const confirmPwd = document.querySelector('#confirm');
+        const agree = document.querySelector('#agree');
+        const strengthBar = document.querySelector('#strengthBar');
+
+        // 驗證碼相關
+        const verifyModal = new bootstrap.Modal(document.getElementById('verifyModal'));
+        const targetEmailEl = document.getElementById('targetEmail');
+        const verifyCodeEl = document.getElementById('verifyCode');
+        const btnVerify = document.getElementById('btnVerify');
+        const devHint = document.getElementById('devHint');
+        const btnDevFill = document.getElementById('btnDevFill');
+        let regEmail = '';
+
+        const re = {
+            phone: /^09\d{8}$/,
+            password: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-={}\[\]:;"'`,.<>\/?]{6,20}$/
+        };
+
+        function strength(p) {
+            let s = 0; if (/[a-z]/.test(p)) s++; if (/[A-Z]/.test(p)) s++; if (/\d/.test(p)) s++; if (/[^A-Za-z\d]/.test(p)) s++; if (p.length >= 10) s++;
+            return Math.min(s, 5);
+        }
+        function renderStrength(p) {
+            const s = strength(p);
+            const pct = [0, 20, 40, 60, 80, 100][s];
+            strengthBar.style.width = pct + '%';
+            strengthBar.style.background = ['#e9ecef', '#dc3545', '#fd7e14', '#ffc107', '#0d6efd', '#198754'][s];
+        }
+
+        function validate() {
+            const v1 = username.value.trim().length > 0; username.classList.toggle('is-invalid', !v1);
+            const v2 = email.validity.valid; email.classList.toggle('is-invalid', !v2);
+            const v3 = re.phone.test(phone.value); phone.classList.toggle('is-invalid', !v3);
+            const v4 = re.password.test(password.value); password.classList.toggle('is-invalid', !v4);
+            const v5 = confirmPwd.value === password.value && confirmPwd.value.length > 0; confirmPwd.classList.toggle('is-invalid', !v5);
+            const v6 = agree.checked; agree.classList.toggle('is-invalid', !v6);
+            const ok = v1 && v2 && v3 && v4 && v5 && v6; submitBtn.disabled = !ok; return ok;
+        }
+        ['input', 'change', 'blur'].forEach(evt => { [username, email, phone, password, confirmPwd, agree].forEach(el => el.addEventListener(evt, validate)); });
+        password.addEventListener('input', () => renderStrength(password.value));
+
+        function showToast(msg) { toastBody.textContent = msg; toast.show(); }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault(); if (!validate()) return;
+
+            const payload = {
+                username: username.value.trim(),
+                accountemail: email.value.trim(),
+                phonenumber: phone.value.trim(),
+                password: password.value
+            };
+
+            try {
+                if (USE_MOCK) {
+                    await new Promise(r => setTimeout(r, 600));
+                    regEmail = payload.accountemail; targetEmailEl.textContent = regEmail; if (DEV_EXPOSE) devHint.classList.remove('d-none');
+                    verifyModal.show();
+                    return;
+                }
+                const res = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (res.status === 201) {
+                    regEmail = payload.accountemail; targetEmailEl.textContent = regEmail; if (DEV_EXPOSE) devHint.classList.remove('d-none');
+                    verifyModal.show();
+                } else {
+                    const err = await res.json().catch(() => ({ message: '註冊失敗' }));
+                    showToast(err.message || '註冊失敗');
+                }
+            } catch (err) { showToast('連線異常，請稍後再試'); }
+        });
+
+        btnVerify.addEventListener('click', async () => {
+            const code = verifyCodeEl.value.trim();
+            if (!/^\d{6}$/.test(code)) { showToast('驗證碼格式不正確'); return; }
+            try {
+                const res = await fetch('/api/auth/verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: regEmail, code }) });
+                const data = await res.json().catch(() => ({ ok: false }));
+                if (res.ok && data.ok) { verifyModal.hide(); showToast('驗證成功，現在可以登入'); setTimeout(() => location.href = '/login.html', 600); }
+                else { showToast('驗證碼錯誤或已過期，請再試一次'); }
+            } catch (e) { showToast('驗證失敗，請稍後再試'); }
+        });
+
+        if (DEV_EXPOSE && btnDevFill) {
+            btnDevFill.addEventListener('click', async (e) => {
+                e.preventDefault();
+                try {
+                    const r = await fetch(`/api/auth/dev-code?email=${encodeURIComponent(regEmail)}`);
+                    const d = await r.json();
+                    if (d && d.code) { verifyCodeEl.value = d.code; showToast('已填入驗證碼'); }
+                    else { showToast('無法取得驗證碼'); }
+                } catch (e) { showToast('DEV 端點不可用'); }
+            });
+        }
+
+        renderStrength('');
+        validate();
+    </script>
+</body>
+
+</html>

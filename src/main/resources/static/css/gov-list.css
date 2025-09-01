@@ -1,0 +1,117 @@
+.pet-card {
+    border: 1px solid #ddd;
+    border-radius: 16px;
+    overflow: hidden;
+    transition: 0.3s;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.pet-card:hover {
+    transform: scale(1.03);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.pet-card img {
+    width: 100%;
+    height: 250px;
+    object-fit: contain;
+    background: #f0f0f0;
+    padding: 8px;
+}
+
+/* 美化搜尋欄 */
+select.form-select,
+input.form-control {
+    border-radius: 20px;
+    padding: 10px 16px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    border: 1px solid #ccc;
+    transition: border-color 0.3s ease;
+}
+
+select.form-select:focus,
+input.form-control:focus {
+    border-color: #d19f72;
+    box-shadow: 0 0 0 0.2rem rgba(209, 159, 114, 0.3);
+}
+
+/* 撥打電話按鈕 */
+.pet-card .btn-warning {
+    background-color: #d19f72;
+    border-radius: 30px;
+    font-weight: bold;
+    border: none;
+    transition: 0.3s;
+}
+
+.pet-card .btn-warning:hover {
+    background-color: #b9845e;
+}
+
+/* 美化分頁資訊 */
+#page-info {
+    font-weight: bold;
+    color: #666;
+}
+
+.input-group .form-control#gotoPageInput {
+    border-radius: 0;
+    border-left: none;
+}
+
+.input-group .btn#gotoPageBtn {
+    border-radius: 0 30px 30px 0;
+    background-color: #d19f72;
+    border: none;
+    font-weight: 500;
+}
+
+.input-group .input-group-text {
+    background-color: #fff;
+    color: #5a3f29;
+    border: 1px solid #d2b48c;
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+    border-radius: 30px 0 0 30px;
+}
+
+.input-group .btn#gotoPageBtn:hover {
+    background-color: #b9845e;
+}
+
+#gotoPageInput.is-invalid {
+    border-color: red;
+    box-shadow: 0 0 0 0.1rem rgba(255, 0, 0, 0.25);
+}
+
+/* 分頁按鈕 */
+.pagination .page-link {
+    color: #8d6748;
+    border: 1px solid #d2b48c;
+    background-color: #fff;
+    border-radius: 8px;
+    transition: 0.2s;
+}
+
+.pagination .page-link:hover {
+    background-color: #f7e4c3;
+    color: #5a3f29;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #d2b48c;
+    border-color: #d2b48c;
+    color: white;
+}
+
+.sex-icon img {
+    height: 18px;
+    width: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin: 0 4px;
+    background-color: #fff;
+    border-radius: 50%;
+    padding: 1px;
+    border: 1px solid #ccc;
+}
