@@ -1,4 +1,3 @@
-// src/main/java/com/petpick/petpick/config/SecurityConfig.java
 package com.petpick.petpick.config;
 
 import java.util.List;
