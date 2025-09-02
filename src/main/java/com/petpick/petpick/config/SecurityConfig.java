@@ -22,7 +22,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -71,7 +70,7 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         );
 
-        // API 權限設定
+        // API 權限設定 - ⚠️ 順序很重要！更具體的路徑要放在前面
         http.authorizeHttpRequests(auth -> auth
                 // 公開可存取的靜態資源和頁面
                 .requestMatchers(
@@ -91,19 +90,37 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                 .requestMatchers("/api/auth/me", "/api/auth/logout").authenticated()
 
+                // ✅ 用戶相關 API - 新增這個重要區塊！
+                .requestMatchers(HttpMethod.GET, "/api/users/avatar/**").permitAll() // 頭像可公開存取
+                .requestMatchers(HttpMethod.GET, "/api/users/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/users/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/users/**").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/users/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/users/**").authenticated()
+
+                // ✅ 任務擁有者相關 API
+                .requestMatchers("/api/owners/**").authenticated()
+
+                // ✅ 任務申請相關 API - 加入這個重要的配置！
+                .requestMatchers("/api/applications/**").authenticated()
+                .requestMatchers("/api/missionapplications/**").authenticated() // ✅ 新增這行！
+
+                // ✅ 任務相關 API
+                .requestMatchers("/api/missions/**").authenticated()
+
                 // ✅ 商品相關 API
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
 
-                // ✅ 購物車相關 API - 明確指定所有需要認證
+                // ✅ 購物車相關 API
                 .requestMatchers(HttpMethod.GET, "/api/cart/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/cart/**").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/api/cart/**").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/api/cart/**").authenticated()
 
-                // ✅ 訂單相關 API - 新增這個區塊
+                // ✅ 訂單相關 API
                 .requestMatchers(HttpMethod.POST, "/api/orders/checkout").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/orders/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/orders/**").authenticated()
@@ -111,7 +128,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/orders/**").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/api/orders/**").authenticated()
 
-                // ✅ 物流相關 API - 新增這個區塊
+                // ✅ 物流相關 API
                 .requestMatchers("/api/logistics/**").authenticated()
                 .requestMatchers("/api/pay/**").authenticated()
 
@@ -122,11 +139,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/adopts/*/apply").authenticated()
                 .requestMatchers(HttpMethod.PATCH, "/api/posts/*/cancel", "/api/posts/*/hold", "/api/posts/*/close").authenticated()
 
-                // ✅ 其他需要認證的 API
+                // ✅ 其他通用 API（移到最後，避免覆蓋上面的具體配置）
                 .requestMatchers("/api/user/**").authenticated()
-                .requestMatchers("/api/missions/**").authenticated()
 
-                // ✅ 所有其他 API 請求都需要認證
+                // ✅ 所有其他 API 請求都需要認證（最後的兜底）
                 .requestMatchers("/api/**").authenticated()
 
                 // 其他請求（非 API）需要認證
@@ -141,7 +157,7 @@ public class SecurityConfig {
                     System.out.println("🔐 認證失敗: " + request.getMethod() + " " + requestURI + " - " + authException.getMessage());
                     System.out.println("🔍 Auth Header: " + request.getHeader("Authorization"));
 
-                    // ✅ 強制所有 /api/ 路徑都返回 JSON 錯誤
+                    // ✅ 強制所有 /api/ 路徑都返回 JSON 錯誤，絕不重定向
                     if (requestURI.startsWith("/api/")) {
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType("application/json;charset=UTF-8");
@@ -172,9 +188,6 @@ public class SecurityConfig {
                 })
                 .accessDeniedHandler(myAccessDeniedHandler)
         );
-
-        // ✅ 修正登出設定 - 完全移除可能衝突的登出配置
-        // http.logout(Customizer.withDefaults()); // 移除這個
 
         // ✅ 確保JWT過濾器在最前面
         http.addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService),

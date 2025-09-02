@@ -29,7 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/sexes",
             "/api/auth/login",
             "/api/auth/register",
-            "/api/products" // GET 請求會在 Security 層面處理
+            "/api/products", // GET 請求會在 Security 層面處理
+            "/api/users/avatar" // ✅ 新增：用戶頭像可公開存取
     );
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
