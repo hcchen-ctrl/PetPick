@@ -87,6 +87,8 @@ public class SecurityConfig {
                         "/styles.css",
                         "/chatroom.css"
                 ).permitAll()
+                .requestMatchers("/ws/**").permitAll()
+
 
                 // ✅ 認證相關 API
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()

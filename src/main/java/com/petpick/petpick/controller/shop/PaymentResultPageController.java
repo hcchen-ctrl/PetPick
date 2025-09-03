@@ -40,7 +40,7 @@ public class PaymentResultPageController {
         session.setAttribute("orderResultParams", p);
 
         if ("1".equals(rtnCode)) {
-            String url = UriComponentsBuilder.fromPath("/success.html")
+            String url = UriComponentsBuilder.fromHttpUrl("http://localhost:5173/#/success")
                     .queryParam("mtn", p.getOrDefault("MerchantTradeNo", "")) // 綠界訂單編號（你送出去的）
                     .queryParam("PaymentType", paymentType) // ★ 新增
                     .queryParam("PaymentDate", paymentDate) // ★ 新增
@@ -52,8 +52,7 @@ public class PaymentResultPageController {
                     .toUriString();
             return "redirect:" + url;
         } else {
-            String url = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/fail.html")
+            String url = UriComponentsBuilder.fromHttpUrl("http://localhost:5173/#/fail")
                     .queryParam("orderId", orderId)
                     .queryParam("TradeNo", tradeNo)
                     .queryParam("msg", rtnMsg)
