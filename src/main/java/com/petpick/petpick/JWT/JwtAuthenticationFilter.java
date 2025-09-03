@@ -28,9 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/ages",
             "/api/sexes",
             "/api/auth/login",
-            "/api/auth/register",
-            "/api/products" // GET 請求會在 Security 層面處理
-    );
+            "/api/auth/register");
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
@@ -47,6 +45,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // ✅ 增加除錯資訊
         System.out.println("🔍 JWT Filter: " + method + " " + path);
+
+        // JwtAuthenticationFilter
+        if (path.equals("/api/products") && "GET".equalsIgnoreCase(method)) {
+            System.out.println("✅ 白名單路徑 (GET /api/products)，直接放行");
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // 白名單路徑直接放行
         if (isWhitelisted(path)) {
