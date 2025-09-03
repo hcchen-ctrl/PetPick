@@ -1,6 +1,5 @@
 package com.petpick.petpick.config;
 
-import java.io.IOException;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,191 +34,119 @@ import jakarta.servlet.http.HttpServletResponse;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Autowired
-    private UserDetailsService userDetailsService;
-
-    @Autowired
-    private MyAccessDeniedHandler myAccessDeniedHandler;
-
-    @Autowired
-    @Lazy
-    private CustomOAuth2UserService customOAuth2UserService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
+    @Autowired private UserDetailsService userDetailsService;
+    @Autowired private MyAccessDeniedHandler myAccessDeniedHandler;
+    @Autowired @Lazy private CustomOAuth2UserService customOAuth2UserService;
+    @Autowired private JwtUtil jwtUtil;
 
     @Bean
     public HttpFirewall allowUrlEncodedDoubleSlashHttpFirewall() {
-        StrictHttpFirewall firewall = new StrictHttpFirewall();
-        firewall.setAllowUrlEncodedDoubleSlash(true);
-        return firewall;
+        StrictHttpFirewall fw = new StrictHttpFirewall();
+        fw.setAllowUrlEncodedDoubleSlash(true);
+        return fw;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // 停用 CSRF，因為 JWT 是無狀態認證
+        // API only：無狀態，關 CSRF / 表單 / Basic
         http.csrf(csrf -> csrf.disable());
-
-        // 啟用 CORS
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
-
-        // ✅ 停用預設的 form login 和 http basic
         http.formLogin(form -> form.disable());
         http.httpBasic(basic -> basic.disable());
+        http.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-        // ✅ 設定為無狀態會話
-        http.sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        );
-
-        // API 權限設定 - ⚠️ 順序很重要！更具體的路徑要放在前面
         http.authorizeHttpRequests(auth -> auth
-                // 公開可存取的靜態資源和頁面
-                .requestMatchers(
-                        "/loginpage.html",
-                        "/register",
-                        "/",
-                        "/index.html",
-                        "/login/rename.html",
-                        "/**.js",
-                        "/**.css",
-                        "/images/**",
-                        "/styles.css",
-                        "/chatroom.css"
-                ).permitAll()
-                .requestMatchers("/ws/**").permitAll()
+            // CORS 預檢
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+            // ===== 綠界 / 物流（S2S & 導頁）=====
+            .requestMatchers("/payment/**").permitAll() // OrderResultURL 進來會走這裡
+            .requestMatchers(HttpMethod.POST, "/api/pay/ecpay/return").permitAll() // ReturnURL S2S
+            .requestMatchers(
+                "/api/logistics/home/reply",
+                "/api/logistics/home/ecpay/reply",
+                "/api/logistics/cvs/store-return",
+                "/api/logistics/cvs/ecpay/create-return"
+            ).permitAll()
 
-                // ✅ 認證相關 API
-                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
-                .requestMatchers("/api/auth/me", "/api/auth/logout").authenticated()
+            // ===== 認證 & 公開 API =====
+            .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/users/avatar/**").permitAll()
+            .requestMatchers("/api/kinds/**", "/api/shelters/**", "/api/ages/**", "/api/sexes/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/adopts/**").permitAll()
 
-                // ✅ 用戶相關 API - 新增這個重要區塊！
-                .requestMatchers(HttpMethod.GET, "/api/users/avatar/**").permitAll() // 頭像可公開存取
-                .requestMatchers(HttpMethod.GET, "/api/users/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/users/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/users/**").authenticated()
-                .requestMatchers(HttpMethod.PATCH, "/api/users/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/users/**").authenticated()
+            // 靜音 favicon（避免 401 噪音）
+            .requestMatchers(HttpMethod.GET, "/favicon.ico").permitAll()
 
-                // ✅ 任務擁有者相關 API
-                .requestMatchers("/api/owners/**").authenticated()
+            // 其餘 API 需要登入
+            .requestMatchers("/api/**").authenticated()
 
-                // ✅ 任務申請相關 API - 加入這個重要的配置！
-                .requestMatchers("/api/applications/**").authenticated()
-                .requestMatchers("/api/missionapplications/**").authenticated() // ✅ 新增這行！
-
-                // ✅ 任務相關 API
-                .requestMatchers("/api/missions/**").authenticated()
-
-                // ✅ 商品相關 API
-                .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
-
-                // ✅ 購物車相關 API
-                .requestMatchers(HttpMethod.GET, "/api/cart/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/cart/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/cart/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/cart/**").authenticated()
-
-                // ✅ 訂單相關 API
-                .requestMatchers(HttpMethod.POST, "/api/orders/checkout").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/orders/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/orders/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/orders/**").authenticated()
-                .requestMatchers(HttpMethod.PATCH, "/api/orders/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/orders/**").authenticated()
-
-                // ✅ 物流相關 API
-                .requestMatchers("/api/logistics/**").authenticated()
-                .requestMatchers("/api/pay/**").authenticated()
-
-                // ✅ 領養相關 API
-                .requestMatchers("/api/kinds/**", "/api/shelters/**", "/api/ages/**", "/api/sexes/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/adopts/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/adopts").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/adopts/*/apply").authenticated()
-                .requestMatchers(HttpMethod.PATCH, "/api/posts/*/cancel", "/api/posts/*/hold", "/api/posts/*/close").authenticated()
-
-                // ✅ 其他通用 API（移到最後，避免覆蓋上面的具體配置）
-                .requestMatchers("/api/user/**").authenticated()
-
-                // ✅ WebSocket 放行
-                .requestMatchers("/ws/**").permitAll()
-
-                // ✅ 所有其他 API 請求都需要認證（最後的兜底）
-                .requestMatchers("/api/**").authenticated()
-
-                // 其他請求（非 API）需要認證
-                .anyRequest().authenticated()
+            // 後端不再提供任何頁面/靜態資源：全部拒絕
+            .anyRequest().denyAll()
         );
 
-        // ✅ 修正異常處理 - 確保 API 請求不會被重定向
-        http.exceptionHandling(exception -> exception
-                .authenticationEntryPoint((request, response, authException) -> {
-                    String requestURI = request.getRequestURI();
-
-                    System.out.println("🔐 認證失敗: " + request.getMethod() + " " + requestURI + " - " + authException.getMessage());
-                    System.out.println("🔍 Auth Header: " + request.getHeader("Authorization"));
-
-                    // ✅ 強制所有 /api/ 路徑都返回 JSON 錯誤，絕不重定向
-                    if (requestURI.startsWith("/api/")) {
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.setContentType("application/json;charset=UTF-8");
-                        response.setHeader("Cache-Control", "no-cache");
-                        response.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
-                        response.setHeader("Access-Control-Allow-Credentials", "true");
-
-                        try {
-                            response.getWriter().write("{" +
-                                    "\"error\": \"Unauthorized\"," +
-                                    "\"message\": \"JWT Token required\"," +
-                                    "\"path\": \"" + requestURI + "\"," +
-                                    "\"method\": \"" + request.getMethod() + "\"," +
-                                    "\"timestamp\": \"" + java.time.Instant.now() + "\"" +
-                                    "}");
-                            response.getWriter().flush();
-                        } catch (IOException e) {
-                            System.err.println("無法寫入錯誤回應: " + e.getMessage());
-                        }
-                    } else {
-                        // 非 API 請求才重定向
-                        try {
-                            response.sendRedirect("/loginpage.html");
-                        } catch (IOException e) {
-                            System.err.println("重定向失敗: " + e.getMessage());
-                        }
+        // 統一錯誤處理：/api/** 回 JSON，其它回 404（不再重導 loginpage.html）
+        http.exceptionHandling(ex -> ex
+            .authenticationEntryPoint((req, res, e) -> {
+                String uri = req.getRequestURI();
+                if (uri.startsWith("/api/")) {
+                    res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    res.setContentType("application/json;charset=UTF-8");
+                    String origin = req.getHeader("Origin");
+                    if (origin != null && !origin.isBlank()) {
+                        res.setHeader("Access-Control-Allow-Origin", origin);
+                        res.setHeader("Vary", "Origin");
                     }
-                })
-                .accessDeniedHandler(myAccessDeniedHandler)
+                    res.setHeader("Access-Control-Allow-Credentials", "true");
+                    res.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"JWT Token required\",\"path\":\""+uri+"\"}");
+                } else {
+                    res.sendError(HttpServletResponse.SC_NOT_FOUND);
+                }
+            })
+            .accessDeniedHandler((req, res, e) -> {
+                if (req.getRequestURI().startsWith("/api/")) {
+                    res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    res.setContentType("application/json;charset=UTF-8");
+                    String origin = req.getHeader("Origin");
+                    if (origin != null && !origin.isBlank()) {
+                        res.setHeader("Access-Control-Allow-Origin", origin);
+                        res.setHeader("Vary", "Origin");
+                    }
+                    res.setHeader("Access-Control-Allow-Credentials", "true");
+                    res.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"Access denied\"}");
+                } else {
+                    res.sendError(HttpServletResponse.SC_NOT_FOUND);
+                }
+            })
         );
 
-        // ✅ 確保JWT過濾器在最前面
+        // JWT 過濾器
         http.addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService),
                 UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // ✅ 修正的 CORS 設定 Bean
+    // CORS：允許前端與 ECPay
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        // ✅ 使用 allowedOriginPatterns 而不是 allowedOrigins
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:5173"));
-
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true); // 允許攜帶認證資訊
-
-        // 設定預檢請求的快取時間
-        configuration.setMaxAge(3600L);
+        CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedOriginPatterns(List.of(
+            "http://localhost:5173",
+            "https://localhost:5173",
+            "https://de6a509fbde7.ngrok-free.app",
+            "https://payment-stage.ecpay.com.tw",
+            "https://payment.ecpay.com.tw"
+        ));
+        cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setAllowCredentials(true);
+        cfg.setExposedHeaders(List.of("Location"));
+        cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", cfg);
         return source;
     }
 
@@ -229,7 +156,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
+        return cfg.getAuthenticationManager();
     }
 }
