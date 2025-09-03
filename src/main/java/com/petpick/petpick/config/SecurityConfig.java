@@ -68,9 +68,7 @@ public class SecurityConfig {
         http.httpBasic(basic -> basic.disable());
 
         // ✅ 設定為無狀態會話
-        http.sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        );
+        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         // API 權限設定 - ⚠️ 順序很重要！更具體的路徑要放在前面
         http.authorizeHttpRequests(auth -> auth
@@ -85,10 +83,9 @@ public class SecurityConfig {
                         "/**.css",
                         "/images/**",
                         "/styles.css",
-                        "/chatroom.css"
-                ).permitAll()
+                        "/chatroom.css")
+                .permitAll()
                 .requestMatchers("/ws/**").permitAll()
-
 
                 // ✅ 認證相關 API
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
@@ -107,9 +104,10 @@ public class SecurityConfig {
 
                 // ✅ 任務申請相關 API - 加入這個重要的配置！
                 .requestMatchers("/api/applications/**").authenticated()
-                .requestMatchers("/api/missionapplications/**").authenticated() 
+                .requestMatchers("/api/missionapplications/**").authenticated()
 
                 // ✅ 任務相關 API
+                .requestMatchers(HttpMethod.POST, "/api/missions/upload").permitAll()
                 .requestMatchers("/api/missions/**").authenticated()
 
                 // ✅ 商品相關 API
@@ -141,7 +139,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/adopts/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/adopts").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/adopts/*/apply").authenticated()
-                .requestMatchers(HttpMethod.PATCH, "/api/posts/*/cancel", "/api/posts/*/hold", "/api/posts/*/close").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/posts/*/cancel", "/api/posts/*/hold", "/api/posts/*/close")
+                .authenticated()
 
                 // ✅ 其他通用 API（移到最後，避免覆蓋上面的具體配置）
                 .requestMatchers("/api/user/**").authenticated()
@@ -153,15 +152,15 @@ public class SecurityConfig {
                 .requestMatchers("/api/**").authenticated()
 
                 // 其他請求（非 API）需要認證
-                .anyRequest().authenticated()
-        );
+                .anyRequest().authenticated());
 
         // ✅ 修正異常處理 - 確保 API 請求不會被重定向
         http.exceptionHandling(exception -> exception
                 .authenticationEntryPoint((request, response, authException) -> {
                     String requestURI = request.getRequestURI();
 
-                    System.out.println("🔐 認證失敗: " + request.getMethod() + " " + requestURI + " - " + authException.getMessage());
+                    System.out.println(
+                            "🔐 認證失敗: " + request.getMethod() + " " + requestURI + " - " + authException.getMessage());
                     System.out.println("🔍 Auth Header: " + request.getHeader("Authorization"));
 
                     // ✅ 強制所有 /api/ 路徑都返回 JSON 錯誤，絕不重定向
@@ -193,8 +192,7 @@ public class SecurityConfig {
                         }
                     }
                 })
-                .accessDeniedHandler(myAccessDeniedHandler)
-        );
+                .accessDeniedHandler(myAccessDeniedHandler));
 
         // ✅ 確保JWT過濾器在最前面
         http.addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService),
@@ -229,7 +227,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
+            throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 }
