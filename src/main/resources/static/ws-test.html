@@ -1,0 +1,241 @@
+<!-- src/main/resources/static/ws-test.html -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>WS 單頁測試</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans TC", sans-serif; margin:16px; }
+    fieldset{ border:1px solid #ddd; border-radius:8px; padding:12px; margin-bottom:12px; }
+    legend{ padding:0 6px; color:#555; }
+    label{ display:inline-block; min-width:120px; color:#333; }
+    input, textarea, select, button{ font:inherit; }
+    input[type="text"], textarea { width: 260px; }
+    .row{ margin:6px 0; }
+    .cols{ display:flex; gap:12px; flex-wrap:wrap; }
+    #log{ width:100%; height:280px; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          border:1px solid #ddd; border-radius:8px; padding:8px; background:#fafafa; overflow:auto; white-space:pre-wrap;}
+    .ok{ color:#0a7; } .err{ color:#c33; } .muted{ color:#777; }
+    .chip{ display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #eee; border-radius:999px; padding:4px 10px; }
+  </style>
+</head>
+<body>
+  <h2>WS 前端單頁測試</h2>
+  <p class="muted">用來快速驗證：連線、訂閱會話、發送訊息、typing/已讀 等事件。<br>請先在下方調整參數再連線。</p>
+
+  <fieldset>
+    <legend>連線設定</legend>
+    <div class="cols">
+      <div class="row"><label>WS 伺服器：</label>
+        <input id="wsUrl" type="text" value="ws://localhost:8080/ws" />
+      </div>
+      <div class="row"><label>使用者 ID：</label>
+        <input id="userId" type="text" placeholder="例如 12" />
+      </div>
+      <div class="row"><button id="btnConnect">連線</button>
+        <button id="btnClose" disabled>關閉</button>
+      </div>
+    </div>
+    <div class="row"><span>狀態：</span><span id="status" class="muted">未連線</span></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>會話 / 事件</legend>
+    <div class="cols">
+      <div class="row">
+        <label>會話 ID：</label>
+        <input id="convId" type="text" placeholder="例如 14" />
+        <button id="btnSetCurrent" disabled>設定目前會話</button>
+        <button id="btnSubscribeLite" disabled>訂閱側欄(Lite)</button>
+        <button id="btnSubscribe" disabled>訂閱會話</button>
+      </div>
+      <div class="row">
+        <label>訊息內容：</label>
+        <input id="msg" type="text" placeholder="測試訊息…" />
+        <button id="btnSend" disabled>送出訊息</button>
+      </div>
+      <div class="row">
+        <span class="chip"><input id="typing" type="checkbox" /> <label for="typing" style="min-width:auto">送出 Typing</label></span>
+        <button id="btnRead" disabled>送出已讀</button>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>日誌</legend>
+    <div id="log"></div>
+    <div class="row" style="margin-top:8px;">
+      <button id="btnClear">清除日誌</button>
+    </div>
+  </fieldset>
+
+<script>
+(() => {
+  // ============ 可依你的服務端協議調整 ============
+  // 本頁假設你的 WS 後端接受 JSON，事件型別：
+  // - init:       { type:'init', userId }
+  // - setCurrent: { type:'setCurrent', conversationId }
+  // - subscribe:  { type:'subscribe', conversationId }
+  // - subscribeLite: { type:'subscribeLite', conversationId }
+  // - message:    { type:'message', conversationId, senderId, content, clientId }
+  // - typing:     { type:'typing', conversationId, userId }
+  // - read:       { type:'read', conversationId, userId }
+  //
+  // 如果你的後端是 STOMP、SockJS 或不同欄位名稱，改下面 sendJSON 的 payload 即可。
+  // ===============================================
+
+  const $ = (id) => document.getElementById(id)
+  const logBox = $('log')
+  const statusEl = $('status')
+
+  const state = {
+    ws: null,
+    url: '',
+    userId: '',
+    conversationId: '',
+    open: false,
+  }
+
+  function log(msg, cls='') {
+    const time = new Date().toLocaleTimeString()
+    const line = document.createElement('div')
+    line.innerHTML = `<span class="muted">[${time}]</span> ${msg}`
+    if (cls) line.classList.add(cls)
+    logBox.appendChild(line)
+    logBox.scrollTop = logBox.scrollHeight
+  }
+  function setStatus(text, cls='muted'){
+    statusEl.textContent = text
+    statusEl.className = cls
+  }
+  function enableConnUI(connected) {
+    $('btnConnect').disabled = connected
+    $('btnClose').disabled = !connected
+    $('btnSetCurrent').disabled = !connected
+    $('btnSubscribe').disabled = !connected
+    $('btnSubscribeLite').disabled = !connected
+    $('btnSend').disabled = !connected
+    $('btnRead').disabled = !connected
+  }
+  function sendJSON(obj){
+    if (!state.open || !state.ws) { log('尚未連線，無法送出','err'); return }
+    const s = JSON.stringify(obj)
+    state.ws.send(s)
+    log('→ SEND: ' + s, 'ok')
+  }
+
+  // 連線
+  $('btnConnect').addEventListener('click', () => {
+    const url = $('wsUrl').value.trim()
+    const userId = $('userId').value.trim()
+    if (!url || !userId) { alert('請輸入 WS 伺服器與使用者 ID'); return }
+
+    if (state.ws && state.open) { state.ws.close() }
+
+    state.url = url
+    state.userId = userId
+
+    try {
+      const ws = new WebSocket(url)
+      state.ws = ws
+      setStatus('連線中…','muted')
+      log(`嘗試連線：${url}`)
+
+      ws.onopen = () => {
+        state.open = true
+        setStatus('已連線','ok')
+        enableConnUI(true)
+        // 初始化：告知使用者身分
+        sendJSON({ type: 'init', userId })
+      }
+
+      ws.onmessage = (evt) => {
+        let data = evt.data
+        try { data = JSON.parse(evt.data) } catch {}
+        log('← EVT: ' + (typeof data === 'string' ? data : JSON.stringify(data)))
+      }
+
+      ws.onclose = (evt) => {
+        state.open = false
+        enableConnUI(false)
+        setStatus('已關閉','muted')
+        log(`連線關閉 (code=${evt.code})`)
+      }
+
+      ws.onerror = (e) => {
+        setStatus('連線錯誤','err')
+        log('WS error：' + (e?.message || e), 'err')
+      }
+    } catch (e) {
+      setStatus('建立連線失敗','err')
+      log('建立連線例外：' + e.message, 'err')
+    }
+  })
+
+  // 關閉
+  $('btnClose').addEventListener('click', () => {
+    if (state.ws) state.ws.close(1000, 'client close')
+  })
+
+  // 設定目前會話
+  $('btnSetCurrent').addEventListener('click', () => {
+    const cid = $('convId').value.trim()
+    if (!cid) return alert('請輸入會話 ID')
+    state.conversationId = cid
+    sendJSON({ type: 'setCurrent', conversationId: cid })
+  })
+
+  // 訂閱（完整）
+  $('btnSubscribe').addEventListener('click', () => {
+    const cid = $('convId').value.trim()
+    if (!cid) return alert('請輸入會話 ID')
+    state.conversationId = cid
+    sendJSON({ type: 'subscribe', conversationId: cid })
+  })
+
+  // 訂閱（Lite）
+  $('btnSubscribeLite').addEventListener('click', () => {
+    const cid = $('convId').value.trim()
+    if (!cid) return alert('請輸入會話 ID')
+    state.conversationId = cid
+    sendJSON({ type: 'subscribeLite', conversationId: cid })
+  })
+
+  // 送出訊息
+  $('btnSend').addEventListener('click', () => {
+    const cid = $('convId').value.trim()
+    const text = $('msg').value
+    if (!cid) return alert('請輸入會話 ID')
+    if (!text || !text.trim()) return
+    const clientId = 'c_' + Date.now().toString(36)
+    sendJSON({
+      type: 'message',
+      conversationId: cid,
+      senderId: state.userId,
+      content: text,
+      clientId
+    })
+  })
+
+  // Typing
+  $('typing').addEventListener('change', (e) => {
+    if (!state.conversationId) return alert('請先設定會話 ID')
+    if (e.target.checked){
+      sendJSON({ type: 'typing', conversationId: state.conversationId, userId: state.userId })
+      setTimeout(()=>{ e.target.checked = false }, 400)
+    }
+  })
+
+  // 已讀
+  $('btnRead').addEventListener('click', () => {
+    if (!state.conversationId) return alert('請先設定會話 ID')
+    sendJSON({ type: 'read', conversationId: state.conversationId, userId: state.userId })
+  })
+
+  // 清除日誌
+  $('btnClear').addEventListener('click', () => { logBox.innerHTML = '' })
+})();
+</script>
+</body>
+</html>

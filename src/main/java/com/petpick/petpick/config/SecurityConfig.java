@@ -105,7 +105,7 @@ public class SecurityConfig {
 
                 // ✅ 任務申請相關 API - 加入這個重要的配置！
                 .requestMatchers("/api/applications/**").authenticated()
-                .requestMatchers("/api/missionapplications/**").authenticated() // ✅ 新增這行！
+                .requestMatchers("/api/missionapplications/**").authenticated() 
 
                 // ✅ 任務相關 API
                 .requestMatchers("/api/missions/**").authenticated()

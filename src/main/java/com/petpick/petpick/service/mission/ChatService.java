@@ -3,6 +3,9 @@ package com.petpick.petpick.service.mission;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.petpick.petpick.DTO.mission.ConversationItemDTO;
 import com.petpick.petpick.DTO.mission.MessageDTO;
 import com.petpick.petpick.entity.mission.Conversation;
@@ -12,9 +15,6 @@ import com.petpick.petpick.repository.mission.ConversationRepository;
 import com.petpick.petpick.repository.mission.MessageRepository;
 import com.petpick.petpick.repository.mission.MissionRepository;
 import com.petpick.petpick.repository.mission.UserinfoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ChatService {
@@ -26,9 +26,9 @@ public class ChatService {
 
     // 使用構造函數注入
     public ChatService(ConversationRepository convRepo,
-                       MessageRepository msgRepo,
-                       MissionRepository missionRepo,
-                       UserinfoRepository userRepo) {
+            MessageRepository msgRepo,
+            MissionRepository missionRepo,
+            UserinfoRepository userRepo) {
         this.convRepo = convRepo;
         this.msgRepo = msgRepo;
         this.missionRepo = missionRepo;
@@ -79,8 +79,7 @@ public class ChatService {
                     "/api/users/avatar/" + otherUser.getUserId(),
                     conversation.getLastMessagePreview(),
                     conversation.getLastMessageAt(),
-                    msgRepo.countUnread(conversation.getConversationId(), userId)
-            );
+                    msgRepo.countUnread(conversation.getConversationId(), userId));
         }).toList();
     }
 
@@ -88,8 +87,8 @@ public class ChatService {
     public List<MessageDTO> listMessages(Long conversationId, Long userId) {
         return msgRepo.findAllByConversation(conversationId).stream()
                 .map(message -> new MessageDTO(
-                        message.getMessageId(),
                         message.getConversation().getConversationId(),
+                        message.getMessageId(),
                         message.getSender().getUserId(),
                         message.getSender().getUsername(),
                         message.getContent(),
@@ -126,8 +125,8 @@ public class ChatService {
         convRepo.save(conversation);
 
         return new MessageDTO(
-                message.getMessageId(),
                 message.getConversation().getConversationId(),
+                message.getMessageId(),
                 senderId,
                 sender.getUsername(),
                 message.getContent(),
