@@ -1,14 +1,13 @@
 package com.petpick.petpick.repository;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import com.petpick.petpick.entity.UserEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Repository;
+
+import com.petpick.petpick.entity.UserEntity;
 
 @Repository
 public class UserDao {

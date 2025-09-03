@@ -83,7 +83,8 @@ public class SecurityConfig {
                         "/**.css",
                         "/images/**",
                         "/styles.css",
-                        "/chatroom.css")
+                        "/chatroom.css",
+                        "/adopt/uploads/**")
                 .permitAll()
                 .requestMatchers("/ws/**").permitAll()
 

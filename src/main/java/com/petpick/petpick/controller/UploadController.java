@@ -23,38 +23,30 @@ public class UploadController {
     @Value("${petpick.upload-dir}")
     private String uploadDir;
 
-    @Value("${petpick.upload-url-prefix:/uploads/}")
+    @Value("${petpick.upload-url-prefix:/adopt/uploads/}") // ← 改成預設 /adopt/uploads/
     private String urlPrefix;
 
     @PostMapping(value = "/uploads", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> upload(@RequestParam("files") List<MultipartFile> files) throws Exception {
         Path root = Path.of(uploadDir).toAbsolutePath().normalize();
-
-        // 建立資料夾
         Files.createDirectories(root);
 
         List<String> urls = new ArrayList<>();
         for (MultipartFile f : files) {
             if (f.isEmpty()) continue;
 
-            // 擷取副檔名
             String ext = Optional.ofNullable(f.getOriginalFilename())
                     .filter(n -> n.contains("."))
                     .map(n -> n.substring(n.lastIndexOf(".")))
                     .orElse("");
 
-            // 產生唯一檔名
             String filename = UUID.randomUUID() + ext;
             Path dest = root.resolve(filename);
-
-            // 儲存圖片到 static/adopt/upload
             f.transferTo(dest.toFile());
 
-            // 回傳對應網址
-            urls.add("/adopt/uploads/" + filename);
-
+            String prefix = urlPrefix.endsWith("/") ? urlPrefix : urlPrefix + "/";
+            urls.add(prefix + filename); // ✅ 統一用屬性
         }
-
         return Map.of("urls", urls);
     }
 }

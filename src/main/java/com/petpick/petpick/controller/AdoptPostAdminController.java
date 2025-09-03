@@ -1,20 +1,16 @@
 package com.petpick.petpick.controller;
 
-import com.petpick.petpick.entity.AdoptPost;
-import com.petpick.petpick.model.enums.PostStatus;
-import com.petpick.petpick.repository.PostReviewRepository;
-import com.petpick.petpick.service.AdoptPostService;
-import com.petpick.petpick.service.MyUserDetails;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+
+import com.petpick.petpick.repository.PostReviewRepository;
+import com.petpick.petpick.service.AdoptPostService;
 
 import jakarta.servlet.http.HttpSession;
 
