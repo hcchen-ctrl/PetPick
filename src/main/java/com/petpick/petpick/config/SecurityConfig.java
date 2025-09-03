@@ -1,10 +1,8 @@
 package com.petpick.petpick.config;
 
-import com.petpick.petpick.JWT.JwtAuthenticationFilter;
-import com.petpick.petpick.JWT.JwtUtil;
-import com.petpick.petpick.handle.MyAccessDeniedHandler;
-import com.petpick.petpick.service.CustomOAuth2UserService;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,8 +24,12 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.io.IOException;
-import java.util.List;
+import com.petpick.petpick.JWT.JwtAuthenticationFilter;
+import com.petpick.petpick.JWT.JwtUtil;
+import com.petpick.petpick.handle.MyAccessDeniedHandler;
+import com.petpick.petpick.service.CustomOAuth2UserService;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
@@ -141,6 +143,9 @@ public class SecurityConfig {
 
                 // ✅ 其他通用 API（移到最後，避免覆蓋上面的具體配置）
                 .requestMatchers("/api/user/**").authenticated()
+
+                // ✅ WebSocket 放行
+                .requestMatchers("/ws/**").permitAll()
 
                 // ✅ 所有其他 API 請求都需要認證（最後的兜底）
                 .requestMatchers("/api/**").authenticated()
