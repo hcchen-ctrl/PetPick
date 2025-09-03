@@ -57,11 +57,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException {
-        final String path = request.getRequestURI();
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
 
-        // 符合白名單的 API 直接放行（不做 JWT 解析）
+        String path = request.getRequestURI();
+        String method = request.getMethod();
+
+        // ✅ 增加除錯資訊
+        System.out.println("🔍 JWT Filter: " + method + " " + path);
+
+        // JwtAuthenticationFilter
+        if (path.equals("/api/products") && "GET".equalsIgnoreCase(method)) {
+            System.out.println("✅ 白名單路徑 (GET /api/products)，直接放行");
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // 白名單路徑直接放行
         if (isWhitelisted(path)) {
             filterChain.doFilter(request, response);
             return;

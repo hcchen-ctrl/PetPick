@@ -3,6 +3,10 @@ package com.petpick.petpick.service.mission;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.petpick.petpick.DTO.mission.MissionDetailDTO;
 import com.petpick.petpick.DTO.mission.MissionUploadRequest;
 import com.petpick.petpick.entity.mission.Mission;
@@ -13,11 +17,6 @@ import com.petpick.petpick.repository.mission.MissionImageRepository;
 import com.petpick.petpick.repository.mission.MissionRepository;
 import com.petpick.petpick.repository.mission.TagRepository;
 import com.petpick.petpick.repository.mission.UserinfoRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
-
 
 @Service
 public class MissionUploadService {
@@ -58,7 +57,6 @@ public class MissionUploadService {
         m.setPetAge(req.petAge);
         m.setPetGender("公".equals(req.petGender) ? Mission.PetGender.公 : Mission.PetGender.母);
         m.setContactPhone(req.contactPhone);
-        
 
         if (req.tags != null && !req.tags.isEmpty()) {
             List<Tag> tags = tagRepo.findAllById(req.tags);
@@ -69,19 +67,20 @@ public class MissionUploadService {
 
         Mission saved = missionRepo.saveAndFlush(m);
 
-        List<String> urls = new ArrayList<>();
+        List<MissionImage> toSave = new ArrayList<>();
         if (images != null) {
             for (MultipartFile f : images) {
                 if (f.isEmpty())
                     continue;
                 String url = fileStorage.saveMissionImage(saved.getMissionId(), f);
-                urls.add(url);
 
                 MissionImage mi = new MissionImage();
                 mi.setMission(saved);
                 mi.setImageUrl(url);
-                saved.getImages().add(mi);
+                toSave.add(mi);
             }
+            if (!toSave.isEmpty())
+                imageRepo.saveAll(toSave);
         }
         missionRepo.save(saved);
 

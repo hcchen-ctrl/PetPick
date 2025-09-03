@@ -2,11 +2,6 @@ package com.petpick.petpick.controller;
 
 import java.util.List;
 
-import com.petpick.petpick.entity.AdoptPost;
-import com.petpick.petpick.model.enums.PostStatus;
-import com.petpick.petpick.model.enums.SourceType;
-import com.petpick.petpick.repository.AdoptPostRepository;
-import com.petpick.petpick.service.MyUserDetails;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,7 +18,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import jakarta.servlet.http.HttpSession;
+import com.petpick.petpick.entity.AdoptPost;
+import com.petpick.petpick.model.enums.PostStatus;
+import com.petpick.petpick.model.enums.SourceType;
+import com.petpick.petpick.repository.AdoptPostRepository;
+import com.petpick.petpick.service.MyUserDetails;
 
 
 @RestController

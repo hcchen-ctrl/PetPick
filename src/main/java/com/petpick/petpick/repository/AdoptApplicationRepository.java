@@ -4,8 +4,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-import com.petpick.petpick.entity.AdoptApplication;
-import com.petpick.petpick.model.enums.ApplicationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +11,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.petpick.petpick.entity.AdoptApplication;
+import com.petpick.petpick.model.enums.ApplicationStatus;
 
 
 
@@ -27,6 +28,8 @@ public interface AdoptApplicationRepository extends JpaRepository<AdoptApplicati
     Page<AdoptApplication> findByApplicantUserIdAndStatus(Long uid, ApplicationStatus status, Pageable pageable);
 
     Page<AdoptApplication> findByStatus(ApplicationStatus status, Pageable pageable);
+
+    long countByPostIdAndStatus(Long postId, ApplicationStatus status);
 
     // ======= Admin 查詢（原本就有）=======
     @Query("""

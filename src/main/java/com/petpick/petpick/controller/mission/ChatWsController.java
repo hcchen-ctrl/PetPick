@@ -2,15 +2,14 @@ package com.petpick.petpick.controller.mission;
 
 import java.time.LocalDateTime;
 
-import com.petpick.petpick.DTO.mission.ChatWSPayload;
-import com.petpick.petpick.DTO.mission.MessageDTO;
-import com.petpick.petpick.service.mission.ChatService;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.RestController;
 
-
+import com.petpick.petpick.DTO.mission.ChatWSPayload;
+import com.petpick.petpick.DTO.mission.MessageDTO;
+import com.petpick.petpick.service.mission.ChatService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,11 +24,20 @@ public class ChatWsController {
 
     @MessageMapping("/chat.send")
     public void send(@Payload ChatWSPayload.ChatSendReq req) {
-        log.debug("[WS] /app/chat.send -> cid={}, sender={}, content={}", req.conversationId(), req.senderId(), req.content());
+        log.debug("[WS] /app/chat.send -> cid={}, sender={}, content={}", req.conversationId(), req.senderId(),
+                req.content());
         MessageDTO dto = chatService.send(req.conversationId(), req.senderId(), req.content());
-        ChatWSPayload.ChatEvent ev = new ChatWSPayload.ChatEvent(dto.getConversationId(), "message",
-                dto.getMessageId(), dto.getSenderId(), dto.getSenderName(),
-                dto.getContent(), dto.getCreatedAt(), null);
+        ChatWSPayload.ChatEvent ev = new ChatWSPayload.ChatEvent(
+                dto.getConversationId(), 
+                "message",
+                dto.getMessageId(), 
+                dto.getSenderId(), 
+                dto.getSenderName(),
+                dto.getContent(), 
+                dto.getCreatedAt(), 
+                null);
+        log.info("[WS] broadcast to /topic/conversations.{}", dto.getConversationId());
+
         broker.convertAndSend("/topic/conversations." + dto.getConversationId(), ev);
     }
 
@@ -39,8 +47,7 @@ public class ChatWsController {
         ChatWSPayload.ChatEvent ev = new ChatWSPayload.ChatEvent(
                 req.conversationId(), "typing",
                 null, req.senderId(), null,
-                null, LocalDateTime.now(), null
-        );
+                null, LocalDateTime.now(), null);
         broker.convertAndSend("/topic/conversations." + req.conversationId(), ev);
     }
 
@@ -51,8 +58,7 @@ public class ChatWsController {
         ChatWSPayload.ChatEvent ev = new ChatWSPayload.ChatEvent(
                 req.conversationId(), "read",
                 null, null, null,
-                null, LocalDateTime.now(), req.userId()
-        );
+                null, LocalDateTime.now(), req.userId());
         broker.convertAndSend("/topic/conversations." + req.conversationId(), ev);
     }
 }

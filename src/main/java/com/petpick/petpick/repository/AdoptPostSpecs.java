@@ -1,9 +1,10 @@
 package com.petpick.petpick.repository;
 
+import org.springframework.data.jpa.domain.Specification;
+
 import com.petpick.petpick.entity.AdoptPost;
 import com.petpick.petpick.model.enums.PostStatus;
 import com.petpick.petpick.model.enums.SourceType;
-import org.springframework.data.jpa.domain.Specification;
 
 
 public class AdoptPostSpecs {
