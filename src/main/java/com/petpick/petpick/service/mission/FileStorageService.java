@@ -41,7 +41,7 @@ public class FileStorageService {
             Path target = missionDir.resolve(filename);
             Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
 
-            return "/finalProject/mission/missionsImg/" + missionId + "/" + filename;
+            return "/mission/missionsImg/" + missionId + "/" + filename;
         } catch (IOException e) {
             throw new RuntimeException("檔案儲存失敗：" + filename, e);
         }

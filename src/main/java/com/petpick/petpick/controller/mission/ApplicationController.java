@@ -2,9 +2,6 @@ package com.petpick.petpick.controller.mission;
 
 import java.util.List;
 
-import com.petpick.petpick.DTO.mission.ApplicationItemDTO;
-import com.petpick.petpick.entity.mission.MissionApplication;
-import com.petpick.petpick.service.mission.ApplicationService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -14,8 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-
-
+import com.petpick.petpick.DTO.mission.ApplicationItemDTO;
+import com.petpick.petpick.entity.mission.MissionApplication;
+import com.petpick.petpick.service.mission.ApplicationService;
 
 @RestController
 @RequestMapping("/api/missionapplications")
@@ -43,6 +41,7 @@ public class ApplicationController {
     @PostMapping
     public Long create(@RequestParam Long missionId, @RequestParam Long applicantId) {
         return svc.create(missionId, applicantId);
+
     }
 
     // 擁有者接受/拒絕
@@ -50,6 +49,8 @@ public class ApplicationController {
     public void updateStatus(@PathVariable Long id,
             @RequestParam Long ownerId,
             @RequestParam MissionApplication.Status status) {
+        svc.updateStatusByOwner(id, ownerId, status);
+
     }
 
     // 申請者取消

@@ -109,6 +109,7 @@ public class SecurityConfig {
                 // ✅ 任務相關 API
                 .requestMatchers(HttpMethod.POST, "/api/missions/upload").permitAll()
                 .requestMatchers("/api/missions/**").authenticated()
+                .requestMatchers("/mission/missionsImg/**").permitAll()
 
                 // ✅ 商品相關 API
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
@@ -150,6 +151,8 @@ public class SecurityConfig {
 
                 // ✅ 所有其他 API 請求都需要認證（最後的兜底）
                 .requestMatchers("/api/**").authenticated()
+
+                .requestMatchers("/error").permitAll()
 
                 // 其他請求（非 API）需要認證
                 .anyRequest().authenticated());

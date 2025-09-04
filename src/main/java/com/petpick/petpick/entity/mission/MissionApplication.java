@@ -41,7 +41,7 @@ public class MissionApplication {
     private LocalDateTime applyTime;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('pending','accepted','rejected')", nullable = false)
+    @Column(columnDefinition = "ENUM('PENDING','ACCEPTED','REJECTED')", nullable = false)
     private Status status;
 
     @Column(nullable = false)

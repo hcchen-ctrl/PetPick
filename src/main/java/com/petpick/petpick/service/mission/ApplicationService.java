@@ -4,6 +4,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.petpick.petpick.DTO.mission.ApplicationItemDTO;
 import com.petpick.petpick.entity.mission.Mission;
 import com.petpick.petpick.entity.mission.MissionApplication;
@@ -11,13 +16,11 @@ import com.petpick.petpick.entity.mission.UserInfo;
 import com.petpick.petpick.repository.mission.MissionApplicationRepository;
 import com.petpick.petpick.repository.mission.MissionRepository;
 import com.petpick.petpick.repository.mission.UserinfoRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 
 
 @Service
 public class ApplicationService {
+    private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
 
     private final MissionApplicationRepository appRepo;
     private final MissionRepository missionRepo;
@@ -92,9 +95,12 @@ public class ApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("application not found: " + applicationId));
         if (!a.getOwner().getUserId().equals(ownerId))
             throw new SecurityException("not owner");
-        if (status == MissionApplication.Status.PENDING)  // ✅ 正常，不會紅字
+        if (status == MissionApplication.Status.PENDING) 
             throw new IllegalArgumentException("invalid status");
+        log.info("[APP] updateStatus start appId={}, ownerId={}, old={}, new= {}", applicationId, ownerId, a.getStatus(), status);
         a.setStatus(status);
+        appRepo.saveAndFlush(a);
+        log.info("[APP] updateStatus done appId={}, ownerId={}, now={}", applicationId, ownerId, a.getStatus());
     }
 
     @Transactional
