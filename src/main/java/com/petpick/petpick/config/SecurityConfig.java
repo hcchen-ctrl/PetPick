@@ -149,14 +149,14 @@ public class SecurityConfig {
                                     "\"timestamp\": \"" + java.time.Instant.now() + "\"" +
                                     "}");
                             response.getWriter().flush();
-                        } catch (IOException e) {
+                        } catch (Exception e) {
                             System.err.println("無法寫入錯誤回應: " + e.getMessage());
                         }
                     } else {
                         // 非 API 請求才重定向
                         try {
                             response.sendRedirect("/loginpage.html");
-                        } catch (IOException e) {
+                        } catch (Exception e) {
                             System.err.println("重定向失敗: " + e.getMessage());
                         }
                     }
