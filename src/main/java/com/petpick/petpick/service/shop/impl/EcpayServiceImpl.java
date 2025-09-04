@@ -1,3 +1,4 @@
+// File: src/main/java/com/petpick/petpick/service/shop/impl/EcpayServiceImpl.java
 package com.petpick.petpick.service.shop.impl;
 
 import java.time.LocalDateTime;
@@ -46,22 +47,39 @@ public class EcpayServiceImpl implements EcpayService {
             }
         });
 
+        // 若是超取付款（cvs_cod），就不該走信用卡金流
+        final String shipType = nzo(o.getShippingType()).toLowerCase();
+        if ("cvs_cod".equals(shipType)) {
+            throw new IllegalStateException("此訂單為超商取貨付款，無需信用卡金流");
+        }
+
         // 2) 組必要欄位
         String itemName = (o.getItems() == null || o.getItems().isEmpty())
                 ? "PetPick 訂單"
                 : o.getItems().stream()
-                        .map(it -> {
-                            String n = it.getPname();
-                            return (n == null || n.isBlank()) ? ("商品" + it.getProductId()) : n;
-                        })
-                        .collect(Collectors.joining("#")); // 多品項用 # 接
+                    .map(it -> {
+                        String n = it.getPname();
+                        return (n == null || n.isBlank()) ? ("商品" + it.getProductId()) : n;
+                    })
+                    .collect(Collectors.joining("#")); // 多品項用 # 接
 
         LocalDateTime tradeTime = (o.getCreatedAt() != null) ? o.getCreatedAt() : LocalDateTime.now();
-        int totalAmount = (o.getTotalPrice() == null) ? 0 : o.getTotalPrice();
+
+        // ★ 總金額必須是「含運」且為整數（ECPay 規定）
+        int totalAmount = safeInt(o.getTotalPrice());
+        if (totalAmount <= 0) {
+            // 後援：遇到舊單或例外，至少用品項小計；宅配再補預設運費 80
+            int items = (o.getItems() == null) ? 0 :
+                    o.getItems().stream().mapToInt(it -> safeInt(it.getUnitPrice()) * Math.max(0, safeInt(it.getQuantity()))).sum();
+            int fallbackShip = "address".equalsIgnoreCase(shipType) ? 80 : 0;
+            totalAmount = Math.max(1, items + fallbackShip);
+            log.warn("[ECPay] orderId={} totalPrice 為 0，使用後援金額 items={} + ship={} => {}",
+                    orderId, items, fallbackShip, totalAmount);
+        }
 
         String merchantId = prop.getPayment().getMerchantId();
-        String hashKey = prop.getPayment().getHashKey();
-        String hashIv = prop.getPayment().getHashIv();
+        String hashKey    = prop.getPayment().getHashKey();
+        String hashIv     = prop.getPayment().getHashIv();
 
         // 3) URL（優先吃 application.properties，沒填才用 origin 組 SPA 路徑）
         String returnUrl = firstNonBlank(prop.getReturnUrl(), null);
@@ -72,16 +90,17 @@ public class EcpayServiceImpl implements EcpayService {
                 prop.getClientBackUrl(),
                 (origin != null && !origin.isBlank()) ? origin + "/cart" : null);
 
-        // 重要：打 log 確認實際送出去的 URL（方便排查 localhost 遺留）
+        // 打 log 確認實際送出去的 URL
         log.info("[Pay-URLS] ReturnURL={}, OrderResultURL={}, ClientBackURL={}",
                 returnUrl, orderResultUrl, clientBackUrl);
+
         // 4) 取得/寫入唯一 MerchantTradeNo，並回存 DB（關鍵！）
         var ord = orderRepo.findById(orderId).orElseThrow();
         String mtn = ord.getMerchantTradeNo();
         if (mtn == null || mtn.isBlank()) {
             mtn = buildMerchantTradeNo(orderId); // ≤ 20
             ord.setMerchantTradeNo(mtn);
-            orderRepo.save(ord); // ★ 必須回存，列表/查詢才看得到
+            orderRepo.save(ord); // ★ 必須回存
         }
 
         // 5) 組參數
@@ -90,7 +109,7 @@ public class EcpayServiceImpl implements EcpayService {
         p.put("MerchantTradeNo", mtn);
         p.put("MerchantTradeDate", tradeTime.format(FMT));
         p.put("PaymentType", "aio");
-        p.put("TotalAmount", String.valueOf(totalAmount));
+        p.put("TotalAmount", String.valueOf(totalAmount)); // ★ 含運總額
         p.put("TradeDesc", "PetPickCheckout");
         p.put("ItemName", itemName);
         p.put("ReturnURL", returnUrl);
@@ -123,19 +142,14 @@ public class EcpayServiceImpl implements EcpayService {
     private static Map<String, String> compact(Map<String, String> src) {
         Map<String, String> out = new LinkedHashMap<>();
         src.forEach((k, v) -> {
-            if (v != null && !v.isBlank())
-                out.put(k, v);
+            if (v != null && !v.isBlank()) out.put(k, v);
         });
         return out;
     }
 
     private static String firstNonBlank(String... vals) {
-        if (vals == null)
-            return "";
-        for (String v : vals) {
-            if (v != null && !v.isBlank())
-                return v;
-        }
+        if (vals == null) return "";
+        for (String v : vals) if (v != null && !v.isBlank()) return v;
         return "";
     }
 
@@ -168,8 +182,7 @@ public class EcpayServiceImpl implements EcpayService {
     }
 
     private static String escapeHtml(String s) {
-        if (s == null)
-            return "";
+        if (s == null) return "";
         StringBuilder out = new StringBuilder(s.length() + 16);
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
@@ -188,4 +201,7 @@ public class EcpayServiceImpl implements EcpayService {
     private static String safe4(String s) {
         return (s == null || s.length() < 4) ? "null" : s.substring(0, 2) + "**" + s.substring(s.length() - 2);
     }
+
+    private static String nzo(String s) { return s == null ? "" : s; }
+    private static int safeInt(Integer n) { return n == null ? 0 : n; }
 }
