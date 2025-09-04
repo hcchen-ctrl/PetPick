@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 public class AdoptApplicationAdminController {
 
     private final AdoptApplicationService svc;
+    private final com.petpick.petpick.service.PetReportSyncService reportSync;
 
     private void requireAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -65,6 +66,9 @@ public class AdoptApplicationAdminController {
         requireAdmin();
         Long reviewerId = getCurrentUserId();
         svc.approve(id, reviewerId);
+
+        // ★ 只補這一行：核准後同步回報名單（若已存在會自動跳過）
+        try { reportSync.syncByApplicationId(id); } catch (Exception ignore) {}
     }
 
     @PatchMapping("/{id}/reject")
