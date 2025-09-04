@@ -77,6 +77,10 @@ public class SecurityConfig {
                         "/adopt/upload/**")
                 .permitAll()
                 .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/adopt/feedback/**",
+                                "/adopt/uploads/**",
+                                "/uploads/**" 
+                                ).permitAll()
                 // ===== 認證 & 公開 API =====
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                 .requestMatchers("/api/auth/me", "/api/auth/logout").authenticated()
