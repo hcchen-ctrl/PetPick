@@ -80,6 +80,28 @@ public class SecurityConfig {
                 // ===== 認證 & 公開 API =====
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                 .requestMatchers("/api/auth/me", "/api/auth/logout").authenticated()
+
+                // ✅ 用戶相關 API - 新增這個重要區塊！
+                .requestMatchers(HttpMethod.GET, "/api/users/avatar/**").permitAll() // 頭像可公開存取
+                .requestMatchers(HttpMethod.GET, "/api/users/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/users/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/users/**").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/users/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/users/**").authenticated()
+
+                // ✅ 任務擁有者相關 API
+                .requestMatchers("/api/owners/**").authenticated()
+
+                // ✅ 任務申請相關 API - 加入這個重要的配置！
+                .requestMatchers("/api/applications/**").authenticated()
+                .requestMatchers("/api/missionapplications/**").authenticated()
+
+                // ✅ 任務相關 API
+                .requestMatchers(HttpMethod.POST, "/api/missions/upload").permitAll()
+                .requestMatchers("/api/missions/**").authenticated()
+                .requestMatchers("/mission/missionsImg/**").permitAll()
+
+                // ✅ 商品相關 API
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
@@ -120,8 +142,11 @@ public class SecurityConfig {
                 // 其餘 API 需要登入
                 .requestMatchers("/api/**").authenticated()
 
-                // 後端不再提供任何頁面/靜態資源：全部拒絕
-                .anyRequest().denyAll());
+                .requestMatchers("/error").permitAll()
+
+                .requestMatchers("/error").permitAll()
+
+                .anyRequest().authenticated());
 
         // ✅ 修正異常處理 - 確保 API 請求不會被重定向
         http.exceptionHandling(exception -> exception

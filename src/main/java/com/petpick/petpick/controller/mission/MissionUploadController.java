@@ -3,16 +3,17 @@ package com.petpick.petpick.controller.mission;
 import java.io.IOException;
 import java.util.List;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.petpick.petpick.DTO.mission.MissionDetailDTO;
-import com.petpick.petpick.DTO.mission.MissionUploadRequest;
-import com.petpick.petpick.service.mission.MissionUploadService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.petpick.petpick.DTO.mission.MissionDetailDTO;
+import com.petpick.petpick.DTO.mission.MissionUploadRequest;
+import com.petpick.petpick.service.mission.MissionUploadService;
 
 
 
@@ -35,7 +36,7 @@ public class MissionUploadController {
             @RequestPart(value = "images", required = false) List<MultipartFile> images
     ) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        mapper.findAndRegisterModules(); // ✅ 支援 JavaTime (LocalDateTime)
+        mapper.findAndRegisterModules(); 
         MissionUploadRequest dto = mapper.readValue(data, MissionUploadRequest.class);
 
         return missionUploadService.createMission(dto, images);
