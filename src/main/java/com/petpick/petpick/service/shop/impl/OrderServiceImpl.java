@@ -8,7 +8,9 @@ import com.petpick.petpick.DTO.shop.CartProductDTO;
 import com.petpick.petpick.DTO.shop.CheckoutRequest;
 import com.petpick.petpick.DTO.shop.OrderDTO;
 import com.petpick.petpick.DTO.shop.UpdateOrderStatusRequest;
+import com.petpick.petpick.entity.UserEntity;
 import com.petpick.petpick.entity.shop.*;
+import com.petpick.petpick.repository.UserRepository;
 import com.petpick.petpick.repository.shop.*;
 import com.petpick.petpick.service.shop.OrderService;
 import com.petpick.petpick.service.shop.ShoppingCartService;
@@ -34,6 +36,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderShipmentRepository shipmentRepo;
     private final OrderPaymentRepository paymentRepo;
     private final OrderStatusHistoryRepository statusHistoryRepo;
+    private final UserRepository userRepo;
+
 
     // ---------------- Commands ----------------
 
@@ -59,9 +63,14 @@ public class OrderServiceImpl implements OrderService {
         }
         int totalInt = Math.max(0, (int) Math.round(total));
 
-        // 3) 建立訂單（先存訂單，再存出貨）
+        // 3) 建立訂單
         Order order = new Order();
-        order.setUserId(userId);
+
+// 從 repo 抓 userEntityObj
+        UserEntity userEntityObj = userRepo.findById(userId.longValue())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        order.setUser(userEntityObj);
+
         order.setTotalPrice(totalInt);
         order.setStatus("PENDING");
         order.setAddr(req.getAddr());
@@ -69,7 +78,9 @@ public class OrderServiceImpl implements OrderService {
         order.setReceiverPhone(req.getReceiverPhone());
         order.setShippingType(req.getShippingType());
         order.setLogisticsStatus("CREATED");
+
         order = orderRepo.save(order);
+
 
         // 4) 建立明細
         for (CartProductDTO it : cartItems) {
@@ -379,17 +390,18 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void commitReservation(Integer orderId) {
-        // 付款成功後清空購物車（依據訂單 userId）
         Order o = orderRepo.findById(orderId).orElseThrow();
-        Integer userId = o.getUserId();
-        if (userId != null) {
+        UserEntity userEntityObj = o.getUser(); // 直接拿訂單的 user
+
+        if (userEntityObj != null) {
             try {
-                cartService.clearCart(userId);
+                cartService.clearCart(userEntityObj.getUserid().intValue());
             } catch (Exception ignore) {
             }
         }
         // TODO: 若有庫存保留，這裡做正式扣減
     }
+
 
     @Override
     @Transactional

@@ -1,5 +1,6 @@
 package com.petpick.petpick.config;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -183,12 +184,16 @@ public class SecurityConfig {
                             System.err.println("無法寫入錯誤回應: " + e.getMessage());
                         }
                     } else {
-                        // 非 API 請求才重定向
-                        try {
-                            response.sendRedirect("/loginpage.html");
-                        } catch (Exception e) {
-                            System.err.println("重定向失敗: " + e.getMessage());
-                        }
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{" +
+                                "\"error\": \"Unauthorized\"," +
+                                "\"message\": \"Login required\"," +
+                                "\"path\": \"" + requestURI + "\"," +
+                                "\"method\": \"" + request.getMethod() + "\"," +
+                                "\"timestamp\": \"" + java.time.Instant.now() + "\"" +
+                                "}");
+                        response.getWriter().flush();
                     }
                 })
                 .accessDeniedHandler(myAccessDeniedHandler));

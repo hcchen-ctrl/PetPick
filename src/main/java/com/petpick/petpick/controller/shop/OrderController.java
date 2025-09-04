@@ -27,9 +27,10 @@ public class OrderController {
 
     /** 訂單總覽（某使用者） */
     @GetMapping("/user/{userId}")
-    public List<OrderSummaryDTO> list(@PathVariable Integer userId) {
+    public List<OrderSummaryDTO> list(@PathVariable Long userId) {
         return orderQueryService.listByUser(userId);
     }
+
 
     /** 訂單抬頭＋可能含明細 */
     @GetMapping("/{orderId}")
