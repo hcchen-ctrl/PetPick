@@ -77,6 +77,7 @@ public class SecurityConfig {
                         "/adopt/upload/**")
                 .permitAll()
                 .requestMatchers("/ws/**").permitAll()
+                // 領養與回報專案的靜態圖
                 .requestMatchers("/adopt/feedback/**",
                                 "/adopt/uploads/**",
                                 "/uploads/**" 
