@@ -1,6 +1,11 @@
 package com.petpick.petpick.entity;
 
-import com.petpick.petpick.model.enums.*;
+import com.petpick.petpick.model.enums.AgeLimit;
+import com.petpick.petpick.model.enums.ContactMethod;
+import com.petpick.petpick.model.enums.NeuterStatus;
+import com.petpick.petpick.model.enums.PostStatus;
+import com.petpick.petpick.model.enums.SourceType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

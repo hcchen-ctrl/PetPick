@@ -3,22 +3,22 @@ package com.petpick.petpick.service;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus; // 修正為 UserEntity
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.petpick.petpick.DTO.ApplicationDTO;
 import com.petpick.petpick.entity.AdoptApplication;
-import com.petpick.petpick.entity.AdoptPost;
-import com.petpick.petpick.entity.UserEntity; // 修正為 UserEntity
+import com.petpick.petpick.entity.AdoptPost; // 修正為 UserRepository
 import com.petpick.petpick.model.enums.ApplicationStatus;
 import com.petpick.petpick.model.enums.PostStatus;
 import com.petpick.petpick.model.enums.SourceType;
 import com.petpick.petpick.repository.AdoptApplicationRepository;
 import com.petpick.petpick.repository.AdoptPostRepository;
-import com.petpick.petpick.repository.UserRepository; // 修正為 UserRepository
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,6 +31,7 @@ public class AdoptApplicationService {
     private final AdoptPostRepository postRepo;
 
     // 送出申請（官方貼文才開放）
+    @Transactional
     public ApplicationDTO apply(Long postId, Long uid, String message){
         AdoptPost post = postRepo.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "貼文不存在"));
@@ -46,32 +47,41 @@ public class AdoptApplicationService {
         if (appRepo.existsByPostIdAndStatus(postId, ApplicationStatus.approved))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "此貼文已完成配對");
 
-        // 先找是否已有舊紀錄
-        var existed = appRepo.findTopByPostIdAndApplicantUserIdOrderByIdDesc(postId, uid).orElse(null);
-        if (existed != null) {
-            if (existed.getStatus() == ApplicationStatus.pending || existed.getStatus() == ApplicationStatus.approved) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "你已申請過了");
+        try {
+            // 先找是否已有舊紀錄
+            var existed = appRepo.findTopByPostIdAndApplicantUserIdOrderByIdDesc(postId, uid).orElse(null);
+            if (existed != null) {
+                // 已申請中/已通過 → 禁止重送
+                if (existed.getStatus() == ApplicationStatus.pending || existed.getStatus() == ApplicationStatus.approved) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "你已申請過了");
+                }
+                // 已退回/已取消 → 直接重開同一筆
+                existed.setStatus(ApplicationStatus.pending);
+                existed.setMessage(message);
+                existed.setReviewedByEmployeeId(null);
+                existed.setApprovedAt(null);
+                existed.setRejectedAt(null);
+                existed.setRejectReason(null);
+                existed.setUpdatedAt(LocalDateTime.now());
+                var saved = appRepo.save(existed);
+                return ApplicationDTO.from(saved, post);
             }
-            // 讓「已退回/已取消」可以重新送出（避免 unique 衝突）
-            existed.setStatus(ApplicationStatus.pending);
-            existed.setMessage(message);
-            existed.setReviewedByEmployeeId(null);
-            existed.setApprovedAt(null);
-            existed.setRejectedAt(null);
-            existed.setRejectReason(null);
-            existed.setUpdatedAt(LocalDateTime.now());
-            var saved = appRepo.save(existed);
-            return ApplicationDTO.from(saved, post);
-        }
 
-        AdoptApplication a = new AdoptApplication();
-        a.setPostId(postId);
-        a.setApplicantUserId(uid);
-        a.setMessage(message);
-        a.setStatus(ApplicationStatus.pending);
-        var saved = appRepo.save(a);
-        return ApplicationDTO.from(saved, post);
+            // 第一次申請 → 新增
+            AdoptApplication a = new AdoptApplication();
+            a.setPostId(postId);
+            a.setApplicantUserId(uid);
+            a.setMessage(message);
+            a.setStatus(ApplicationStatus.pending);
+            var saved = appRepo.save(a);
+            return ApplicationDTO.from(saved, post);
+
+        } catch (DataIntegrityViolationException e) {
+            // 少數併發情況下同人連點造成唯一鍵衝突 → 統一回 409
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "你已申請過了");
+        }
     }
+
 
     // 我的申請列表
     public Page<ApplicationDTO> myApps(Long uid, String status, Pageable pageable){

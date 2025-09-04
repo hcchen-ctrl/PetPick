@@ -1,11 +1,8 @@
 package com.petpick.petpick.service;
 
-import com.petpick.petpick.DTO.PostPageDTO;
-import com.petpick.petpick.entity.AdoptPost;
-import com.petpick.petpick.entity.PostReview;
-import com.petpick.petpick.model.enums.PostStatus;
-import com.petpick.petpick.repository.AdoptPostRepository;
-import com.petpick.petpick.repository.PostReviewRepository;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -13,15 +10,16 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
+
+import com.petpick.petpick.entity.AdoptPost;
+import com.petpick.petpick.entity.PostReview;
+import com.petpick.petpick.model.enums.PostStatus;
+import com.petpick.petpick.repository.AdoptPostRepository;
+import com.petpick.petpick.repository.PostReviewRepository;
 
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class AdoptPostService {

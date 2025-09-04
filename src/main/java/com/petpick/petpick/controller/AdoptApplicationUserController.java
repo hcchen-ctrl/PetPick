@@ -2,17 +2,12 @@ package com.petpick.petpick.controller;
 
 import java.util.Map;
 
-import com.petpick.petpick.DTO.ApplicationDTO;
-import com.petpick.petpick.service.AdoptApplicationService;
-import com.petpick.petpick.service.MyUserDetails;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -23,7 +18,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.servlet.http.HttpSession;
+import com.petpick.petpick.DTO.ApplicationDTO;
+import com.petpick.petpick.service.AdoptApplicationService;
+import com.petpick.petpick.service.MyUserDetails;
+
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 
