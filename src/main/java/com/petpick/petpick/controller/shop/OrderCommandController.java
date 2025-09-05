@@ -1,33 +1,23 @@
 package com.petpick.petpick.controller.shop;
 
-import java.util.Map;
-
 import com.petpick.petpick.DTO.shop.CheckoutRequest;
 import com.petpick.petpick.DTO.shop.OrderDTO;
 import com.petpick.petpick.DTO.shop.OrderFailRequest;
 import com.petpick.petpick.entity.shop.Order;
 import com.petpick.petpick.repository.shop.OrderRepository;
 import com.petpick.petpick.service.shop.OrderService;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-
-
-import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -38,32 +28,73 @@ public class OrderCommandController {
     private final OrderService orderService;
     private final OrderRepository orderRepo;
 
+    /**
+     * 建立訂單 (Checkout)
+     */
     @PostMapping(path = "/checkout", consumes = "application/json", produces = "application/json")
     public OrderDTO checkout(@RequestBody CheckoutRequest req, HttpServletRequest http) {
         Integer uid = resolveUserId(req, http);
         if (uid == null) {
-            // 比 IllegalArgumentException 更貼近語意
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Please sign in");
         }
-        req.setUserId(uid); // ★ 由後端統一決定 userId
+        req.setUserId(uid); // ★ 從後端統一決定 userId
         return orderService.checkout(req);
     }
 
+    /**
+     * 使用者取消訂單
+     */
     @PostMapping("/{orderId}/cancel")
-    public ResponseEntity<?> userCancel(@PathVariable Integer orderId,
+    public ResponseEntity<?> userCancel(
+            @PathVariable Integer orderId,
             @RequestBody(required = false) AdminOrdersController.CancelReq req,
             @RequestHeader(value = "X-Demo-UserId", required = false) Integer demoUid) {
+
         var o = orderRepo.findById(orderId).orElseThrow();
+
         // 驗證：這筆訂單屬於該使用者
-        if (demoUid != null && !demoUid.equals(o.getUserId())) {
+        if (demoUid != null && o.getUser() != null && !demoUid.equals(o.getUser().getUserid())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        // （可選）再檢查狀態是否可取消
+
         orderService.cancel(orderId, req != null ? req.getReason() : null);
         return ResponseEntity.noContent().build();
     }
 
-    /** 嘗試從 req、SecurityContext、Session、Header 依序取得 userId */
+    /**
+     * 訂單付款失敗
+     */
+    @PatchMapping("/{orderId}/fail")
+    public ResponseEntity<?> markFail(
+            @PathVariable Integer orderId,
+            @RequestBody(required = false) OrderFailRequest req,
+            @RequestHeader(value = "X-Demo-UserId", required = false) Integer demoUid) {
+
+        Order o = orderRepo.findById(orderId).orElse(null);
+        if (o == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("ok", false, "error", "Order not found"));
+        }
+
+        if (demoUid != null && o.getUser() != null && !demoUid.equals(o.getUser().getUserid())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("ok", false, "error", "Forbidden"));
+        }
+
+        o.setStatus("Failed");
+        orderRepo.save(o);
+
+        log.warn("[OrderFail] orderId={} reason={} detail={}",
+                orderId,
+                req != null ? req.getReason() : "",
+                req != null ? req.getDetail() : "");
+
+        return ResponseEntity.ok(Map.of("ok", true, "status", o.getStatus()));
+    }
+
+    /**
+     * 嘗試從 req、SecurityContext、Session、Header 依序取得 userId
+     */
     private Integer resolveUserId(CheckoutRequest req, HttpServletRequest http) {
         // 1) 舊前端相容
         if (req.getUserId() != null)
@@ -78,22 +109,11 @@ public class OrderCommandController {
                     String name = ud.getUsername();
                     if (name != null && name.matches("\\d+"))
                         return Integer.valueOf(name);
-                    // 若你的 UserDetails 有 getId()
-                    try {
-                        var m = principal.getClass().getMethod("getId");
-                        Object id = m.invoke(principal);
-                        if (id instanceof Integer i)
-                            return i;
-                        if (id instanceof String s && s.matches("\\d+"))
-                            return Integer.valueOf(s);
-                    } catch (Exception ignore) {
-                    }
                 }
             }
-        } catch (Exception ignore) {
-        }
+        } catch (Exception ignore) {}
 
-        // 3) Session（若你登入時有 setAttribute("userId", ...)）
+        // 3) Session
         var session = http.getSession(false);
         if (session != null) {
             Object s = session.getAttribute("userId");
@@ -109,34 +129,5 @@ public class OrderCommandController {
             return Integer.valueOf(demo);
 
         return null;
-    }
-
-    @PatchMapping("/{orderId}/fail")
-    public ResponseEntity<?> markFail(@PathVariable Integer orderId,
-            @RequestBody(required = false) OrderFailRequest req,
-            @RequestHeader(value = "X-Demo-UserId", required = false) Integer demoUid) {
-        Order o = orderRepo.findById(orderId).orElse(null);
-        if (o == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("ok", false, "error", "Order not found"));
-        }
-
-        // （可選）Demo 使用者檢查
-        if (demoUid != null && o.getUserId() != null && !o.getUserId().equals(demoUid)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("ok", false, "error", "Forbidden"));
-        }
-
-        // 只更新狀態
-        o.setStatus("Failed"); // 你的系統若用別的字串（例如 "FAILED" / "付款失敗"）就改這裡
-        orderRepo.save(o);
-
-        // 把原因寫進 log，日後要查可從 log 或加一張 OrderLog 表
-        log.warn("[OrderFail] orderId={} reason={} detail={}",
-                orderId,
-                req != null ? req.getReason() : "",
-                req != null ? req.getDetail() : "");
-
-        return ResponseEntity.ok(Map.of("ok", true, "status", o.getStatus()));
     }
 }

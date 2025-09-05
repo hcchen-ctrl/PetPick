@@ -11,6 +11,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -51,6 +52,18 @@ public class SecurityConfig {
         return fw;
     }
 
+    // ✅ 忽略純靜態資源（完全不進 Security/不會被 JWT Filter 影響）
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return web -> web.ignoring().requestMatchers(
+            "/adopt/uploads/**",   // 靜態上傳圖片
+            "/images/**",
+            "/css/**",
+            "/js/**",
+            "/favicon.ico"
+        );
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         // API only：無狀態，關 CSRF / 表單 / Basic
@@ -73,10 +86,15 @@ public class SecurityConfig {
                         "/api/logistics/home/reply",
                         "/api/logistics/home/ecpay/reply",
                         "/api/logistics/cvs/store-return",
-                        "/api/logistics/cvs/ecpay/create-return",
-                        "/adopt/upload/**")
+                        "/api/logistics/cvs/ecpay/create-return"
+                        )
                 .permitAll()
                 .requestMatchers("/ws/**").permitAll()
+                // 領養與回報專案的靜態圖
+                .requestMatchers("/adopt/feedback/**",
+                                "/adopts/uploads/**",
+                                "/uploads/**" 
+                                ).permitAll()
                 // ===== 認證 & 公開 API =====
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                 .requestMatchers("/api/auth/me", "/api/auth/logout").authenticated()
@@ -178,12 +196,16 @@ public class SecurityConfig {
                             System.err.println("無法寫入錯誤回應: " + e.getMessage());
                         }
                     } else {
-                        // 非 API 請求才重定向
-                        try {
-                            response.sendRedirect("/loginpage.html");
-                        } catch (Exception e) {
-                            System.err.println("重定向失敗: " + e.getMessage());
-                        }
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{" +
+                                "\"error\": \"Unauthorized\"," +
+                                "\"message\": \"Login required\"," +
+                                "\"path\": \"" + requestURI + "\"," +
+                                "\"method\": \"" + request.getMethod() + "\"," +
+                                "\"timestamp\": \"" + java.time.Instant.now() + "\"" +
+                                "}");
+                        response.getWriter().flush();
                     }
                 })
                 .accessDeniedHandler(myAccessDeniedHandler));

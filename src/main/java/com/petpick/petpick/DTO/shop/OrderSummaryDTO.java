@@ -21,4 +21,8 @@ public class OrderSummaryDTO {
     private String paymentGateway;
     private String tradeNo;
     private String logisticsStatus;
+
+    // 🔽 新增
+    private Long userId;
+    private String userName;
 }

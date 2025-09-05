@@ -15,7 +15,7 @@ public class UserDao {
     private UserRepository userRepository;
 
     public User findByUserAccountemail(String accountemail) {
-        UserEntity userEntity = userRepository.findByAccountemail(accountemail);
+        UserEntity userEntity = userRepository.findByAccountemail(accountemail).orElse(null);
 
         if (userEntity == null) return null;
 

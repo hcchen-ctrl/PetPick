@@ -28,8 +28,8 @@ public class OrderQueryService {
     private final OrderDetailRepository detailRepo;
 
     /** 訂單總覽（列表） */
-    public List<OrderSummaryDTO> listByUser(Integer userId) {
-        return orderRepo.findByUserIdOrderByCreatedAtDesc(userId).stream()
+    public List<OrderSummaryDTO> listByUser(Long userId) {
+        return orderRepo.findByUserUseridOrderByCreatedAtDesc(userId).stream()
                 .map(this::toSummary)
                 .toList();
     }

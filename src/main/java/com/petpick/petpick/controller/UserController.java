@@ -1,55 +1,114 @@
 package com.petpick.petpick.controller;
 
+import com.petpick.petpick.DTO.User.BatchAccountStatusRequest;
+import com.petpick.petpick.DTO.User.BatchBlacklistStatusRequest;
+import com.petpick.petpick.DTO.User.PasswordResetRequest;
+import com.petpick.petpick.entity.UserEntity;
+import com.petpick.petpick.service.UserService;
+import com.petpick.petpick.service.UserServiceV2;
+import jakarta.persistence.EntityNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
-import com.petpick.petpick.entity.UserEntity;
-import com.petpick.petpick.repository.UserRepository;
-
+// UserController.java
 @RestController
-@RequestMapping("/api/user") // 單數，和你 Security 的 "/api/user/**" 對齊
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@RequestMapping("/api/users")
+@PreAuthorize("hasRole('ADMIN')")
 public class UserController {
 
-    private final UserRepository userRepository;
-    public UserController(UserRepository userRepository){ this.userRepository = userRepository; }
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private UserServiceV2 userServiceV2;
 
-    @GetMapping("/me")
-    public ResponseEntity<?> me() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    // 分頁查詢會員列表
+    @GetMapping
+    public ResponseEntity<Page<UserEntity>> getUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String isaccount,
+            @RequestParam(required = false) String isblacklist,
+            @RequestParam(required = false) String role) {
+
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<UserEntity> users = userServiceV2.searchUsers(q, isaccount, isblacklist, role, pageable);
+            return ResponseEntity.ok(users);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-
-        // 取登入帳號（你專案登入帳號是 email）
-        String email;
-        Object principal = auth.getPrincipal();
-        if (principal instanceof UserDetails ud) {
-            email = ud.getUsername();         // 一般會是 email
-        } else {
-            email = auth.getName();
-        }
-
-        UserEntity u = userRepository.findByAccountemail(email);
-        if (u == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-
-        // 只回前端要用到的欄位
-        return ResponseEntity.ok(new MeDTO(
-                u.getUserid(),
-                u.getUsername(),     // 顯示名稱
-                u.getPhonenumber(),  // 手機
-                u.getAccountemail()  // email
-        ));
     }
 
-    public record MeDTO(Long id, String username, String phonenumber, String email) {}
+    // 更新會員資料
+    @PutMapping("/{userid}")
+    public ResponseEntity<String> updateUser(@PathVariable Long userid, @RequestBody UserEntity updateData) {
+        try {
+            userServiceV2.updateUser(userid, updateData);
+            return ResponseEntity.ok("更新成功");
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("更新失敗: " + e.getMessage());
+        }
+    }
+
+    // 重設密碼
+    @PutMapping("/{userid}/password")
+    public ResponseEntity<String> resetPassword(@PathVariable Long userid, @RequestBody PasswordResetRequest request) {
+        try {
+            userServiceV2.resetPassword(userid, request.getPassword());
+            return ResponseEntity.ok("密碼重設成功");
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("密碼重設失敗: " + e.getMessage());
+        }
+    }
+
+    // 批次更新帳戶狀態
+    @PostMapping("/batch-update-account-status")
+    public ResponseEntity<String> batchUpdateAccountStatus(@RequestBody BatchAccountStatusRequest request) {
+        try {
+            userServiceV2.batchUpdateAccountStatus(request.getUserids(), request.getIsaccount(), request.getReason());
+            return ResponseEntity.ok("批次更新成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("批次更新失敗: " + e.getMessage());
+        }
+    }
+
+    // 批次更新黑名單狀態
+    @PostMapping("/batch-update-blacklist-status")
+    public ResponseEntity<String> batchUpdateBlacklistStatus(@RequestBody BatchBlacklistStatusRequest request) {
+        try {
+            userServiceV2.batchUpdateBlacklistStatus(request.getUserids(), request.getIsblacklist(), request.getReason());
+            return ResponseEntity.ok("批次更新成功");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("批次更新失敗: " + e.getMessage());
+        }
+    }
+
+    // 刪除會員
+    @DeleteMapping("/{userid}")
+    public ResponseEntity<String> deleteUser(@PathVariable Long userid, @RequestParam String reason) {
+        try {
+            userServiceV2.deleteUser(userid, reason);
+            return ResponseEntity.ok("刪除成功");
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("刪除失敗: " + e.getMessage());
+        }
+    }
 }

@@ -2,12 +2,8 @@ package com.petpick.petpick.entity.shop;
 
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.petpick.petpick.entity.UserEntity;
+import jakarta.persistence.*;
 import lombok.Data;
 
 @Data
@@ -20,8 +16,10 @@ public class Order {
     @Column(name = "order_id")
     private Integer orderId;
 
-    @Column(name = "user_id", nullable = false)
-    private Integer userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "userid", nullable = false)
+    private UserEntity user;
+
 
     @Column(name = "total_price", nullable = false)
     private Integer totalPrice;
