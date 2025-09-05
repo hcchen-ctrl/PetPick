@@ -1,6 +1,5 @@
 package com.petpick.petpick.config;
 
-import java.io.IOException;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +11,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -52,6 +52,18 @@ public class SecurityConfig {
         return fw;
     }
 
+    // ✅ 忽略純靜態資源（完全不進 Security/不會被 JWT Filter 影響）
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return web -> web.ignoring().requestMatchers(
+            "/adopt/uploads/**",   // 靜態上傳圖片
+            "/images/**",
+            "/css/**",
+            "/js/**",
+            "/favicon.ico"
+        );
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         // API only：無狀態，關 CSRF / 表單 / Basic
@@ -74,13 +86,13 @@ public class SecurityConfig {
                         "/api/logistics/home/reply",
                         "/api/logistics/home/ecpay/reply",
                         "/api/logistics/cvs/store-return",
-                        "/api/logistics/cvs/ecpay/create-return",
-                        "/adopt/upload/**")
+                        "/api/logistics/cvs/ecpay/create-return"
+                        )
                 .permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 // 領養與回報專案的靜態圖
                 .requestMatchers("/adopt/feedback/**",
-                                "/adopt/uploads/**",
+                                "/adopts/uploads/**",
                                 "/uploads/**" 
                                 ).permitAll()
                 // ===== 認證 & 公開 API =====
