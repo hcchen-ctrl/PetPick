@@ -50,12 +50,31 @@ public class HelloController {
 
             // 🎯 判斷認證類型並處理
             if (authentication instanceof OAuth2AuthenticationToken) {
-                // OAuth2 認證（Google 登入）
+                // ✅ OAuth2 認證（Google 登入）
                 return handleOAuth2Authentication((OAuth2AuthenticationToken) authentication, request);
+
             } else {
-                // JWT 認證（一般登入）
-                return handleJwtAuthentication(authentication);
+                // ✅ JWT 認證（一般登入）
+                String email = authentication.getName();
+                UserEntity user = userService.findByAccountemail(email);
+
+                if (user != null) {
+                    // ⚠️ 避免回傳密碼
+                    user.setPassword(null);
+
+                    result.put("loggedIn", true);
+                    result.put("authenticated", true);
+                    result.put("authType", "jwt");
+                    result.put("email", email);
+                    result.put("user", user); // ✅ 回傳完整 UserEntity（含 gender, phone, city...）
+                } else {
+                    result.put("loggedIn", false);
+                    result.put("authenticated", false);
+                    result.put("authType", "jwt");
+                    result.put("error", "找不到使用者");
+                }
             }
+
         } else {
             result.put("loggedIn", false);
             result.put("authenticated", false);
@@ -65,6 +84,7 @@ public class HelloController {
 
         return result;
     }
+
 
     // 🔑 處理 OAuth2 認證的用戶資訊
     private Map<String, Object> handleOAuth2Authentication(OAuth2AuthenticationToken oauthToken, HttpServletRequest request) {
@@ -234,14 +254,63 @@ public class HelloController {
     @PostMapping("/auth/register")
     public Map<String, Object> register(@RequestBody @Valid RegisterRequest request) {
         Map<String, Object> response = new HashMap<>();
-        boolean success = userService.registerNewUser(request);
-        if (success) {
+
+        try {
+            // ✅ 先檢查輸入資料
+            System.out.println("📝 註冊請求: " + request.toString());
+
+            // ✅ 檢查必要欄位
+            if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+                response.put("success", false);
+                response.put("message", "姓名不能為空");
+                return response;
+            }
+
+            if (request.getAccountemail() == null || request.getAccountemail().trim().isEmpty()) {
+                response.put("success", false);
+                response.put("message", "信箱不能為空");
+                return response;
+            }
+
+            if (request.getPassword() == null || request.getPassword().length() < 6) {
+                response.put("success", false);
+                response.put("message", "密碼至少需要6個字元");
+                return response;
+            }
+
+            // ✅ 檢查信箱是否已存在
+            UserEntity existingUser = userService.findByAccountemail(request.getAccountemail());
+            if (existingUser != null) {
+                System.out.println("❌ 信箱已存在: " + request.getAccountemail());
+                response.put("success", false);
+                response.put("message", "此信箱已被註冊，請使用其他信箱");
+                return response;
+            }
+
+            // ✅ 檢查用戶名是否已存在
+            UserEntity existingUsername = userService.findByUsername(request.getUsername());
+            if (existingUsername != null) {
+                System.out.println("❌ 用戶名已存在: " + request.getUsername());
+                response.put("success", false);
+                response.put("message", "此用戶名已被使用，請選擇其他用戶名");
+                return response;
+            }
+
+            // ✅ 建立新用戶
+            UserEntity newUser = userService.createUser(request);
+            System.out.println("✅ 註冊成功: " + newUser.getUserid());
+
             response.put("success", true);
             response.put("message", "註冊成功");
-        } else {
+            response.put("userId", newUser.getUserid());
+
+        } catch (Exception e) {
+            System.err.println("❌ 註冊失敗: " + e.getMessage());
+            e.printStackTrace();
             response.put("success", false);
-            response.put("message", "註冊失敗：信箱已註冊或密碼不一致");
+            response.put("message", "註冊失敗：系統錯誤 - " + e.getMessage());
         }
+
         return response;
     }
 
@@ -274,11 +343,27 @@ public class HelloController {
         return response;
     }
 
-    // 🔧 修改個人資料（需要支援兩種認證方式）
-    @PutMapping("/user/rename")
-    public Map<String, Object> rename(@RequestBody UserEntity formUser,
-                                      Authentication authentication,
-                                      HttpServletRequest request) {
+    // ✅ 修改個人資料（用 userId，前端呼叫 /api/update/{id}）
+    @PutMapping("/users/update/{id}")
+    public Map<String, Object> updateUserById(@PathVariable Long id,
+                                              @RequestBody UserEntity formUser) {
+        Map<String, Object> response = new HashMap<>();
+
+        boolean updated = userService.updateUser(id, formUser);
+
+        response.put("success", updated);
+        response.put("message", updated ? "更新成功" : "更新失敗");
+
+        if (updated) {
+            response.put("user", userService.findById(id));
+        }
+        return response;
+    }
+
+    // ✅ 修改個人資料（支援 email / OAuth2，前端呼叫 /api/user/update）
+    @PutMapping("/user/update")
+    public Map<String, Object> updateProfile(@RequestBody UserEntity formUser,
+                                             Authentication authentication) {
         Map<String, Object> response = new HashMap<>();
 
         String email = null;
@@ -287,14 +372,16 @@ public class HelloController {
         if (authentication instanceof OAuth2AuthenticationToken) {
             OAuth2User oauthUser = ((OAuth2AuthenticationToken) authentication).getPrincipal();
             email = oauthUser.getAttribute("email");
-        } else {
+        } else if (authentication != null) {
             email = authentication.getName();
         }
 
         if (email != null) {
             boolean updated = userService.updateUserByEmail(email, formUser);
+
             response.put("success", updated);
             response.put("message", updated ? "更新成功" : "更新失敗");
+
             if (updated) {
                 response.put("user", userService.findByAccountemail(email));
             }
@@ -305,6 +392,8 @@ public class HelloController {
 
         return response;
     }
+
+
 
     // 🔒 修改密碼（需要支援兩種認證方式）
     @PostMapping("/user/change-password")
