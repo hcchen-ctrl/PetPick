@@ -44,46 +44,24 @@ public class HelloController {
     // 🔄 修改後的用戶資訊端點 - 支援 JWT + OAuth2 混合認證
     @GetMapping("/auth/me")
     public Map<String, Object> getCurrentUser(Authentication authentication, HttpServletRequest request) {
-        Map<String, Object> result = new HashMap<>();
-
         if (authentication != null && authentication.isAuthenticated()) {
-
-            // 🎯 判斷認證類型並處理
             if (authentication instanceof OAuth2AuthenticationToken) {
-                // ✅ OAuth2 認證（Google 登入）
                 return handleOAuth2Authentication((OAuth2AuthenticationToken) authentication, request);
-
             } else {
-                // ✅ JWT 認證（一般登入）
-                String email = authentication.getName();
-                UserEntity user = userService.findByAccountemail(email);
-
-                if (user != null) {
-                    // ⚠️ 避免回傳密碼
-                    user.setPassword(null);
-
-                    result.put("loggedIn", true);
-                    result.put("authenticated", true);
-                    result.put("authType", "jwt");
-                    result.put("email", email);
-                    result.put("user", user); // ✅ 回傳完整 UserEntity（含 gender, phone, city...）
-                } else {
-                    result.put("loggedIn", false);
-                    result.put("authenticated", false);
-                    result.put("authType", "jwt");
-                    result.put("error", "找不到使用者");
-                }
+                // 這裡改成呼叫 handleJwtAuthentication
+                return handleJwtAuthentication(authentication);
             }
-
-        } else {
-            result.put("loggedIn", false);
-            result.put("authenticated", false);
-            result.put("authType", "none");
-            result.put("error", "未登入");
         }
 
+        Map<String, Object> result = new HashMap<>();
+        result.put("loggedIn", false);
+        result.put("authenticated", false);
+        result.put("authType", "none");
+        result.put("error", "未登入");
         return result;
     }
+
+
 
 
     // 🔑 處理 OAuth2 認證的用戶資訊
