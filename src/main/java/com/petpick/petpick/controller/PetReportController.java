@@ -261,7 +261,7 @@ public class PetReportController {
         }
 
         String email = auth.getName();
-        UserEntity user = userRepo.findByAccountemail(email); // 直接拿實體
+        UserEntity user = userRepo.findByAccountemail(email).orElse(null);
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("code", "NOT_LOGIN"));
         }

@@ -31,13 +31,13 @@ public class UserDetialsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String accountemail) throws UsernameNotFoundException {
-        UserEntity user = userRepository.findByAccountemail(accountemail);
+        UserEntity userEntity = userRepository.findByAccountemail(accountemail).orElse(null);
 
-        if (user == null) {
+        if (userEntity == null) {
             throw new UsernameNotFoundException("User not found");
         }
 
-        return new MyUserDetails(user);
+        return new MyUserDetails(userEntity);
     }
 
 }
