@@ -224,6 +224,18 @@ public class LogisticsHomeController {
     resp.put("trackingNo", o.getTrackingNo());
     return ResponseEntity.ok(resp);
   }
+
+  @PostMapping(path = "/quote", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<Map<String, Object>> quoteShipping(@RequestBody QuoteReq req) {
+    int fee = 0;
+    if ("address".equalsIgnoreCase(req.type)) {
+      fee = (req.total != null && req.total >= 1500) ? 0 : 80;
+    }
+    Map<String, Object> resp = new LinkedHashMap<>();
+    resp.put("ok", true);
+    resp.put("fee", fee);
+    return ResponseEntity.ok(resp);
+  }
   // === NEW END ===
 
   // ===== helpers =====
@@ -262,5 +274,13 @@ public class LogisticsHomeController {
     public String error;
     public String logisticsId;
     public String trackingNo;
+  }
+
+  @Data
+  public static class QuoteReq {
+    public String type; // "address"
+    public Integer total; // 訂單總額（可做免運門檻）
+    public String zipcode; // 需要時可做外島/偏遠加價
+    public Integer weight; // 需要時可做重量級距
   }
 }
