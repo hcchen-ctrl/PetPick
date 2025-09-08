@@ -32,7 +32,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/shelters",
             "/api/ages",
             "/api/sexes",
-            "/api/products",
 
             // 金流/物流（S2S 或不需登入）
             "/api/pay/ecpay/return",
