@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.petpick.petpick.entity.AdoptPost;
 import com.petpick.petpick.model.enums.PostStatus;
+import com.petpick.petpick.model.enums.SourceType;
 
 
 public interface AdoptPostRepository
@@ -44,4 +45,14 @@ public interface AdoptPostRepository
     // 三個條件都有
     Page<AdoptPost> findByStatusAndSpeciesContainingIgnoreCaseAndTitleContainingIgnoreCase(
             PostStatus status, String species, String title, Pageable pageable);
+
+    // ★ 帶 sourceType 的版本
+    Page<AdoptPost> findBySourceType(SourceType sourceType, Pageable pageable);
+    Page<AdoptPost> findByStatusAndSourceType(PostStatus status, SourceType sourceType, Pageable pageable);
+    Page<AdoptPost> findBySpeciesContainingIgnoreCaseAndSourceType(String species, SourceType sourceType, Pageable pageable);
+    Page<AdoptPost> findByTitleContainingIgnoreCaseAndSourceType(String q, SourceType sourceType, Pageable pageable);
+    Page<AdoptPost> findByStatusAndSpeciesContainingIgnoreCaseAndSourceType(PostStatus status, String species, SourceType sourceType, Pageable pageable);
+    Page<AdoptPost> findByStatusAndTitleContainingIgnoreCaseAndSourceType(PostStatus status, String q, SourceType sourceType, Pageable pageable);
+    Page<AdoptPost> findBySpeciesContainingIgnoreCaseAndTitleContainingIgnoreCaseAndSourceType(String species, String q, SourceType sourceType, Pageable pageable);
+    Page<AdoptPost> findByStatusAndSpeciesContainingIgnoreCaseAndTitleContainingIgnoreCaseAndSourceType(PostStatus status, String species, String q, SourceType sourceType, Pageable pageable);
 }

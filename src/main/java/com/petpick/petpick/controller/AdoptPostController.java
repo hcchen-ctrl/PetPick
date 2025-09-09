@@ -238,53 +238,75 @@ public class AdoptPostController {
      * 管理員審核中心 - 取得所有貼文（支援篩選和分頁）
      * 只有管理員可以存取
      */
-    @GetMapping
-    public Page<AdoptPost> getAllPosts(@RequestParam(required = false) PostStatus status,
-                                       @RequestParam(required = false) String species,
-                                       @RequestParam(required = false) String q,
-                                       @RequestParam(defaultValue = "0") int page,
-                                       @RequestParam(defaultValue = "24") int size,
-                                       Authentication authentication) {
+@GetMapping
+public Page<AdoptPost> getAllPosts(
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) String species,
+        @RequestParam(required = false) String q,
+        @RequestParam(required = false) String source,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "24") int size,
+        Authentication authentication) {
 
-        MyUserDetails userDetails = (MyUserDetails) authentication.getPrincipal();
-        String role = userDetails.getRole();
-
-        // 只有管理員可以存取審核中心
-        if (!"ADMIN".equals(role)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "需要管理員權限");
-        }
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-
-        // 根據篩選條件查詢
-        if (status != null && species != null && !species.isEmpty() && q != null && !q.isEmpty()) {
-            // 三個條件都有
-            return postRepo.findByStatusAndSpeciesContainingIgnoreCaseAndTitleContainingIgnoreCase(
-                    status, species, q, pageable);
-        } else if (status != null && species != null && !species.isEmpty()) {
-            // 狀態 + 物種
-            return postRepo.findByStatusAndSpeciesContainingIgnoreCase(status, species, pageable);
-        } else if (status != null && q != null && !q.isEmpty()) {
-            // 狀態 + 關鍵字
-            return postRepo.findByStatusAndTitleContainingIgnoreCase(status, q, pageable);
-        } else if (species != null && !species.isEmpty() && q != null && !q.isEmpty()) {
-            // 物種 + 關鍵字
-            return postRepo.findBySpeciesContainingIgnoreCaseAndTitleContainingIgnoreCase(
-                    species, q, pageable);
-        } else if (status != null) {
-            // 只有狀態
-            return postRepo.findByStatus(status, pageable);
-        } else if (species != null && !species.isEmpty()) {
-            // 只有物種
-            return postRepo.findBySpeciesContainingIgnoreCase(species, pageable);
-        } else if (q != null && !q.isEmpty()) {
-            // 只有關鍵字
-            return postRepo.findByTitleContainingIgnoreCase(q, pageable);
-        } else {
-            // 無篩選條件，回傳所有
-            return postRepo.findAll(pageable);
-        }
+    // 只有 ADMIN
+    MyUserDetails ud = (MyUserDetails) authentication.getPrincipal();
+    if (!"ADMIN".equals(ud.getRole())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "需要管理員權限");
     }
 
+    // 轉 enum（大小寫不敏感；傳不對就當 null）
+    PostStatus st = parseEnum(status, PostStatus.class);
+    SourceType src = parseEnum(source, SourceType.class);
 
+    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+    // ---- 含 source 的組合 ----
+    if (src != null) {
+        if (st != null && has(species) && has(q))
+            return postRepo.findByStatusAndSpeciesContainingIgnoreCaseAndTitleContainingIgnoreCaseAndSourceType(st, species, q, src, pageable);
+        if (st != null && has(species))
+            return postRepo.findByStatusAndSpeciesContainingIgnoreCaseAndSourceType(st, species, src, pageable);
+        if (st != null && has(q))
+            return postRepo.findByStatusAndTitleContainingIgnoreCaseAndSourceType(st, q, src, pageable);
+        if (has(species) && has(q))
+            return postRepo.findBySpeciesContainingIgnoreCaseAndTitleContainingIgnoreCaseAndSourceType(species, q, src, pageable);
+        if (st != null)
+            return postRepo.findByStatusAndSourceType(st, src, pageable);
+        if (has(species))
+            return postRepo.findBySpeciesContainingIgnoreCaseAndSourceType(species, src, pageable);
+        if (has(q))
+            return postRepo.findByTitleContainingIgnoreCaseAndSourceType(q, src, pageable);
+        return postRepo.findBySourceType(src, pageable);
+    }
+
+    // ---- 沒帶 source 的組合 ----
+    if (st != null && has(species) && has(q))
+        return postRepo.findByStatusAndSpeciesContainingIgnoreCaseAndTitleContainingIgnoreCase(st, species, q, pageable);
+    if (st != null && has(species))
+        return postRepo.findByStatusAndSpeciesContainingIgnoreCase(st, species, pageable);
+    if (st != null && has(q))
+        return postRepo.findByStatusAndTitleContainingIgnoreCase(st, q, pageable);
+    if (has(species) && has(q))
+        return postRepo.findBySpeciesContainingIgnoreCaseAndTitleContainingIgnoreCase(species, q, pageable);
+    if (st != null)
+        return postRepo.findByStatus(st, pageable);
+    if (has(species))
+        return postRepo.findBySpeciesContainingIgnoreCase(species, pageable);
+    if (has(q))
+        return postRepo.findByTitleContainingIgnoreCase(q, pageable);
+
+    return postRepo.findAll(pageable);
+}
+
+private static boolean has(String s){ return s != null && !s.isBlank(); }
+private static <E extends Enum<E>> E parseEnum(String s, Class<E> clazz){
+    if (s == null || s.isBlank()) return null;
+    String in = s.trim();
+    for (E e : clazz.getEnumConstants()) {
+        if (e.name().equalsIgnoreCase(in)) {
+            return e;
+        }
+    }
+    return null; // 傳錯值就當沒帶
+}
 }
