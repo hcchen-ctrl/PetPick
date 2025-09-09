@@ -92,7 +92,7 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()
                 // 領養與回報專案的靜態圖
                 .requestMatchers("/adopt/feedback/**",
-                                "/adopts/uploads/**",
+                                "/adopt/uploads/**",
                                 "/uploads/**" 
                                 ).permitAll()
                 // ===== 認證 & 公開 API =====
@@ -147,6 +147,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/missions/**").authenticated()
                 .requestMatchers("/api/kinds/**", "/api/shelters/**", "/api/ages/**", "/api/sexes/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/adopts/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/adopts/uploads").authenticated()  // ← 新增
                 .requestMatchers(HttpMethod.POST, "/api/adopts").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/adopts/*/apply").authenticated()
                 .requestMatchers(HttpMethod.PATCH, "/api/posts/*/cancel", "/api/posts/*/hold", "/api/posts/*/close")
